@@ -304,6 +304,10 @@ tailwind.config = {
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           Geräte <span class="ml-auto text-xs opacity-60">{{ devices.length }}</span>
         </div>
+        <div @click="goto('agents')" :class="['sidebar-link', page==='agents'&&'active']">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Agents <span class="ml-auto text-xs opacity-60">{{ agents.length }}</span>
+        </div>
         <div @click="goto('licenses')" :class="['sidebar-link', page==='licenses'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
           Lizenzen <span class="ml-auto text-xs opacity-60">{{ licenses.length }}</span>
@@ -352,11 +356,16 @@ tailwind.config = {
 
         <!-- Overview -->
         <div v-if="page==='overview'">
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             <div class="bg-white p-5 rounded-xl border border-slate-200">
               <div class="text-xs text-slate-500">Geräte aktiv</div>
               <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.devices_active }}</div>
               <div class="text-xs text-cyan-600 mt-1">von {{ stats.devices_total }} insgesamt</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-emerald-200">
+              <div class="text-xs text-emerald-700">Agents online</div>
+              <div class="text-3xl font-bold text-emerald-600 mt-1">{{ stats.agent_online || 0 }}</div>
+              <div class="text-xs text-emerald-600 mt-1">live letztemal 30 Min.</div>
             </div>
             <div class="bg-white p-5 rounded-xl border border-slate-200">
               <div class="text-xs text-slate-500">Mitarbeiter</div>
@@ -532,6 +541,73 @@ tailwind.config = {
                 {{ importing ? 'Importieren…' : `${csvPreview.length} Geräte importieren` }}
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Agents -->
+        <div v-if="page==='agents'">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Online</div>
+              <div class="text-3xl font-bold text-emerald-600 mt-1">{{ agents.filter(a=>a.status==='active' && agentOnline(a)).length }}</div>
+              <div class="text-xs text-slate-500 mt-1">letzte 30 Min.</div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Offline</div>
+              <div class="text-3xl font-bold text-slate-700 mt-1">{{ agents.filter(a=>a.status==='active' && !agentOnline(a)).length }}</div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Pending</div>
+              <div class="text-3xl font-bold text-amber-600 mt-1">{{ agents.filter(a=>a.status==='pending').length }}</div>
+              <div class="text-xs text-slate-500 mt-1">noch nicht registriert</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="font-semibold text-slate-900 text-lg">Neuen Agent ausrollen</h3>
+                <p class="text-sm text-slate-600">Generiert einen Enrollment-Token und das PowerShell-Installationskommando.</p>
+              </div>
+              <button @click="enrollNewAgent" :disabled="enrolling" class="btn-primary">
+                {{ enrolling ? 'Generiere…' : '+ Enrollment-Token' }}
+              </button>
+            </div>
+            <div v-if="enrollResult" class="mt-4 p-4 bg-slate-900 rounded-lg">
+              <div class="text-xs text-slate-400 mb-2 font-medium">→ Auf dem Ziel-PC als Administrator in PowerShell ausführen:</div>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 text-emerald-300 text-sm font-mono break-all">{{ enrollResult.install_command }}</code>
+                <button @click="copyToClipboard(enrollResult.install_command)" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded">📋 Kopieren</button>
+              </div>
+              <div class="mt-3 pt-3 border-t border-slate-700 text-xs text-slate-400">
+                Token: <code class="text-amber-300">{{ enrollResult.enroll_token }}</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr><th>Hostname</th><th>Platform</th><th>Version</th><th>Status</th><th>Letzter Heartbeat</th><th>IP</th><th></th></tr></thead>
+              <tbody>
+                <tr v-if="agents.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Agents. Klicke oben auf „+ Enrollment-Token".</td></tr>
+                <tr v-for="a in agents" :key="a.id" class="hover:bg-slate-50">
+                  <td class="font-medium">{{ a.hostname || a.hostname_reported || '—' }}</td>
+                  <td><span v-if="a.os_platform" class="px-2 py-0.5 rounded bg-slate-100 text-xs">{{ a.os_platform }}</span><span v-else class="text-slate-400">—</span></td>
+                  <td class="text-xs text-slate-600">{{ a.agent_version || '—' }}</td>
+                  <td>
+                    <span v-if="a.status==='active' && agentOnline(a)" class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">● online</span>
+                    <span v-else-if="a.status==='active'" class="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">○ offline</span>
+                    <span v-else-if="a.status==='pending'" class="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">pending</span>
+                    <span v-else class="px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-700">{{ a.status }}</span>
+                  </td>
+                  <td class="text-xs text-slate-600">{{ a.last_seen ? formatRelative(a.last_seen) : '—' }}</td>
+                  <td class="text-xs text-slate-500">{{ a.last_ip || '—' }}</td>
+                  <td>
+                    <button v-if="a.status==='active' || a.status==='pending'" @click="revokeAgent(a)" class="text-rose-600 hover:text-rose-800 text-sm">Sperren</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -786,8 +862,9 @@ createApp({
       loginForm: { tenant:'sickinger', email:'', password:'' },
       loginLoading: false,
       loginError: '',
-      stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0 },
+      stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0, agent_online:0, agent_offline:0 },
       devices: [], licenses: [], users: [], audit: [],
+      agents: [], enrollResult: null, enrolling: false,
       csvPreview: [],
       importing: false,
       saving: false,
@@ -799,11 +876,12 @@ createApp({
     }
   },
   computed: {
-    pageTitle() { return { overview:'Übersicht', devices:'Geräte', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import' }[this.page]; },
+    pageTitle() { return { overview:'Übersicht', devices:'Geräte', agents:'Agents', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import' }[this.page]; },
     pageSubtitle() {
       return {
         overview: 'Dein IT-Bestand auf einen Blick',
         devices: `${this.devices.length} Geräte verwaltet`,
+        agents: `${this.agents.filter(a=>a.status==='active' && this.agentOnline(a)).length}/${this.agents.length} Agents online`,
         licenses: `${this.licenses.length} Lizenzen verwaltet`,
         users: `${this.users.length} Mitarbeiter im Tenant`,
         audit: 'Aktion-Historie (DSGVO)',
@@ -838,7 +916,63 @@ createApp({
       const d = new Date(s + 'Z');
       return d.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
     },
-    goto(p) { this.page = p; if (p === 'audit') this.loadAudit(); },
+    formatRelative(s) {
+      if (!s) return '—';
+      const d = new Date(s + 'Z');
+      const sec = (Date.now() - d.getTime()) / 1000;
+      if (sec < 60) return 'gerade eben';
+      if (sec < 3600) return `vor ${Math.floor(sec/60)} Min.`;
+      if (sec < 86400) return `vor ${Math.floor(sec/3600)} Std.`;
+      return `vor ${Math.floor(sec/86400)} Tagen`;
+    },
+    agentOnline(agent) {
+      if (!agent.last_seen) return false;
+      const ageSec = (Date.now() - new Date(agent.last_seen + 'Z').getTime()) / 1000;
+      return ageSec < 1800; // 30 min
+    },
+    copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(
+        () => this.toast('In Zwischenablage kopiert', 'success'),
+        () => this.toast('Kopieren fehlgeschlagen', 'error')
+      );
+    },
+    async loadAgents() {
+      try {
+        const r = await this.api('/api/agents');
+        this.agents = r.items || [];
+      } catch(e) { this.toast('Fehler beim Laden der Agents', 'error'); }
+    },
+    async enrollNewAgent() {
+      this.enrolling = true;
+      try {
+        const r = await this.api('/api/agents/enroll', { method: 'POST', body: JSON.stringify({}) });
+        this.enrollResult = r;
+        await this.loadAgents();
+        this.toast('Enrollment-Token erstellt', 'success');
+      } catch(e) {
+        this.toast('Fehler: ' + (e.message || 'unbekannt'), 'error');
+      } finally {
+        this.enrolling = false;
+      }
+    },
+    async revokeAgent(agent) {
+      this.confirmDialog = {
+        label: 'Agent wirklich sperren?',
+        target: agent.hostname || agent.hostname_reported || 'Agent #' + agent.id,
+        action: async () => {
+          try {
+            await this.api(`/api/agents/${agent.id}/revoke`, { method: 'POST' });
+            await this.loadAgents();
+            this.toast('Agent gesperrt', 'success');
+          } catch(e) { this.toast('Fehler: ' + e.message, 'error'); }
+        }
+      };
+    },
+    goto(p) {
+      this.page = p;
+      if (p === 'audit') this.loadAudit();
+      if (p === 'agents') this.loadAgents();
+    },
     async doLogin() {
       this.loginLoading = true; this.loginError = '';
       try {

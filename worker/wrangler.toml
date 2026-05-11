@@ -7,6 +7,10 @@ binding = "DB"
 database_name = "it-cockpit"
 database_id = "REPLACE_AFTER_D1_CREATE"
 
+[[r2_buckets]]
+binding = "AGENTS"
+bucket_name = "hasi-agent-binaries"
+
 # Secrets (mit wrangler secret put):
 #   PW_SALT       — z.B. langer Random-String, z.B. 64 Zeichen
 #   TOKEN_SECRET  — Random für Bearer Token Signing
