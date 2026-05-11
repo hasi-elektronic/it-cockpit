@@ -7,56 +7,26 @@
 <meta name="description" content="All-in-One IT Management Platform für KMU — Geräte, Lizenzen, Onboarding zentral verwalten." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%2306b6d4'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='60' font-weight='900' fill='white' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E" />
 
-<!-- Fonts: Praxmate stack -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
 
-<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        brand: {
-          50:  '#ecfeff',
-          100: '#cffafe',
-          200: '#a5f3fc',
-          300: '#67e8f9',
-          400: '#22d3ee',
-          500: '#06b6d4',  // primary cyan
-          600: '#0891b2',
-          700: '#0e7490',
-          800: '#155e75',
-          900: '#164e63',
-          950: '#083344'
-        }
-      },
-      fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        instr: ['"Instrument Serif"', 'Georgia', 'serif']
-      }
-    }
-  }
+  theme: { extend: {
+    colors: { brand: { 50:'#ecfeff', 100:'#cffafe', 200:'#a5f3fc', 300:'#67e8f9', 400:'#22d3ee', 500:'#06b6d4', 600:'#0891b2', 700:'#0e7490', 800:'#155e75', 900:'#164e63', 950:'#083344' } },
+    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['"Playfair Display"', 'serif'], instr: ['"Instrument Serif"', 'serif'] }
+  } }
 }
 </script>
 
-<!-- Vue 3 -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
 <style>
   body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-  .gradient-bg {
-    background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
-  }
-  .gradient-text {
-    background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
+  .gradient-bg { background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%); }
+  .gradient-text { background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .mesh-bg {
     background-color: #0f172a;
     background-image:
@@ -69,7 +39,7 @@ tailwind.config = {
     display: flex; align-items: center; gap: 0.75rem;
     padding: 0.625rem 0.875rem; border-radius: 0.5rem;
     color: rgb(148 163 184); transition: all 0.15s;
-    font-size: 0.875rem; font-weight: 500;
+    font-size: 0.875rem; font-weight: 500; cursor: pointer;
   }
   .sidebar-link:hover { background: rgba(255,255,255,0.05); color: rgb(226 232 240); }
   .sidebar-link.active {
@@ -79,19 +49,49 @@ tailwind.config = {
   }
   .sidebar-link svg { width: 18px; height: 18px; stroke-width: 2; }
   table { font-size: 0.875rem; }
-  th { font-weight: 600; color: rgb(71 85 105); text-align: left; }
+  th { font-weight: 600; color: rgb(71 85 105); text-align: left; padding: 0.75rem 1rem; background: rgb(248 250 252); border-bottom: 1px solid rgb(226 232 240); }
   td { padding: 0.75rem 1rem; border-top: 1px solid rgb(241 245 249); }
-  th { padding: 0.75rem 1rem; background: rgb(248 250 252); }
+
+  /* Form */
+  .form-label { display:block; font-size:.75rem; font-weight:600; color:rgb(71 85 105); margin-bottom:.25rem; }
+  .form-input { width:100%; padding:.5rem .75rem; border:1px solid rgb(203 213 225); border-radius:.5rem; font-size:.875rem; outline:none; transition: all .15s; background: white; }
+  .form-input:focus { border-color: rgb(6 182 212); box-shadow: 0 0 0 3px rgba(6,182,212,.15); }
+  .form-input:disabled { background: rgb(241 245 249); color: rgb(100 116 139); }
+  .btn-primary { padding: .625rem 1.25rem; background: linear-gradient(135deg, #06b6d4, #14b8a6); color: white; border-radius: .5rem; font-weight: 600; font-size: .875rem; transition: all .15s; }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(6,182,212,.3); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary { padding: .625rem 1.25rem; background: white; color: rgb(71 85 105); border: 1px solid rgb(203 213 225); border-radius: .5rem; font-weight: 600; font-size: .875rem; }
+  .btn-secondary:hover { background: rgb(248 250 252); }
+  .btn-danger { padding: .625rem 1.25rem; background: rgb(239 68 68); color: white; border-radius: .5rem; font-weight: 600; font-size: .875rem; }
+  .btn-danger:hover { background: rgb(220 38 38); }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem; }
+  .modal-panel { background: white; border-radius: 1rem; max-width: 600px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
+  .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgb(241 245 249); display:flex; justify-content:space-between; align-items:center; }
+  .modal-body { padding: 1.5rem; }
+  .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid rgb(241 245 249); display:flex; justify-content:flex-end; gap:.5rem; background: rgb(248 250 252); border-radius: 0 0 1rem 1rem; }
+
+  /* Toast */
+  .toast-stack { position: fixed; top: 1rem; right: 1rem; z-index: 60; display: flex; flex-direction: column; gap: .5rem; }
+  .toast { padding: .75rem 1.25rem; border-radius: .5rem; font-size: .875rem; font-weight: 500; box-shadow: 0 10px 25px -5px rgba(0,0,0,.1); animation: slideIn .2s ease-out; max-width: 380px; }
+  .toast-success { background: rgb(220 252 231); color: rgb(22 101 52); border: 1px solid rgb(187 247 208); }
+  .toast-error   { background: rgb(254 226 226); color: rgb(153 27 27);   border: 1px solid rgb(252 165 165); }
+  .toast-info    { background: rgb(207 250 254); color: rgb(14 116 144);   border: 1px solid rgb(165 243 252); }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 </style>
 </head>
 <body class="bg-slate-50">
 
 <div id="app" v-cloak>
 
-  <!-- ==================== LANDING (nicht eingeloggt) ==================== -->
-  <div v-if="view === 'landing'" class="min-h-screen">
+  <!-- ==================== TOAST STACK ==================== -->
+  <div class="toast-stack">
+    <div v-for="t in toasts" :key="t.id" :class="['toast', 'toast-'+t.type]">{{ t.msg }}</div>
+  </div>
 
-    <!-- Nav -->
+  <!-- ==================== LANDING ==================== -->
+  <div v-if="view === 'landing'" class="min-h-screen">
     <nav class="absolute top-0 inset-x-0 z-20 px-6 py-5 flex justify-between items-center">
       <div class="flex items-center gap-2">
         <div class="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center text-white font-bold">H</div>
@@ -104,10 +104,8 @@ tailwind.config = {
       </div>
     </nav>
 
-    <!-- Hero -->
-    <section class="mesh-bg min-h-screen flex items-center px-6 pt-20 pb-10 relative overflow-hidden">
+    <section class="mesh-bg min-h-screen flex items-center px-6 pt-20 pb-10">
       <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center w-full">
-
         <div class="text-white">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-200 text-xs font-medium mb-6">
             <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -118,7 +116,7 @@ tailwind.config = {
             <span class="gradient-text font-instr italic">endlich einfach.</span>
           </h1>
           <p class="text-lg text-slate-300 mb-8 leading-relaxed">
-            Geräte, Lizenzen, Onboarding — alles an einem Ort.
+            Geräte, Lizenzen, Mitarbeiter — alles an einem Ort.
             Kein Excel-Chaos, kein verlorener Lizenzschlüssel, kein vergessenes Garantieende.
           </p>
           <div class="flex flex-wrap gap-3">
@@ -129,24 +127,12 @@ tailwind.config = {
               Demo anfragen
             </a>
           </div>
-
           <div class="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-white/10">
-            <div>
-              <div class="text-3xl font-bold gradient-text">75%</div>
-              <div class="text-xs text-slate-400 mt-1">weniger IT-Aufwand</div>
-            </div>
-            <div>
-              <div class="text-3xl font-bold gradient-text">€0</div>
-              <div class="text-xs text-slate-400 mt-1">Setup für Pilotkunden</div>
-            </div>
-            <div>
-              <div class="text-3xl font-bold gradient-text">DSGVO</div>
-              <div class="text-xs text-slate-400 mt-1">EU-Hosting · WEUR</div>
-            </div>
+            <div><div class="text-3xl font-bold gradient-text">75%</div><div class="text-xs text-slate-400 mt-1">weniger IT-Aufwand</div></div>
+            <div><div class="text-3xl font-bold gradient-text">€0</div><div class="text-xs text-slate-400 mt-1">Setup für Pilot</div></div>
+            <div><div class="text-3xl font-bold gradient-text">DSGVO</div><div class="text-xs text-slate-400 mt-1">EU-Hosting</div></div>
           </div>
         </div>
-
-        <!-- Mock screenshot -->
         <div class="hidden md:block">
           <div class="bg-white rounded-2xl shadow-2xl p-1 ring-1 ring-white/10 transform rotate-1">
             <div class="bg-slate-900 rounded-t-xl px-4 py-2 flex gap-1.5">
@@ -158,24 +144,15 @@ tailwind.config = {
               <div class="text-xs font-semibold text-slate-500 mb-3">📊 Geräte-Übersicht · Sickinger</div>
               <div class="space-y-2">
                 <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                  <div>
-                    <div class="font-semibold text-sm text-slate-800">SICK-PC-042</div>
-                    <div class="text-xs text-slate-500">Buero · M. Müller</div>
-                  </div>
+                  <div><div class="font-semibold text-sm text-slate-800">SICK-PC-042</div><div class="text-xs text-slate-500">Buero · M. Müller</div></div>
                   <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">✓ Aktiv</span>
                 </div>
                 <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                  <div>
-                    <div class="font-semibold text-sm text-slate-800">SICK-LAP-018</div>
-                    <div class="text-xs text-slate-500">Vertrieb · K. Weber</div>
-                  </div>
+                  <div><div class="font-semibold text-sm text-slate-800">SICK-LAP-018</div><div class="text-xs text-slate-500">Vertrieb · K. Weber</div></div>
                   <span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">⚠ Garantie 12 Tage</span>
                 </div>
                 <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                  <div>
-                    <div class="font-semibold text-sm text-slate-800">SICK-SRV-001</div>
-                    <div class="text-xs text-slate-500">Serverraum · Backup</div>
-                  </div>
+                  <div><div class="font-semibold text-sm text-slate-800">SICK-SRV-001</div><div class="text-xs text-slate-500">Serverraum · Backup</div></div>
                   <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">✓ Aktiv</span>
                 </div>
               </div>
@@ -187,49 +164,35 @@ tailwind.config = {
             </div>
           </div>
         </div>
-
       </div>
     </section>
 
-    <!-- Features -->
     <section id="features" class="py-20 px-6 bg-white">
       <div class="max-w-6xl mx-auto">
         <div class="text-center mb-14">
           <div class="text-cyan-600 text-sm font-semibold uppercase tracking-wider mb-2">Module v0.1</div>
           <h2 class="font-serif text-4xl font-bold text-slate-900">Alles was Du brauchst,<br /><span class="font-instr italic gradient-text">nichts was Du nicht brauchst.</span></h2>
         </div>
-
         <div class="grid md:grid-cols-3 gap-6">
           <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
             <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">💻</div>
             <h3 class="text-xl font-bold text-slate-900 mb-2">Geräte-Inventar</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">Jeder PC, Laptop, Server zentral. Garantieablauf automatisch im Auge. Wer hat welches Gerät? Ein Klick.</p>
+            <p class="text-slate-600 text-sm leading-relaxed">Jeder PC, Laptop, Server zentral. Garantieablauf automatisch im Auge.</p>
           </div>
           <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
             <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">🔑</div>
             <h3 class="text-xl font-bold text-slate-900 mb-2">Lizenz-Cockpit</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">M365, Adobe, ERP, Antivirus. Seats gezählt, Kosten pro Jahr sichtbar, Verlängerung rechtzeitig.</p>
+            <p class="text-slate-600 text-sm leading-relaxed">M365, Adobe, ERP, Antivirus. Seats, Kosten, Ablauf — alles zentral.</p>
           </div>
           <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
             <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">📋</div>
             <h3 class="text-xl font-bold text-slate-900 mb-2">Audit-Log</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">Jede Änderung dokumentiert, DSGVO-konform. Wer, was, wann — bei Audit lückenlose Auskunft.</p>
-          </div>
-        </div>
-
-        <div class="mt-8 p-6 rounded-2xl bg-slate-50 border border-slate-200">
-          <div class="flex items-start gap-4">
-            <div class="text-2xl">🚀</div>
-            <div>
-              <div class="font-semibold text-slate-900">Geplant für v0.2 – v0.5</div>
-              <div class="text-sm text-slate-600 mt-1">Onboarding-Automation (MS365/Google Workspace API) · Ticket-System (n8n) · Cybersecurity-Modul · Reporting-Dashboard · Mobile App</div>
-            </div>
+            <p class="text-slate-600 text-sm leading-relaxed">Jede Änderung dokumentiert, DSGVO-konform. Bei Audit lückenlose Auskunft.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Preise -->
     <section id="preise" class="py-20 px-6 bg-slate-50">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-14">
@@ -237,59 +200,40 @@ tailwind.config = {
           <h2 class="font-serif text-4xl font-bold text-slate-900">Faire Pakete, <span class="font-instr italic gradient-text">keine versteckten Kosten.</span></h2>
         </div>
         <div class="grid md:grid-cols-3 gap-6">
-
           <div class="p-7 rounded-2xl bg-white border border-slate-200">
             <div class="text-sm font-semibold text-slate-500 uppercase">Starter</div>
             <div class="mt-2 mb-1"><span class="text-4xl font-bold text-slate-900">€15</span><span class="text-slate-500"> /Gerät /Monat</span></div>
             <div class="text-xs text-slate-500">Setup einmalig €290</div>
             <ul class="mt-6 space-y-2.5 text-sm text-slate-700">
-              <li>✓ Bis 25 Geräte</li>
-              <li>✓ Geräte-Inventar</li>
-              <li>✓ Lizenz-Cockpit</li>
-              <li>✓ CSV-Import/Export</li>
-              <li>✓ Email-Support</li>
+              <li>✓ Bis 25 Geräte</li><li>✓ Geräte-Inventar</li><li>✓ Lizenz-Cockpit</li><li>✓ CSV-Import</li><li>✓ Email-Support</li>
             </ul>
           </div>
-
           <div class="p-7 rounded-2xl bg-slate-900 border border-cyan-500/30 text-white relative">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-xs font-bold">EMPFOHLEN</div>
             <div class="text-sm font-semibold text-cyan-300 uppercase">Pro</div>
             <div class="mt-2 mb-1"><span class="text-4xl font-bold">€25</span><span class="text-slate-400"> /Gerät /Monat</span></div>
             <div class="text-xs text-slate-400">Setup einmalig €490</div>
             <ul class="mt-6 space-y-2.5 text-sm text-slate-200">
-              <li>✓ Bis 100 Geräte</li>
-              <li>✓ Alle Starter-Features</li>
-              <li>✓ Onboarding-Automation</li>
-              <li>✓ Audit-Log / DSGVO-Reports</li>
-              <li>✓ Telefon-Support (8-18h)</li>
-              <li>✓ Vor-Ort-Service Vaihingen/BW</li>
+              <li>✓ Bis 100 Geräte</li><li>✓ Onboarding-Automation</li><li>✓ DSGVO-Reports</li><li>✓ Telefon-Support</li><li>✓ Vor-Ort Vaihingen/BW</li>
             </ul>
           </div>
-
           <div class="p-7 rounded-2xl bg-white border border-slate-200">
             <div class="text-sm font-semibold text-slate-500 uppercase">Enterprise</div>
             <div class="mt-2 mb-1"><span class="text-4xl font-bold text-slate-900">Anfrage</span></div>
             <div class="text-xs text-slate-500">individuell</div>
             <ul class="mt-6 space-y-2.5 text-sm text-slate-700">
-              <li>✓ Unbegrenzt Geräte</li>
-              <li>✓ Multi-Standort</li>
-              <li>✓ Custom Integrationen</li>
-              <li>✓ SLA 99.5%</li>
-              <li>✓ Dedizierter Account-Manager</li>
+              <li>✓ Unbegrenzt</li><li>✓ Multi-Standort</li><li>✓ Custom Integrationen</li><li>✓ SLA 99.5%</li><li>✓ Account-Manager</li>
             </ul>
           </div>
-
         </div>
-
         <div id="demo" class="mt-12 p-8 rounded-2xl gradient-bg text-white text-center">
-          <h3 class="text-2xl font-bold mb-2">Pilot-Programm · Q1/Q2 2026</h3>
-          <p class="text-cyan-50 mb-5 max-w-xl mx-auto">Erste 10 KMU aus Vaihingen/Enz und Umgebung bekommen 6 Monate Pro-Plan kostenlos im Tausch gegen Testimonial.</p>
-          <a href="mailto:h.guencavdi@hasi-elektronic.de?subject=IT-Cockpit Pilot Anfrage" class="inline-block px-6 py-3 bg-white text-cyan-700 rounded-lg font-semibold hover:bg-cyan-50">Pilot-Platz sichern →</a>
+          <h3 class="text-2xl font-bold mb-2">Pilot-Programm · Q2/Q3 2026</h3>
+          <p class="text-cyan-50 mb-5 max-w-xl mx-auto">Erste 10 KMU bekommen 6 Monate Pro-Plan kostenlos im Tausch gegen Testimonial.</p>
+          <a href="mailto:h.guencavdi@hasi-elektronic.de?subject=IT-Cockpit Pilot" class="inline-block px-6 py-3 bg-white text-cyan-700 rounded-lg font-semibold hover:bg-cyan-50">Pilot-Platz sichern →</a>
         </div>
       </div>
     </section>
 
-    <!-- Footer -->
     <footer class="bg-slate-900 text-slate-400 py-10 px-6">
       <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm">
         <div>
@@ -300,8 +244,8 @@ tailwind.config = {
           <div class="text-xs">© 2026 Hasi Elektronic · Vaihingen/Enz · Hamdi Güncavdi</div>
         </div>
         <div class="flex gap-6 items-center text-xs">
-          <a href="/impressum.html" class="hover:text-white">Impressum</a>
-          <a href="/datenschutz.html" class="hover:text-white">Datenschutz</a>
+          <a href="#" class="hover:text-white">Impressum</a>
+          <a href="#" class="hover:text-white">Datenschutz</a>
           <a href="mailto:h.guencavdi@hasi-elektronic.de" class="hover:text-white">Kontakt</a>
         </div>
       </div>
@@ -319,38 +263,18 @@ tailwind.config = {
           <div class="text-cyan-300 text-xs">by Hasi Elektronic</div>
         </div>
       </div>
-
       <div class="bg-white rounded-2xl shadow-2xl p-8">
         <h2 class="font-serif text-2xl font-bold text-slate-900 mb-1">Willkommen zurück</h2>
         <p class="text-slate-500 text-sm mb-6">Logge Dich in Deinen Tenant ein.</p>
-
         <form @submit.prevent="doLogin" class="space-y-4">
-          <div>
-            <label class="text-xs font-semibold text-slate-600">Tenant (Firma)</label>
-            <input v-model="loginForm.tenant" type="text" required placeholder="sickinger"
-              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-semibold text-slate-600">E-Mail</label>
-            <input v-model="loginForm.email" type="email" required placeholder="du@firma.de"
-              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-semibold text-slate-600">Passwort</label>
-            <input v-model="loginForm.password" type="password" required
-              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
-          </div>
-
-          <div v-if="loginError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
-            {{ loginError }}
-          </div>
-
-          <button type="submit" :disabled="loginLoading"
-            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-lg font-semibold disabled:opacity-50">
+          <div><label class="form-label">Tenant (Firma)</label><input v-model="loginForm.tenant" type="text" required placeholder="sickinger" class="form-input" /></div>
+          <div><label class="form-label">E-Mail</label><input v-model="loginForm.email" type="email" required placeholder="du@firma.de" class="form-input" /></div>
+          <div><label class="form-label">Passwort</label><input v-model="loginForm.password" type="password" required class="form-input" /></div>
+          <div v-if="loginError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{{ loginError }}</div>
+          <button type="submit" :disabled="loginLoading" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-lg font-semibold disabled:opacity-50">
             {{ loginLoading ? 'Anmeldung…' : 'Anmelden' }}
           </button>
         </form>
-
         <div class="mt-5 pt-5 border-t border-slate-100 text-xs text-center text-slate-500">
           Noch kein Konto? <a href="mailto:h.guencavdi@hasi-elektronic.de" class="text-cyan-600 hover:underline">Pilot beantragen</a>
         </div>
@@ -358,10 +282,10 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ==================== DASHBOARD (eingeloggt) ==================== -->
+  <!-- ==================== DASHBOARD ==================== -->
   <div v-if="view === 'dashboard'" class="min-h-screen flex bg-slate-50">
 
-    <!-- Sidebar (dark) -->
+    <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-slate-200 flex-shrink-0 flex flex-col">
       <div class="px-5 py-5 border-b border-slate-800 flex items-center gap-2">
         <div class="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center text-white font-bold">H</div>
@@ -372,30 +296,30 @@ tailwind.config = {
       </div>
 
       <nav class="px-3 py-4 space-y-1 flex-1">
-        <a @click.prevent="page='overview'" :class="['sidebar-link', page==='overview'&&'active']" href="#">
+        <div @click="goto('overview')" :class="['sidebar-link', page==='overview'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           Übersicht
-        </a>
-        <a @click.prevent="page='devices'" :class="['sidebar-link', page==='devices'&&'active']" href="#">
+        </div>
+        <div @click="goto('devices')" :class="['sidebar-link', page==='devices'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          Geräte
-        </a>
-        <a @click.prevent="page='licenses'" :class="['sidebar-link', page==='licenses'&&'active']" href="#">
+          Geräte <span class="ml-auto text-xs opacity-60">{{ devices.length }}</span>
+        </div>
+        <div @click="goto('licenses')" :class="['sidebar-link', page==='licenses'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-          Lizenzen
-        </a>
-        <a @click.prevent="page='users'" :class="['sidebar-link', page==='users'&&'active']" href="#">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-          Mitarbeiter
-        </a>
-        <a @click.prevent="page='audit'" :class="['sidebar-link', page==='audit'&&'active']" href="#">
+          Lizenzen <span class="ml-auto text-xs opacity-60">{{ licenses.length }}</span>
+        </div>
+        <div @click="goto('users')" :class="['sidebar-link', page==='users'&&'active']">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Mitarbeiter <span class="ml-auto text-xs opacity-60">{{ users.length }}</span>
+        </div>
+        <div @click="goto('audit')" :class="['sidebar-link', page==='audit'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           Audit-Log
-        </a>
-        <a @click.prevent="page='import'" :class="['sidebar-link', page==='import'&&'active']" href="#">
+        </div>
+        <div @click="goto('import')" :class="['sidebar-link', page==='import'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           CSV Import
-        </a>
+        </div>
       </nav>
 
       <div class="px-5 py-4 border-t border-slate-800">
@@ -412,34 +336,37 @@ tailwind.config = {
 
     <!-- Main -->
     <main class="flex-1 overflow-y-auto">
-
-      <!-- Topbar -->
       <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center">
         <div>
           <h1 class="text-xl font-bold text-slate-900">{{ pageTitle }}</h1>
           <div class="text-xs text-slate-500">{{ pageSubtitle }}</div>
         </div>
         <div class="flex gap-2">
-          <button v-if="page==='devices'" @click="openNewDeviceModal" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-sm font-semibold">+ Gerät</button>
-          <button v-if="page==='licenses'" @click="openNewLicenseModal" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-sm font-semibold">+ Lizenz</button>
+          <button v-if="page==='devices'" @click="openDeviceModal()" class="btn-primary">+ Gerät</button>
+          <button v-if="page==='licenses'" @click="openLicenseModal()" class="btn-primary">+ Lizenz</button>
+          <button v-if="page==='users'" @click="openUserModal()" class="btn-primary">+ Mitarbeiter</button>
         </div>
       </header>
 
-      <!-- Pages -->
       <div class="p-8">
 
         <!-- Overview -->
         <div v-if="page==='overview'">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-white p-5 rounded-xl border border-slate-200">
               <div class="text-xs text-slate-500">Geräte aktiv</div>
               <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.devices_active }}</div>
               <div class="text-xs text-cyan-600 mt-1">von {{ stats.devices_total }} insgesamt</div>
             </div>
             <div class="bg-white p-5 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500">Mitarbeiter</div>
+              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.users_total }}</div>
+              <div class="text-xs text-slate-500 mt-1">aktiv im Tenant</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200">
               <div class="text-xs text-slate-500">Lizenzen</div>
               <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.licenses_total }}</div>
-              <div class="text-xs text-slate-500 mt-1">{{ stats.licenses_seats }} Seats gesamt</div>
+              <div class="text-xs text-slate-500 mt-1">{{ stats.licenses_seats }} Seats</div>
             </div>
             <div class="bg-white p-5 rounded-xl border border-amber-200">
               <div class="text-xs text-amber-700">Garantie läuft ab</div>
@@ -454,14 +381,25 @@ tailwind.config = {
           </div>
 
           <div class="bg-white rounded-xl border border-slate-200 p-6">
-            <h3 class="font-semibold text-slate-900 mb-4">Willkommen, {{ session.user_email }}</h3>
-            <p class="text-sm text-slate-600 leading-relaxed">Du verwaltest <strong>{{ session.tenant_name }}</strong> · Plan: <strong>{{ session.plan }}</strong>.</p>
-            <p class="text-sm text-slate-600 mt-3">Erste Schritte:</p>
-            <ol class="text-sm text-slate-700 mt-2 space-y-1 list-decimal list-inside">
-              <li>Geräte importieren — CSV-Datei mit Hostname, User, Seriennummer, OS (Sidebar → CSV Import)</li>
-              <li>Lizenzen anlegen — M365, Antivirus, ERP usw.</li>
-              <li>Seats den Mitarbeitern zuweisen</li>
-            </ol>
+            <h3 class="font-semibold text-slate-900 mb-3">Willkommen, {{ session.user_email }}</h3>
+            <p class="text-sm text-slate-600">Du verwaltest <strong>{{ session.tenant_name }}</strong> · Plan: <strong>{{ session.plan }}</strong></p>
+            <div class="grid md:grid-cols-3 gap-3 mt-5">
+              <button @click="openDeviceModal()" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-2xl mb-1">💻</div>
+                <div class="font-semibold text-sm text-slate-900">Gerät hinzufügen</div>
+                <div class="text-xs text-slate-500 mt-1">Einzelnen PC, Laptop, Server</div>
+              </button>
+              <button @click="openLicenseModal()" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-2xl mb-1">🔑</div>
+                <div class="font-semibold text-sm text-slate-900">Lizenz erfassen</div>
+                <div class="text-xs text-slate-500 mt-1">M365, Antivirus, ERP …</div>
+              </button>
+              <button @click="goto('import')" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-2xl mb-1">📤</div>
+                <div class="font-semibold text-sm text-slate-900">CSV bulk-Import</div>
+                <div class="text-xs text-slate-500 mt-1">Viele Geräte auf einmal</div>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -469,22 +407,31 @@ tailwind.config = {
         <div v-if="page==='devices'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table class="w-full">
-              <thead>
-                <tr>
-                  <th>Hostname</th><th>Typ</th><th>Modell</th><th>OS</th><th>Zugewiesen</th><th>Garantie bis</th><th>Status</th><th></th>
-                </tr>
-              </thead>
+              <thead><tr><th>Hostname</th><th>Typ</th><th>Modell</th><th>OS</th><th>Zugewiesen</th><th>Garantie</th><th>Status</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
-                <tr v-if="devices.length===0"><td colspan="8" class="text-center text-slate-500 py-12">Noch keine Geräte. CSV importieren oder "+ Gerät" klicken.</td></tr>
+                <tr v-if="devices.length===0"><td colspan="8" class="text-center text-slate-500 py-12">Noch keine Geräte. <button @click="openDeviceModal()" class="text-cyan-600 hover:underline font-semibold">+ Gerät hinzufügen</button> oder CSV-Import.</td></tr>
                 <tr v-for="d in devices" :key="d.id" class="hover:bg-slate-50">
                   <td class="font-semibold text-slate-900">{{ d.hostname }}</td>
-                  <td>{{ d.device_type }}</td>
-                  <td>{{ d.manufacturer }} {{ d.model }}</td>
-                  <td>{{ d.os }}</td>
-                  <td>{{ d.assigned_user || '—' }}</td>
-                  <td>{{ d.warranty_until || '—' }}</td>
-                  <td><span :class="['px-2 py-0.5 rounded text-xs', d.status==='active'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-700']">{{ d.status }}</span></td>
-                  <td><button @click="deleteDevice(d.id)" class="text-red-500 hover:text-red-700 text-xs">Löschen</button></td>
+                  <td>{{ deviceTypeLabel(d.device_type) }}</td>
+                  <td><span v-if="d.manufacturer">{{ d.manufacturer }}</span> {{ d.model || '' }}</td>
+                  <td>{{ d.os || '—' }}</td>
+                  <td>
+                    <div v-if="d.assigned_email" class="text-sm">
+                      <div class="font-medium text-slate-700">{{ d.assigned_name || d.assigned_email }}</div>
+                      <div class="text-xs text-slate-500">{{ d.assigned_email }}</div>
+                    </div>
+                    <span v-else class="text-slate-400">—</span>
+                  </td>
+                  <td>
+                    <span v-if="!d.warranty_until" class="text-slate-400">—</span>
+                    <span v-else-if="isWarrantyWarn(d.warranty_until)" class="text-amber-700 font-medium">⚠ {{ d.warranty_until }}</span>
+                    <span v-else>{{ d.warranty_until }}</span>
+                  </td>
+                  <td><span :class="['px-2 py-0.5 rounded text-xs font-medium', statusColor(d.status)]">{{ d.status }}</span></td>
+                  <td class="text-right">
+                    <button @click="openDeviceModal(d)" class="text-cyan-600 hover:text-cyan-800 text-xs font-medium mr-3">Edit</button>
+                    <button @click="askDelete('Gerät', d.hostname, () => deleteDevice(d.id))" class="text-red-500 hover:text-red-700 text-xs font-medium">Löschen</button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -495,17 +442,65 @@ tailwind.config = {
         <div v-if="page==='licenses'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table class="w-full">
-              <thead><tr><th>Software</th><th>Vendor</th><th>Typ</th><th>Seats</th><th>Kosten/Jahr</th><th>Läuft ab</th><th></th></tr></thead>
+              <thead><tr><th>Software</th><th>Vendor</th><th>Typ</th><th>Seats</th><th>Kosten/Jahr</th><th>Läuft ab</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
-                <tr v-if="licenses.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Lizenzen erfasst.</td></tr>
+                <tr v-if="licenses.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Lizenzen erfasst. <button @click="openLicenseModal()" class="text-cyan-600 hover:underline font-semibold">+ Lizenz hinzufügen</button></td></tr>
                 <tr v-for="l in licenses" :key="l.id" class="hover:bg-slate-50">
                   <td class="font-semibold text-slate-900">{{ l.software_name }}</td>
-                  <td>{{ l.vendor }}</td>
-                  <td>{{ l.license_type }}</td>
-                  <td>{{ l.seats_used }}/{{ l.seats_total }}</td>
-                  <td>€{{ l.cost_per_year || 0 }}</td>
+                  <td>{{ l.vendor || '—' }}</td>
+                  <td>{{ licenseTypeLabel(l.license_type) }}</td>
+                  <td>{{ l.seats_total }}</td>
+                  <td v-if="l.cost_per_year">€{{ l.cost_per_year }}</td>
+                  <td v-else class="text-slate-400">—</td>
                   <td>{{ l.expires_at || '—' }}</td>
-                  <td><button @click="deleteLicense(l.id)" class="text-red-500 hover:text-red-700 text-xs">Löschen</button></td>
+                  <td class="text-right">
+                    <button @click="openLicenseModal(l)" class="text-cyan-600 hover:text-cyan-800 text-xs font-medium mr-3">Edit</button>
+                    <button @click="askDelete('Lizenz', l.software_name, () => deleteLicense(l.id))" class="text-red-500 hover:text-red-700 text-xs font-medium">Löschen</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Users -->
+        <div v-if="page==='users'">
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr><th>Name</th><th>E-Mail</th><th>Abteilung</th><th>Rolle</th><th>Geräte</th><th>Status</th><th class="text-right">Aktionen</th></tr></thead>
+              <tbody>
+                <tr v-if="users.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Mitarbeiter. <button @click="openUserModal()" class="text-cyan-600 hover:underline font-semibold">+ Mitarbeiter hinzufügen</button></td></tr>
+                <tr v-for="u in users" :key="u.id" class="hover:bg-slate-50">
+                  <td class="font-semibold text-slate-900">{{ u.full_name || '—' }}</td>
+                  <td>{{ u.email }}</td>
+                  <td>{{ u.department || '—' }}</td>
+                  <td><span :class="['px-2 py-0.5 rounded text-xs font-medium', roleColor(u.role)]">{{ u.role }}</span></td>
+                  <td>{{ u.device_count }}</td>
+                  <td><span :class="['px-2 py-0.5 rounded text-xs', u.active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500']">{{ u.active ? 'aktiv' : 'inaktiv' }}</span></td>
+                  <td class="text-right">
+                    <button @click="openUserModal(u)" class="text-cyan-600 hover:text-cyan-800 text-xs font-medium mr-3">Edit</button>
+                    <button v-if="u.id !== session.user_id" @click="askDelete('Mitarbeiter', u.email, () => deleteUser(u.id))" class="text-red-500 hover:text-red-700 text-xs font-medium">Löschen</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Audit -->
+        <div v-if="page==='audit'">
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr><th>Zeit</th><th>User</th><th>Aktion</th><th>Entität</th><th>ID</th><th>IP</th></tr></thead>
+              <tbody>
+                <tr v-if="audit.length===0"><td colspan="6" class="text-center text-slate-500 py-12">Noch keine Aktivität.</td></tr>
+                <tr v-for="a in audit" :key="a.id" class="hover:bg-slate-50">
+                  <td class="text-xs text-slate-600">{{ formatDate(a.created_at) }}</td>
+                  <td>{{ a.user_email || '—' }}</td>
+                  <td><span :class="['px-2 py-0.5 rounded text-xs font-medium', actionColor(a.action)]">{{ a.action }}</span></td>
+                  <td>{{ a.entity_type }}</td>
+                  <td class="text-xs">{{ a.entity_id || '—' }}</td>
+                  <td class="text-xs text-slate-500">{{ a.ip_address || '—' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -517,11 +512,8 @@ tailwind.config = {
           <div class="bg-white rounded-xl border border-slate-200 p-8 max-w-2xl">
             <h3 class="font-semibold text-slate-900 text-lg mb-2">Geräte aus CSV importieren</h3>
             <p class="text-sm text-slate-600 mb-5">CSV-Format: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">hostname,device_type,manufacturer,model,serial_number,os,location,assigned_email,warranty_until,status</code></p>
-
             <a href="/csv-template.csv" download class="inline-block mb-4 text-cyan-600 hover:underline text-sm">📥 Vorlage herunterladen</a>
-
             <input type="file" accept=".csv" @change="handleCsvUpload" class="block w-full text-sm text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-cyan-50 file:text-cyan-700 file:font-semibold hover:file:bg-cyan-100" />
-
             <div v-if="csvPreview.length > 0" class="mt-6">
               <div class="text-sm font-semibold text-slate-900 mb-2">{{ csvPreview.length }} Zeilen erkannt:</div>
               <div class="border border-slate-200 rounded-lg max-h-60 overflow-auto">
@@ -536,129 +528,432 @@ tailwind.config = {
                   </tbody>
                 </table>
               </div>
-              <button @click="confirmImport" :disabled="importing" class="mt-4 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg font-semibold text-sm disabled:opacity-50">
+              <button @click="confirmImport" :disabled="importing" class="mt-4 btn-primary">
                 {{ importing ? 'Importieren…' : `${csvPreview.length} Geräte importieren` }}
               </button>
-            </div>
-
-            <div v-if="importResult" class="mt-5 p-4 rounded-lg" :class="importResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'">
-              {{ importResult.message }}
             </div>
           </div>
         </div>
 
-        <!-- Other pages (placeholder) -->
-        <div v-if="['users','audit'].includes(page)" class="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
-          Bald verfügbar — wird in v0.2 implementiert.
-        </div>
-
       </div>
     </main>
+
+    <!-- ==================== DEVICE MODAL ==================== -->
+    <div v-if="modal === 'device'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">{{ deviceForm.id ? 'Gerät bearbeiten' : 'Neues Gerät' }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="form-label">Hostname *</label>
+            <input v-model="deviceForm.hostname" class="form-input" placeholder="SICK-PC-042" required />
+          </div>
+          <div>
+            <label class="form-label">Typ</label>
+            <select v-model="deviceForm.device_type" class="form-input">
+              <option value="desktop">Desktop</option>
+              <option value="laptop">Laptop</option>
+              <option value="server">Server</option>
+              <option value="phone">Telefon</option>
+              <option value="tablet">Tablet</option>
+              <option value="printer">Drucker</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select v-model="deviceForm.status" class="form-input">
+              <option value="active">Aktiv</option>
+              <option value="repair">In Reparatur</option>
+              <option value="retired">Ausgemustert</option>
+              <option value="lost">Verloren</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Hersteller</label>
+            <input v-model="deviceForm.manufacturer" class="form-input" placeholder="Dell, HP, Lenovo..." />
+          </div>
+          <div>
+            <label class="form-label">Modell</label>
+            <input v-model="deviceForm.model" class="form-input" placeholder="OptiPlex 7080" />
+          </div>
+          <div>
+            <label class="form-label">Seriennummer</label>
+            <input v-model="deviceForm.serial_number" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">OS</label>
+            <input v-model="deviceForm.os" class="form-input" placeholder="Windows 11 Pro 23H2" />
+          </div>
+          <div>
+            <label class="form-label">CPU</label>
+            <input v-model="deviceForm.cpu" class="form-input" placeholder="Intel i7-12700" />
+          </div>
+          <div>
+            <label class="form-label">RAM (GB)</label>
+            <input v-model="deviceForm.ram_gb" type="number" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Storage (GB)</label>
+            <input v-model="deviceForm.storage_gb" type="number" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Standort</label>
+            <input v-model="deviceForm.location" class="form-input" placeholder="Büro EG, Werkstatt..." />
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">Zugewiesen an Mitarbeiter</label>
+            <select v-model="deviceForm.assigned_to" class="form-input">
+              <option :value="null">— Nicht zugewiesen —</option>
+              <option v-for="u in users" :key="u.id" :value="u.id">{{ u.full_name || u.email }} ({{ u.email }})</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Kaufdatum</label>
+            <input v-model="deviceForm.purchase_date" type="date" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Garantie bis</label>
+            <input v-model="deviceForm.warranty_until" type="date" class="form-input" />
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">Notizen</label>
+            <textarea v-model="deviceForm.notes" rows="2" class="form-input"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="saveDevice" :disabled="saving || !deviceForm.hostname" class="btn-primary">{{ saving ? 'Speichern…' : 'Speichern' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LICENSE MODAL ==================== -->
+    <div v-if="modal === 'license'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">{{ licenseForm.id ? 'Lizenz bearbeiten' : 'Neue Lizenz' }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="form-label">Software-Name *</label>
+            <input v-model="licenseForm.software_name" class="form-input" placeholder="Microsoft 365 Business Standard" required />
+          </div>
+          <div>
+            <label class="form-label">Hersteller</label>
+            <input v-model="licenseForm.vendor" class="form-input" placeholder="Microsoft, Adobe..." />
+          </div>
+          <div>
+            <label class="form-label">Lizenz-Typ</label>
+            <select v-model="licenseForm.license_type" class="form-input">
+              <option value="subscription">Abonnement</option>
+              <option value="perpetual">Dauerhaft</option>
+              <option value="oem">OEM</option>
+              <option value="volume">Volume</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">Lizenz-Schlüssel</label>
+            <input v-model="licenseForm.license_key" class="form-input" placeholder="XXXX-XXXX-XXXX-XXXX" />
+          </div>
+          <div>
+            <label class="form-label">Seats (gesamt)</label>
+            <input v-model="licenseForm.seats_total" type="number" min="1" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Kosten / Jahr (€)</label>
+            <input v-model="licenseForm.cost_per_year" type="number" step="0.01" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Kaufdatum</label>
+            <input v-model="licenseForm.purchase_date" type="date" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Läuft ab</label>
+            <input v-model="licenseForm.expires_at" type="date" class="form-input" />
+          </div>
+          <div class="col-span-2 flex items-center gap-2">
+            <input v-model="licenseForm.renewal_auto" type="checkbox" id="renewal" class="w-4 h-4" />
+            <label for="renewal" class="text-sm text-slate-700">Automatische Verlängerung aktiv</label>
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">Notizen</label>
+            <textarea v-model="licenseForm.notes" rows="2" class="form-input"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="saveLicense" :disabled="saving || !licenseForm.software_name" class="btn-primary">{{ saving ? 'Speichern…' : 'Speichern' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== USER MODAL ==================== -->
+    <div v-if="modal === 'user'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">{{ userForm.id ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter' }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="form-label">E-Mail *</label>
+            <input v-model="userForm.email" type="email" class="form-input" placeholder="vorname.nachname@firma.de" required />
+          </div>
+          <div>
+            <label class="form-label">Voller Name</label>
+            <input v-model="userForm.full_name" class="form-input" placeholder="Max Müller" />
+          </div>
+          <div>
+            <label class="form-label">Abteilung</label>
+            <input v-model="userForm.department" class="form-input" placeholder="Buchhaltung, Vertrieb..." />
+          </div>
+          <div>
+            <label class="form-label">Rolle</label>
+            <select v-model="userForm.role" class="form-input">
+              <option value="user">Benutzer (kein Login)</option>
+              <option value="viewer">Viewer (Read-only)</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super-Admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select v-model="userForm.active" class="form-input">
+              <option :value="true">Aktiv</option>
+              <option :value="false">Inaktiv</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">{{ userForm.id ? 'Neues Passwort (leer = nicht ändern)' : 'Passwort (optional)' }}</label>
+            <input v-model="userForm.password" type="password" class="form-input" placeholder="min. 6 Zeichen" />
+            <p class="text-xs text-slate-500 mt-1">Nur erforderlich, wenn der Mitarbeiter sich einloggen soll (Rolle admin/super_admin/viewer).</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="saveUser" :disabled="saving || !userForm.email" class="btn-primary">{{ saving ? 'Speichern…' : 'Speichern' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== CONFIRM MODAL ==================== -->
+    <div v-if="modal === 'confirm'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel max-w-md">
+        <div class="modal-body text-center py-8">
+          <div class="w-16 h-16 mx-auto rounded-full bg-red-100 flex items-center justify-center text-3xl mb-4">⚠️</div>
+          <h3 class="font-bold text-lg text-slate-900 mb-2">{{ confirmDialog.label }} löschen?</h3>
+          <p class="text-sm text-slate-600 mb-1"><strong>{{ confirmDialog.target }}</strong></p>
+          <p class="text-xs text-slate-500">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="confirmDelete" class="btn-danger">Endgültig löschen</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
 
 <script>
 const { createApp } = Vue;
-
 const API_BASE = location.hostname === 'localhost'
   ? 'http://localhost:8787'
   : 'https://it-cockpit-api.hguencavdi.workers.dev';
 
+function emptyDeviceForm() {
+  return { id: null, hostname: '', device_type: 'desktop', manufacturer: '', model: '', serial_number: '', os: '', cpu: '', ram_gb: null, storage_gb: null, location: '', assigned_to: null, purchase_date: '', warranty_until: '', status: 'active', notes: '' };
+}
+function emptyLicenseForm() {
+  return { id: null, software_name: '', vendor: '', license_type: 'subscription', license_key: '', seats_total: 1, cost_per_year: null, purchase_date: '', expires_at: '', renewal_auto: false, notes: '' };
+}
+function emptyUserForm() {
+  return { id: null, email: '', full_name: '', department: '', role: 'user', active: true, password: '' };
+}
+
 createApp({
   data() {
     return {
-      view: 'landing',       // landing | login | dashboard
-      page: 'overview',      // overview | devices | licenses | users | audit | import
-      session: {
-        token: '', tenant_id: 0, tenant_slug: '', tenant_name: '',
-        user_email: '', role: '', plan: ''
-      },
-      loginForm: { tenant: 'sickinger', email: '', password: '' },
+      view: 'landing',
+      page: 'overview',
+      modal: null,           // null | 'device' | 'license' | 'user' | 'confirm'
+      session: { token:'', tenant_id:0, tenant_slug:'', tenant_name:'', user_email:'', role:'', plan:'', user_id:0 },
+      loginForm: { tenant:'sickinger', email:'', password:'' },
       loginLoading: false,
       loginError: '',
-      stats: { devices_total: 0, devices_active: 0, licenses_total: 0, licenses_seats: 0, warranty_warning: 0, license_cost_yearly: 0 },
-      devices: [],
-      licenses: [],
+      stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0 },
+      devices: [], licenses: [], users: [], audit: [],
       csvPreview: [],
       importing: false,
-      importResult: null
+      saving: false,
+      deviceForm: emptyDeviceForm(),
+      licenseForm: emptyLicenseForm(),
+      userForm: emptyUserForm(),
+      confirmDialog: { label: '', target: '', action: null },
+      toasts: [], toastId: 0
     }
   },
   computed: {
-    pageTitle() {
-      return {
-        overview: 'Übersicht', devices: 'Geräte', licenses: 'Lizenzen',
-        users: 'Mitarbeiter', audit: 'Audit-Log', import: 'CSV Import'
-      }[this.page]
-    },
+    pageTitle() { return { overview:'Übersicht', devices:'Geräte', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import' }[this.page]; },
     pageSubtitle() {
       return {
         overview: 'Dein IT-Bestand auf einen Blick',
         devices: `${this.devices.length} Geräte verwaltet`,
         licenses: `${this.licenses.length} Lizenzen verwaltet`,
-        users: 'Benutzer und Rollen',
+        users: `${this.users.length} Mitarbeiter im Tenant`,
         audit: 'Aktion-Historie (DSGVO)',
         import: 'Bulk-Import via CSV-Datei'
-      }[this.page]
+      }[this.page];
     }
   },
   mounted() {
-    // Restore session
     const saved = localStorage.getItem('cockpit_session');
     if (saved) {
-      try {
-        this.session = JSON.parse(saved);
-        this.view = 'dashboard';
-        this.loadDashboard();
-      } catch(e) { localStorage.removeItem('cockpit_session'); }
+      try { this.session = JSON.parse(saved); this.view = 'dashboard'; this.loadAll(); }
+      catch(e) { localStorage.removeItem('cockpit_session'); }
     }
   },
   methods: {
+    toast(msg, type='info') {
+      const id = ++this.toastId; this.toasts.push({ id, msg, type });
+      setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3500);
+    },
+    deviceTypeLabel(t) { return ({ desktop:'Desktop', laptop:'Laptop', server:'Server', phone:'Telefon', tablet:'Tablet', printer:'Drucker', other:'Sonstiges' })[t] || t; },
+    licenseTypeLabel(t) { return ({ subscription:'Abo', perpetual:'Dauer', oem:'OEM', volume:'Volume' })[t] || t; },
+    statusColor(s) { return ({ active:'bg-green-100 text-green-700', repair:'bg-amber-100 text-amber-700', retired:'bg-slate-100 text-slate-600', lost:'bg-red-100 text-red-700' })[s] || 'bg-slate-100 text-slate-600'; },
+    roleColor(r) { return ({ super_admin:'bg-purple-100 text-purple-700', admin:'bg-cyan-100 text-cyan-700', user:'bg-slate-100 text-slate-700', viewer:'bg-blue-100 text-blue-700' })[r] || 'bg-slate-100 text-slate-700'; },
+    actionColor(a) { return ({ create:'bg-green-100 text-green-700', update:'bg-blue-100 text-blue-700', delete:'bg-red-100 text-red-700', login:'bg-slate-100 text-slate-600', import:'bg-cyan-100 text-cyan-700' })[a] || 'bg-slate-100 text-slate-600'; },
+    isWarrantyWarn(date) {
+      if (!date) return false;
+      const diff = (new Date(date) - new Date()) / (1000*60*60*24);
+      return diff <= 60 && diff >= 0;
+    },
+    formatDate(s) {
+      if (!s) return '';
+      const d = new Date(s + 'Z');
+      return d.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    },
+    goto(p) { this.page = p; if (p === 'audit') this.loadAudit(); },
     async doLogin() {
       this.loginLoading = true; this.loginError = '';
       try {
-        const r = await fetch(API_BASE + '/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.loginForm)
-        });
+        const r = await fetch(API_BASE + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(this.loginForm) });
         const data = await r.json();
         if (!r.ok) { this.loginError = data.error || 'Login fehlgeschlagen'; return; }
         this.session = data;
         localStorage.setItem('cockpit_session', JSON.stringify(data));
-        this.view = 'dashboard';
-        this.loadDashboard();
-      } catch(e) {
-        this.loginError = 'Netzwerkfehler: ' + e.message;
-      } finally { this.loginLoading = false; }
+        this.view = 'dashboard'; this.loadAll();
+      } catch(e) { this.loginError = 'Netzwerkfehler: ' + e.message; }
+      finally { this.loginLoading = false; }
     },
-    logout() {
-      localStorage.removeItem('cockpit_session');
-      this.view = 'landing';
-      this.session = { token: '', tenant_id: 0, tenant_slug: '', tenant_name: '', user_email: '', role: '', plan: '' };
-    },
+    logout() { localStorage.removeItem('cockpit_session'); this.view='landing'; this.session={token:'',tenant_id:0,tenant_slug:'',tenant_name:'',user_email:'',role:'',plan:'',user_id:0}; },
     async api(path, options = {}) {
-      const opts = { ...options, headers: { ...(options.headers||{}), 'Authorization': 'Bearer ' + this.session.token, 'Content-Type': 'application/json' } };
+      const opts = { ...options, headers: { ...(options.headers||{}), 'Authorization':'Bearer '+this.session.token, 'Content-Type':'application/json' } };
       const r = await fetch(API_BASE + path, opts);
       if (r.status === 401) { this.logout(); throw new Error('Session abgelaufen'); }
-      return r.json();
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Fehler');
+      return data;
     },
-    async loadDashboard() {
+    async loadAll() {
       try {
-        const [stats, devices, licenses] = await Promise.all([
+        const [stats, devices, licenses, users] = await Promise.all([
           this.api('/api/stats'),
           this.api('/api/devices'),
-          this.api('/api/licenses')
+          this.api('/api/licenses'),
+          this.api('/api/users')
         ]);
         this.stats = stats;
         this.devices = devices.items || [];
         this.licenses = licenses.items || [];
-      } catch(e) { console.error(e); }
+        this.users = users.items || [];
+      } catch(e) { this.toast(e.message, 'error'); }
     },
+    async loadAudit() {
+      try { const d = await this.api('/api/audit'); this.audit = d.items || []; }
+      catch(e) { this.toast(e.message, 'error'); }
+    },
+    closeModal() { this.modal = null; this.saving = false; },
+
+    // Device
+    openDeviceModal(d) {
+      if (d) { this.deviceForm = { ...emptyDeviceForm(), ...d, ram_gb: d.ram_gb || null, storage_gb: d.storage_gb || null, assigned_to: d.assigned_to || null, purchase_date: d.purchase_date || '', warranty_until: d.warranty_until || '' }; }
+      else { this.deviceForm = emptyDeviceForm(); }
+      this.modal = 'device';
+    },
+    async saveDevice() {
+      this.saving = true;
+      try {
+        const body = { ...this.deviceForm };
+        if (body.id) { await this.api('/api/devices/'+body.id, { method:'PUT', body: JSON.stringify(body) }); this.toast('Gerät aktualisiert', 'success'); }
+        else { await this.api('/api/devices', { method:'POST', body: JSON.stringify(body) }); this.toast('Gerät angelegt', 'success'); }
+        this.closeModal(); await this.loadAll();
+      } catch(e) { this.toast(e.message, 'error'); this.saving = false; }
+    },
+    async deleteDevice(id) {
+      try { await this.api('/api/devices/'+id, { method:'DELETE' }); this.toast('Gerät gelöscht', 'success'); await this.loadAll(); }
+      catch(e) { this.toast(e.message, 'error'); }
+    },
+
+    // License
+    openLicenseModal(l) {
+      if (l) { this.licenseForm = { ...emptyLicenseForm(), ...l, renewal_auto: !!l.renewal_auto, purchase_date: l.purchase_date || '', expires_at: l.expires_at || '' }; }
+      else { this.licenseForm = emptyLicenseForm(); }
+      this.modal = 'license';
+    },
+    async saveLicense() {
+      this.saving = true;
+      try {
+        const body = { ...this.licenseForm };
+        if (body.id) { await this.api('/api/licenses/'+body.id, { method:'PUT', body: JSON.stringify(body) }); this.toast('Lizenz aktualisiert', 'success'); }
+        else { await this.api('/api/licenses', { method:'POST', body: JSON.stringify(body) }); this.toast('Lizenz angelegt', 'success'); }
+        this.closeModal(); await this.loadAll();
+      } catch(e) { this.toast(e.message, 'error'); this.saving = false; }
+    },
+    async deleteLicense(id) {
+      try { await this.api('/api/licenses/'+id, { method:'DELETE' }); this.toast('Lizenz gelöscht', 'success'); await this.loadAll(); }
+      catch(e) { this.toast(e.message, 'error'); }
+    },
+
+    // User
+    openUserModal(u) {
+      if (u) { this.userForm = { ...emptyUserForm(), ...u, active: !!u.active, password: '' }; }
+      else { this.userForm = emptyUserForm(); }
+      this.modal = 'user';
+    },
+    async saveUser() {
+      this.saving = true;
+      try {
+        const body = { ...this.userForm };
+        if (body.id) { await this.api('/api/users/'+body.id, { method:'PUT', body: JSON.stringify(body) }); this.toast('Mitarbeiter aktualisiert', 'success'); }
+        else { await this.api('/api/users', { method:'POST', body: JSON.stringify(body) }); this.toast('Mitarbeiter angelegt', 'success'); }
+        this.closeModal(); await this.loadAll();
+      } catch(e) { this.toast(e.message, 'error'); this.saving = false; }
+    },
+    async deleteUser(id) {
+      try { await this.api('/api/users/'+id, { method:'DELETE' }); this.toast('Mitarbeiter gelöscht', 'success'); await this.loadAll(); }
+      catch(e) { this.toast(e.message, 'error'); }
+    },
+
+    // Confirm dialog
+    askDelete(label, target, action) {
+      this.confirmDialog = { label, target, action };
+      this.modal = 'confirm';
+    },
+    confirmDelete() {
+      const action = this.confirmDialog.action;
+      this.closeModal();
+      if (action) action();
+    },
+
+    // CSV
     handleCsvUpload(ev) {
-      const file = ev.target.files[0];
-      if (!file) return;
+      const file = ev.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target.result;
@@ -666,41 +961,22 @@ createApp({
         const headers = lines[0].split(',').map(h => h.trim());
         const rows = lines.slice(1).map(line => {
           const cells = line.split(',').map(c => c.trim());
-          const obj = {};
-          headers.forEach((h, i) => obj[h] = cells[i] || '');
+          const obj = {}; headers.forEach((h, i) => obj[h] = cells[i] || '');
           return obj;
         });
         this.csvPreview = rows;
-        this.importResult = null;
       };
       reader.readAsText(file);
     },
     async confirmImport() {
       this.importing = true;
       try {
-        const result = await this.api('/api/devices/bulk-import', {
-          method: 'POST',
-          body: JSON.stringify({ devices: this.csvPreview })
-        });
-        this.importResult = { message: `✓ ${result.imported} Geräte importiert · ${result.skipped} übersprungen`, error: false };
-        this.csvPreview = [];
-        await this.loadDashboard();
-      } catch(e) {
-        this.importResult = { message: '✗ Fehler: ' + e.message, error: true };
-      } finally { this.importing = false; }
-    },
-    async deleteDevice(id) {
-      if (!confirm('Dieses Gerät wirklich löschen?')) return;
-      await this.api('/api/devices/' + id, { method: 'DELETE' });
-      await this.loadDashboard();
-    },
-    async deleteLicense(id) {
-      if (!confirm('Diese Lizenz wirklich löschen?')) return;
-      await this.api('/api/licenses/' + id, { method: 'DELETE' });
-      await this.loadDashboard();
-    },
-    openNewDeviceModal() { alert('Modal kommt in v0.1.1 — vorerst via CSV-Import.'); },
-    openNewLicenseModal() { alert('Modal kommt in v0.1.1.'); }
+        const result = await this.api('/api/devices/bulk-import', { method:'POST', body: JSON.stringify({ devices: this.csvPreview }) });
+        this.toast(`${result.imported} Geräte importiert · ${result.skipped} übersprungen`, 'success');
+        this.csvPreview = []; await this.loadAll();
+      } catch(e) { this.toast(e.message, 'error'); }
+      finally { this.importing = false; }
+    }
   }
 }).mount('#app');
 </script>
