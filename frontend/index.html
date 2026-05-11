@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hasi IT-Cockpit · KMU IT Management</title>
+<meta name="description" content="All-in-One IT Management Platform für KMU — Geräte, Lizenzen, Onboarding zentral verwalten." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%2306b6d4'/%3E%3Ctext x='50' y='68' font-family='Arial' font-size='60' font-weight='900' fill='white' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E" />
+
+<!-- Fonts: Praxmate stack -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          50:  '#ecfeff',
+          100: '#cffafe',
+          200: '#a5f3fc',
+          300: '#67e8f9',
+          400: '#22d3ee',
+          500: '#06b6d4',  // primary cyan
+          600: '#0891b2',
+          700: '#0e7490',
+          800: '#155e75',
+          900: '#164e63',
+          950: '#083344'
+        }
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        instr: ['"Instrument Serif"', 'Georgia', 'serif']
+      }
+    }
+  }
+}
+</script>
+
+<!-- Vue 3 -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+<style>
+  body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  .gradient-bg {
+    background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .mesh-bg {
+    background-color: #0f172a;
+    background-image:
+      radial-gradient(at 20% 30%, rgba(14,165,233,0.18) 0px, transparent 50%),
+      radial-gradient(at 80% 70%, rgba(20,184,166,0.15) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(6,182,212,0.12) 0px, transparent 50%);
+  }
+  [v-cloak] { display: none; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.625rem 0.875rem; border-radius: 0.5rem;
+    color: rgb(148 163 184); transition: all 0.15s;
+    font-size: 0.875rem; font-weight: 500;
+  }
+  .sidebar-link:hover { background: rgba(255,255,255,0.05); color: rgb(226 232 240); }
+  .sidebar-link.active {
+    background: linear-gradient(135deg, rgba(6,182,212,0.18), rgba(20,184,166,0.12));
+    color: rgb(165 243 252);
+    box-shadow: inset 0 0 0 1px rgba(6,182,212,0.25);
+  }
+  .sidebar-link svg { width: 18px; height: 18px; stroke-width: 2; }
+  table { font-size: 0.875rem; }
+  th { font-weight: 600; color: rgb(71 85 105); text-align: left; }
+  td { padding: 0.75rem 1rem; border-top: 1px solid rgb(241 245 249); }
+  th { padding: 0.75rem 1rem; background: rgb(248 250 252); }
+</style>
+</head>
+<body class="bg-slate-50">
+
+<div id="app" v-cloak>
+
+  <!-- ==================== LANDING (nicht eingeloggt) ==================== -->
+  <div v-if="view === 'landing'" class="min-h-screen">
+
+    <!-- Nav -->
+    <nav class="absolute top-0 inset-x-0 z-20 px-6 py-5 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center text-white font-bold">H</div>
+        <span class="text-white font-bold text-lg">IT-Cockpit</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#features" class="hidden md:inline text-slate-200 hover:text-white text-sm">Features</a>
+        <a href="#preise" class="hidden md:inline text-slate-200 hover:text-white text-sm">Preise</a>
+        <button @click="view='login'" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium">Login</button>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="mesh-bg min-h-screen flex items-center px-6 pt-20 pb-10 relative overflow-hidden">
+      <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center w-full">
+
+        <div class="text-white">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-200 text-xs font-medium mb-6">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            Pilot-Phase · made in Vaihingen
+          </div>
+          <h1 class="font-serif text-5xl md:text-6xl leading-tight font-bold mb-6">
+            IT für KMU,<br />
+            <span class="gradient-text font-instr italic">endlich einfach.</span>
+          </h1>
+          <p class="text-lg text-slate-300 mb-8 leading-relaxed">
+            Geräte, Lizenzen, Onboarding — alles an einem Ort.
+            Kein Excel-Chaos, kein verlorener Lizenzschlüssel, kein vergessenes Garantieende.
+          </p>
+          <div class="flex flex-wrap gap-3">
+            <button @click="view='login'" class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-lg font-semibold shadow-lg shadow-cyan-500/20">
+              Jetzt einloggen →
+            </button>
+            <a href="#demo" class="px-6 py-3 bg-white/10 hover:bg-white/15 text-white rounded-lg font-semibold backdrop-blur">
+              Demo anfragen
+            </a>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-white/10">
+            <div>
+              <div class="text-3xl font-bold gradient-text">75%</div>
+              <div class="text-xs text-slate-400 mt-1">weniger IT-Aufwand</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold gradient-text">€0</div>
+              <div class="text-xs text-slate-400 mt-1">Setup für Pilotkunden</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold gradient-text">DSGVO</div>
+              <div class="text-xs text-slate-400 mt-1">EU-Hosting · WEUR</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mock screenshot -->
+        <div class="hidden md:block">
+          <div class="bg-white rounded-2xl shadow-2xl p-1 ring-1 ring-white/10 transform rotate-1">
+            <div class="bg-slate-900 rounded-t-xl px-4 py-2 flex gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+            </div>
+            <div class="bg-slate-50 p-5 rounded-b-xl">
+              <div class="text-xs font-semibold text-slate-500 mb-3">📊 Geräte-Übersicht · Sickinger</div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div>
+                    <div class="font-semibold text-sm text-slate-800">SICK-PC-042</div>
+                    <div class="text-xs text-slate-500">Buero · M. Müller</div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">✓ Aktiv</span>
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div>
+                    <div class="font-semibold text-sm text-slate-800">SICK-LAP-018</div>
+                    <div class="text-xs text-slate-500">Vertrieb · K. Weber</div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">⚠ Garantie 12 Tage</span>
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div>
+                    <div class="font-semibold text-sm text-slate-800">SICK-SRV-001</div>
+                    <div class="text-xs text-slate-500">Serverraum · Backup</div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">✓ Aktiv</span>
+                </div>
+              </div>
+              <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div class="bg-cyan-50 rounded-lg p-2"><div class="text-lg font-bold text-cyan-700">30</div><div class="text-xs text-slate-600">Geräte</div></div>
+                <div class="bg-teal-50 rounded-lg p-2"><div class="text-lg font-bold text-teal-700">12</div><div class="text-xs text-slate-600">Lizenzen</div></div>
+                <div class="bg-amber-50 rounded-lg p-2"><div class="text-lg font-bold text-amber-700">2</div><div class="text-xs text-slate-600">Warnungen</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="py-20 px-6 bg-white">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+          <div class="text-cyan-600 text-sm font-semibold uppercase tracking-wider mb-2">Module v0.1</div>
+          <h2 class="font-serif text-4xl font-bold text-slate-900">Alles was Du brauchst,<br /><span class="font-instr italic gradient-text">nichts was Du nicht brauchst.</span></h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
+            <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">💻</div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Geräte-Inventar</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">Jeder PC, Laptop, Server zentral. Garantieablauf automatisch im Auge. Wer hat welches Gerät? Ein Klick.</p>
+          </div>
+          <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
+            <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">🔑</div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Lizenz-Cockpit</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">M365, Adobe, ERP, Antivirus. Seats gezählt, Kosten pro Jahr sichtbar, Verlängerung rechtzeitig.</p>
+          </div>
+          <div class="p-7 rounded-2xl border border-slate-200 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 transition">
+            <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-xl mb-4">📋</div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Audit-Log</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">Jede Änderung dokumentiert, DSGVO-konform. Wer, was, wann — bei Audit lückenlose Auskunft.</p>
+          </div>
+        </div>
+
+        <div class="mt-8 p-6 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="flex items-start gap-4">
+            <div class="text-2xl">🚀</div>
+            <div>
+              <div class="font-semibold text-slate-900">Geplant für v0.2 – v0.5</div>
+              <div class="text-sm text-slate-600 mt-1">Onboarding-Automation (MS365/Google Workspace API) · Ticket-System (n8n) · Cybersecurity-Modul · Reporting-Dashboard · Mobile App</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preise -->
+    <section id="preise" class="py-20 px-6 bg-slate-50">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-14">
+          <div class="text-cyan-600 text-sm font-semibold uppercase tracking-wider mb-2">Preise · transparent</div>
+          <h2 class="font-serif text-4xl font-bold text-slate-900">Faire Pakete, <span class="font-instr italic gradient-text">keine versteckten Kosten.</span></h2>
+        </div>
+        <div class="grid md:grid-cols-3 gap-6">
+
+          <div class="p-7 rounded-2xl bg-white border border-slate-200">
+            <div class="text-sm font-semibold text-slate-500 uppercase">Starter</div>
+            <div class="mt-2 mb-1"><span class="text-4xl font-bold text-slate-900">€15</span><span class="text-slate-500"> /Gerät /Monat</span></div>
+            <div class="text-xs text-slate-500">Setup einmalig €290</div>
+            <ul class="mt-6 space-y-2.5 text-sm text-slate-700">
+              <li>✓ Bis 25 Geräte</li>
+              <li>✓ Geräte-Inventar</li>
+              <li>✓ Lizenz-Cockpit</li>
+              <li>✓ CSV-Import/Export</li>
+              <li>✓ Email-Support</li>
+            </ul>
+          </div>
+
+          <div class="p-7 rounded-2xl bg-slate-900 border border-cyan-500/30 text-white relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-xs font-bold">EMPFOHLEN</div>
+            <div class="text-sm font-semibold text-cyan-300 uppercase">Pro</div>
+            <div class="mt-2 mb-1"><span class="text-4xl font-bold">€25</span><span class="text-slate-400"> /Gerät /Monat</span></div>
+            <div class="text-xs text-slate-400">Setup einmalig €490</div>
+            <ul class="mt-6 space-y-2.5 text-sm text-slate-200">
+              <li>✓ Bis 100 Geräte</li>
+              <li>✓ Alle Starter-Features</li>
+              <li>✓ Onboarding-Automation</li>
+              <li>✓ Audit-Log / DSGVO-Reports</li>
+              <li>✓ Telefon-Support (8-18h)</li>
+              <li>✓ Vor-Ort-Service Vaihingen/BW</li>
+            </ul>
+          </div>
+
+          <div class="p-7 rounded-2xl bg-white border border-slate-200">
+            <div class="text-sm font-semibold text-slate-500 uppercase">Enterprise</div>
+            <div class="mt-2 mb-1"><span class="text-4xl font-bold text-slate-900">Anfrage</span></div>
+            <div class="text-xs text-slate-500">individuell</div>
+            <ul class="mt-6 space-y-2.5 text-sm text-slate-700">
+              <li>✓ Unbegrenzt Geräte</li>
+              <li>✓ Multi-Standort</li>
+              <li>✓ Custom Integrationen</li>
+              <li>✓ SLA 99.5%</li>
+              <li>✓ Dedizierter Account-Manager</li>
+            </ul>
+          </div>
+
+        </div>
+
+        <div id="demo" class="mt-12 p-8 rounded-2xl gradient-bg text-white text-center">
+          <h3 class="text-2xl font-bold mb-2">Pilot-Programm · Q1/Q2 2026</h3>
+          <p class="text-cyan-50 mb-5 max-w-xl mx-auto">Erste 10 KMU aus Vaihingen/Enz und Umgebung bekommen 6 Monate Pro-Plan kostenlos im Tausch gegen Testimonial.</p>
+          <a href="mailto:h.guencavdi@hasi-elektronic.de?subject=IT-Cockpit Pilot Anfrage" class="inline-block px-6 py-3 bg-white text-cyan-700 rounded-lg font-semibold hover:bg-cyan-50">Pilot-Platz sichern →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-10 px-6">
+      <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-md gradient-bg flex items-center justify-center text-white font-bold text-sm">H</div>
+            <span class="text-white font-bold">Hasi IT-Cockpit</span>
+          </div>
+          <div class="text-xs">© 2026 Hasi Elektronic · Vaihingen/Enz · Hamdi Güncavdi</div>
+        </div>
+        <div class="flex gap-6 items-center text-xs">
+          <a href="/impressum.html" class="hover:text-white">Impressum</a>
+          <a href="/datenschutz.html" class="hover:text-white">Datenschutz</a>
+          <a href="mailto:h.guencavdi@hasi-elektronic.de" class="hover:text-white">Kontakt</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ==================== LOGIN ==================== -->
+  <div v-if="view === 'login'" class="min-h-screen mesh-bg flex items-center justify-center px-6 relative">
+    <button @click="view='landing'" class="absolute top-6 left-6 text-slate-300 hover:text-white text-sm">← Zurück</button>
+    <div class="w-full max-w-md">
+      <div class="flex items-center justify-center gap-2 mb-8">
+        <div class="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center text-white text-2xl font-bold">H</div>
+        <div>
+          <div class="text-white font-bold text-lg leading-tight">IT-Cockpit</div>
+          <div class="text-cyan-300 text-xs">by Hasi Elektronic</div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <h2 class="font-serif text-2xl font-bold text-slate-900 mb-1">Willkommen zurück</h2>
+        <p class="text-slate-500 text-sm mb-6">Logge Dich in Deinen Tenant ein.</p>
+
+        <form @submit.prevent="doLogin" class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Tenant (Firma)</label>
+            <input v-model="loginForm.tenant" type="text" required placeholder="sickinger"
+              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">E-Mail</label>
+            <input v-model="loginForm.email" type="email" required placeholder="du@firma.de"
+              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Passwort</label>
+            <input v-model="loginForm.password" type="password" required
+              class="mt-1 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm" />
+          </div>
+
+          <div v-if="loginError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+            {{ loginError }}
+          </div>
+
+          <button type="submit" :disabled="loginLoading"
+            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-lg font-semibold disabled:opacity-50">
+            {{ loginLoading ? 'Anmeldung…' : 'Anmelden' }}
+          </button>
+        </form>
+
+        <div class="mt-5 pt-5 border-t border-slate-100 text-xs text-center text-slate-500">
+          Noch kein Konto? <a href="mailto:h.guencavdi@hasi-elektronic.de" class="text-cyan-600 hover:underline">Pilot beantragen</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DASHBOARD (eingeloggt) ==================== -->
+  <div v-if="view === 'dashboard'" class="min-h-screen flex bg-slate-50">
+
+    <!-- Sidebar (dark) -->
+    <aside class="w-64 bg-slate-900 text-slate-200 flex-shrink-0 flex flex-col">
+      <div class="px-5 py-5 border-b border-slate-800 flex items-center gap-2">
+        <div class="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center text-white font-bold">H</div>
+        <div>
+          <div class="text-white font-bold text-sm leading-tight">IT-Cockpit</div>
+          <div class="text-cyan-300 text-xs">{{ session.tenant_name }}</div>
+        </div>
+      </div>
+
+      <nav class="px-3 py-4 space-y-1 flex-1">
+        <a @click.prevent="page='overview'" :class="['sidebar-link', page==='overview'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          Übersicht
+        </a>
+        <a @click.prevent="page='devices'" :class="['sidebar-link', page==='devices'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Geräte
+        </a>
+        <a @click.prevent="page='licenses'" :class="['sidebar-link', page==='licenses'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          Lizenzen
+        </a>
+        <a @click.prevent="page='users'" :class="['sidebar-link', page==='users'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          Mitarbeiter
+        </a>
+        <a @click.prevent="page='audit'" :class="['sidebar-link', page==='audit'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Audit-Log
+        </a>
+        <a @click.prevent="page='import'" :class="['sidebar-link', page==='import'&&'active']" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          CSV Import
+        </a>
+      </nav>
+
+      <div class="px-5 py-4 border-t border-slate-800">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="w-9 h-9 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold text-sm">{{ session.user_email[0].toUpperCase() }}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-white truncate">{{ session.user_email }}</div>
+            <div class="text-xs text-slate-400">{{ session.role }}</div>
+          </div>
+        </div>
+        <button @click="logout" class="w-full py-2 text-xs text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 rounded">Abmelden</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto">
+
+      <!-- Topbar -->
+      <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center">
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">{{ pageTitle }}</h1>
+          <div class="text-xs text-slate-500">{{ pageSubtitle }}</div>
+        </div>
+        <div class="flex gap-2">
+          <button v-if="page==='devices'" @click="openNewDeviceModal" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-sm font-semibold">+ Gerät</button>
+          <button v-if="page==='licenses'" @click="openNewLicenseModal" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-sm font-semibold">+ Lizenz</button>
+        </div>
+      </header>
+
+      <!-- Pages -->
+      <div class="p-8">
+
+        <!-- Overview -->
+        <div v-if="page==='overview'">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500">Geräte aktiv</div>
+              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.devices_active }}</div>
+              <div class="text-xs text-cyan-600 mt-1">von {{ stats.devices_total }} insgesamt</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500">Lizenzen</div>
+              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.licenses_total }}</div>
+              <div class="text-xs text-slate-500 mt-1">{{ stats.licenses_seats }} Seats gesamt</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-amber-200">
+              <div class="text-xs text-amber-700">Garantie läuft ab</div>
+              <div class="text-3xl font-bold text-amber-700 mt-1">{{ stats.warranty_warning }}</div>
+              <div class="text-xs text-amber-600 mt-1">in 60 Tagen</div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500">Lizenz-Kosten</div>
+              <div class="text-3xl font-bold text-slate-900 mt-1">€{{ stats.license_cost_yearly }}</div>
+              <div class="text-xs text-slate-500 mt-1">pro Jahr</div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 class="font-semibold text-slate-900 mb-4">Willkommen, {{ session.user_email }}</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">Du verwaltest <strong>{{ session.tenant_name }}</strong> · Plan: <strong>{{ session.plan }}</strong>.</p>
+            <p class="text-sm text-slate-600 mt-3">Erste Schritte:</p>
+            <ol class="text-sm text-slate-700 mt-2 space-y-1 list-decimal list-inside">
+              <li>Geräte importieren — CSV-Datei mit Hostname, User, Seriennummer, OS (Sidebar → CSV Import)</li>
+              <li>Lizenzen anlegen — M365, Antivirus, ERP usw.</li>
+              <li>Seats den Mitarbeitern zuweisen</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- Devices -->
+        <div v-if="page==='devices'">
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full">
+              <thead>
+                <tr>
+                  <th>Hostname</th><th>Typ</th><th>Modell</th><th>OS</th><th>Zugewiesen</th><th>Garantie bis</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="devices.length===0"><td colspan="8" class="text-center text-slate-500 py-12">Noch keine Geräte. CSV importieren oder "+ Gerät" klicken.</td></tr>
+                <tr v-for="d in devices" :key="d.id" class="hover:bg-slate-50">
+                  <td class="font-semibold text-slate-900">{{ d.hostname }}</td>
+                  <td>{{ d.device_type }}</td>
+                  <td>{{ d.manufacturer }} {{ d.model }}</td>
+                  <td>{{ d.os }}</td>
+                  <td>{{ d.assigned_user || '—' }}</td>
+                  <td>{{ d.warranty_until || '—' }}</td>
+                  <td><span :class="['px-2 py-0.5 rounded text-xs', d.status==='active'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-700']">{{ d.status }}</span></td>
+                  <td><button @click="deleteDevice(d.id)" class="text-red-500 hover:text-red-700 text-xs">Löschen</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Licenses -->
+        <div v-if="page==='licenses'">
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full">
+              <thead><tr><th>Software</th><th>Vendor</th><th>Typ</th><th>Seats</th><th>Kosten/Jahr</th><th>Läuft ab</th><th></th></tr></thead>
+              <tbody>
+                <tr v-if="licenses.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Lizenzen erfasst.</td></tr>
+                <tr v-for="l in licenses" :key="l.id" class="hover:bg-slate-50">
+                  <td class="font-semibold text-slate-900">{{ l.software_name }}</td>
+                  <td>{{ l.vendor }}</td>
+                  <td>{{ l.license_type }}</td>
+                  <td>{{ l.seats_used }}/{{ l.seats_total }}</td>
+                  <td>€{{ l.cost_per_year || 0 }}</td>
+                  <td>{{ l.expires_at || '—' }}</td>
+                  <td><button @click="deleteLicense(l.id)" class="text-red-500 hover:text-red-700 text-xs">Löschen</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CSV Import -->
+        <div v-if="page==='import'">
+          <div class="bg-white rounded-xl border border-slate-200 p-8 max-w-2xl">
+            <h3 class="font-semibold text-slate-900 text-lg mb-2">Geräte aus CSV importieren</h3>
+            <p class="text-sm text-slate-600 mb-5">CSV-Format: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">hostname,device_type,manufacturer,model,serial_number,os,location,assigned_email,warranty_until,status</code></p>
+
+            <a href="/csv-template.csv" download class="inline-block mb-4 text-cyan-600 hover:underline text-sm">📥 Vorlage herunterladen</a>
+
+            <input type="file" accept=".csv" @change="handleCsvUpload" class="block w-full text-sm text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-cyan-50 file:text-cyan-700 file:font-semibold hover:file:bg-cyan-100" />
+
+            <div v-if="csvPreview.length > 0" class="mt-6">
+              <div class="text-sm font-semibold text-slate-900 mb-2">{{ csvPreview.length }} Zeilen erkannt:</div>
+              <div class="border border-slate-200 rounded-lg max-h-60 overflow-auto">
+                <table class="w-full text-xs">
+                  <thead><tr><th class="px-3 py-2 text-left">Hostname</th><th class="px-3 py-2 text-left">Typ</th><th class="px-3 py-2 text-left">User</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(row, i) in csvPreview.slice(0,10)" :key="i" class="border-t border-slate-100">
+                      <td class="px-3 py-1.5">{{ row.hostname }}</td>
+                      <td class="px-3 py-1.5">{{ row.device_type }}</td>
+                      <td class="px-3 py-1.5">{{ row.assigned_email || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button @click="confirmImport" :disabled="importing" class="mt-4 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg font-semibold text-sm disabled:opacity-50">
+                {{ importing ? 'Importieren…' : `${csvPreview.length} Geräte importieren` }}
+              </button>
+            </div>
+
+            <div v-if="importResult" class="mt-5 p-4 rounded-lg" :class="importResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'">
+              {{ importResult.message }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Other pages (placeholder) -->
+        <div v-if="['users','audit'].includes(page)" class="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+          Bald verfügbar — wird in v0.2 implementiert.
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<script>
+const { createApp } = Vue;
+
+const API_BASE = location.hostname === 'localhost'
+  ? 'http://localhost:8787'
+  : 'https://it-cockpit-api.hguencavdi.workers.dev';
+
+createApp({
+  data() {
+    return {
+      view: 'landing',       // landing | login | dashboard
+      page: 'overview',      // overview | devices | licenses | users | audit | import
+      session: {
+        token: '', tenant_id: 0, tenant_slug: '', tenant_name: '',
+        user_email: '', role: '', plan: ''
+      },
+      loginForm: { tenant: 'sickinger', email: '', password: '' },
+      loginLoading: false,
+      loginError: '',
+      stats: { devices_total: 0, devices_active: 0, licenses_total: 0, licenses_seats: 0, warranty_warning: 0, license_cost_yearly: 0 },
+      devices: [],
+      licenses: [],
+      csvPreview: [],
+      importing: false,
+      importResult: null
+    }
+  },
+  computed: {
+    pageTitle() {
+      return {
+        overview: 'Übersicht', devices: 'Geräte', licenses: 'Lizenzen',
+        users: 'Mitarbeiter', audit: 'Audit-Log', import: 'CSV Import'
+      }[this.page]
+    },
+    pageSubtitle() {
+      return {
+        overview: 'Dein IT-Bestand auf einen Blick',
+        devices: `${this.devices.length} Geräte verwaltet`,
+        licenses: `${this.licenses.length} Lizenzen verwaltet`,
+        users: 'Benutzer und Rollen',
+        audit: 'Aktion-Historie (DSGVO)',
+        import: 'Bulk-Import via CSV-Datei'
+      }[this.page]
+    }
+  },
+  mounted() {
+    // Restore session
+    const saved = localStorage.getItem('cockpit_session');
+    if (saved) {
+      try {
+        this.session = JSON.parse(saved);
+        this.view = 'dashboard';
+        this.loadDashboard();
+      } catch(e) { localStorage.removeItem('cockpit_session'); }
+    }
+  },
+  methods: {
+    async doLogin() {
+      this.loginLoading = true; this.loginError = '';
+      try {
+        const r = await fetch(API_BASE + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.loginForm)
+        });
+        const data = await r.json();
+        if (!r.ok) { this.loginError = data.error || 'Login fehlgeschlagen'; return; }
+        this.session = data;
+        localStorage.setItem('cockpit_session', JSON.stringify(data));
+        this.view = 'dashboard';
+        this.loadDashboard();
+      } catch(e) {
+        this.loginError = 'Netzwerkfehler: ' + e.message;
+      } finally { this.loginLoading = false; }
+    },
+    logout() {
+      localStorage.removeItem('cockpit_session');
+      this.view = 'landing';
+      this.session = { token: '', tenant_id: 0, tenant_slug: '', tenant_name: '', user_email: '', role: '', plan: '' };
+    },
+    async api(path, options = {}) {
+      const opts = { ...options, headers: { ...(options.headers||{}), 'Authorization': 'Bearer ' + this.session.token, 'Content-Type': 'application/json' } };
+      const r = await fetch(API_BASE + path, opts);
+      if (r.status === 401) { this.logout(); throw new Error('Session abgelaufen'); }
+      return r.json();
+    },
+    async loadDashboard() {
+      try {
+        const [stats, devices, licenses] = await Promise.all([
+          this.api('/api/stats'),
+          this.api('/api/devices'),
+          this.api('/api/licenses')
+        ]);
+        this.stats = stats;
+        this.devices = devices.items || [];
+        this.licenses = licenses.items || [];
+      } catch(e) { console.error(e); }
+    },
+    handleCsvUpload(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        const headers = lines[0].split(',').map(h => h.trim());
+        const rows = lines.slice(1).map(line => {
+          const cells = line.split(',').map(c => c.trim());
+          const obj = {};
+          headers.forEach((h, i) => obj[h] = cells[i] || '');
+          return obj;
+        });
+        this.csvPreview = rows;
+        this.importResult = null;
+      };
+      reader.readAsText(file);
+    },
+    async confirmImport() {
+      this.importing = true;
+      try {
+        const result = await this.api('/api/devices/bulk-import', {
+          method: 'POST',
+          body: JSON.stringify({ devices: this.csvPreview })
+        });
+        this.importResult = { message: `✓ ${result.imported} Geräte importiert · ${result.skipped} übersprungen`, error: false };
+        this.csvPreview = [];
+        await this.loadDashboard();
+      } catch(e) {
+        this.importResult = { message: '✗ Fehler: ' + e.message, error: true };
+      } finally { this.importing = false; }
+    },
+    async deleteDevice(id) {
+      if (!confirm('Dieses Gerät wirklich löschen?')) return;
+      await this.api('/api/devices/' + id, { method: 'DELETE' });
+      await this.loadDashboard();
+    },
+    async deleteLicense(id) {
+      if (!confirm('Diese Lizenz wirklich löschen?')) return;
+      await this.api('/api/licenses/' + id, { method: 'DELETE' });
+      await this.loadDashboard();
+    },
+    openNewDeviceModal() { alert('Modal kommt in v0.1.1 — vorerst via CSV-Import.'); },
+    openNewLicenseModal() { alert('Modal kommt in v0.1.1.'); }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

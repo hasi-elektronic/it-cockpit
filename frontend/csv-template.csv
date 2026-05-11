@@ -1,0 +1,4 @@
+hostname,device_type,manufacturer,model,serial_number,os,location,assigned_email,warranty_until,status
+SICK-PC-001,desktop,Dell,OptiPlex 7080,DL7080-001,Windows 11 Pro 23H2,Buero EG,m.mueller@sickinger.de,2027-03-15,active
+SICK-LAP-001,laptop,Lenovo,ThinkPad T14,LN-T14-001,Windows 11 Pro 23H2,Vertrieb,k.weber@sickinger.de,2027-09-20,active
+SICK-SRV-001,server,HP,ProLiant DL360,HP-DL360-001,Windows Server 2022,Serverraum,,2028-01-10,active
