@@ -363,57 +363,221 @@ tailwind.config = {
 
         <!-- Overview -->
         <div v-if="page==='overview'">
-          <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            <div class="bg-white p-5 rounded-xl border border-slate-200">
-              <div class="text-xs text-slate-500">Geräte aktiv</div>
-              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.devices_active }}</div>
-              <div class="text-xs text-cyan-600 mt-1">von {{ stats.devices_total }} insgesamt</div>
+          <!-- Top stats strip -->
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500 uppercase tracking-wide">Geräte</div>
+              <div class="text-2xl font-bold text-slate-900 mt-1">{{ stats.devices_total }}</div>
+              <div class="text-xs text-slate-500 mt-1">{{ stats.devices_active }} aktiv</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-emerald-200">
-              <div class="text-xs text-emerald-700">Agents online</div>
-              <div class="text-3xl font-bold text-emerald-600 mt-1">{{ stats.agent_online || 0 }}</div>
-              <div class="text-xs text-emerald-600 mt-1">live letztemal 30 Min.</div>
+            <div class="bg-white p-4 rounded-xl border border-emerald-200">
+              <div class="text-xs text-emerald-700 uppercase tracking-wide">Online</div>
+              <div class="text-2xl font-bold text-emerald-600 mt-1">{{ stats.agent_online || 0 }}</div>
+              <div class="text-xs text-emerald-600 mt-1">Agents · 30 Min</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200">
-              <div class="text-xs text-slate-500">Mitarbeiter</div>
-              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.users_total }}</div>
-              <div class="text-xs text-slate-500 mt-1">aktiv im Tenant</div>
+            <div class="bg-white p-4 rounded-xl border border-rose-200" :class="alertCount.critical > 0 ? 'ring-1 ring-rose-300' : ''">
+              <div class="text-xs text-rose-700 uppercase tracking-wide">Alerts</div>
+              <div class="text-2xl font-bold text-rose-600 mt-1">{{ alertCount.critical }}</div>
+              <div class="text-xs text-rose-600 mt-1">kritisch · {{ alertCount.warning }} Warn.</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200">
-              <div class="text-xs text-slate-500">Lizenzen</div>
-              <div class="text-3xl font-bold text-slate-900 mt-1">{{ stats.licenses_total }}</div>
-              <div class="text-xs text-slate-500 mt-1">{{ stats.licenses_seats }} Seats</div>
+            <div class="bg-white p-4 rounded-xl border border-amber-200" :class="stats.warranty_warning > 0 ? 'ring-1 ring-amber-300' : ''">
+              <div class="text-xs text-amber-700 uppercase tracking-wide">Garantie</div>
+              <div class="text-2xl font-bold text-amber-700 mt-1">{{ stats.warranty_warning }}</div>
+              <div class="text-xs text-amber-600 mt-1">läuft in 60T ab</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-amber-200">
-              <div class="text-xs text-amber-700">Garantie läuft ab</div>
-              <div class="text-3xl font-bold text-amber-700 mt-1">{{ stats.warranty_warning }}</div>
-              <div class="text-xs text-amber-600 mt-1">in 60 Tagen</div>
-            </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200">
-              <div class="text-xs text-slate-500">Lizenz-Kosten</div>
-              <div class="text-3xl font-bold text-slate-900 mt-1">€{{ stats.license_cost_yearly }}</div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200">
+              <div class="text-xs text-slate-500 uppercase tracking-wide">Lizenzkosten</div>
+              <div class="text-2xl font-bold text-slate-900 mt-1">€{{ stats.license_cost_yearly }}</div>
               <div class="text-xs text-slate-500 mt-1">pro Jahr</div>
             </div>
           </div>
 
-          <div class="bg-white rounded-xl border border-slate-200 p-6">
-            <h3 class="font-semibold text-slate-900 mb-3">Willkommen, {{ session.user_email }}</h3>
-            <p class="text-sm text-slate-600">Du verwaltest <strong>{{ session.tenant_name }}</strong> · Plan: <strong>{{ session.plan }}</strong></p>
-            <div class="grid md:grid-cols-3 gap-3 mt-5">
-              <button @click="openDeviceModal()" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
-                <div class="text-2xl mb-1">💻</div>
-                <div class="font-semibold text-sm text-slate-900">Gerät hinzufügen</div>
-                <div class="text-xs text-slate-500 mt-1">Einzelnen PC, Laptop, Server</div>
+          <!-- Row: Fleet Health gauge + Compliance grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Fleet Health (1/3) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center">
+              <h3 class="text-sm font-semibold text-slate-700 mb-4 self-start">Fleet Health</h3>
+              <div v-if="dashboard.fleet_health && dashboard.fleet_health.avg_score != null" class="flex flex-col items-center">
+                <div class="relative w-40 h-40">
+                  <svg viewBox="0 0 36 36" class="w-40 h-40 -rotate-90">
+                    <circle cx="18" cy="18" r="16" fill="none" stroke="#e2e8f0" stroke-width="2.5"></circle>
+                    <circle cx="18" cy="18" r="16" fill="none" :stroke="scoreStrokeColor(dashboard.fleet_health.avg_score)" stroke-width="2.5"
+                            :stroke-dasharray="(dashboard.fleet_health.avg_score * 100.5 / 100) + ' 100.5'" stroke-linecap="round"></circle>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <div class="text-4xl font-bold" :class="scoreTextColor(dashboard.fleet_health.avg_score)">{{ dashboard.fleet_health.avg_score }}</div>
+                    <div class="text-xs text-slate-500 mt-1">Ø Score</div>
+                  </div>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-3 w-full text-center">
+                  <div>
+                    <div class="text-xs text-emerald-600 font-semibold">Gut</div>
+                    <div class="text-lg font-bold text-slate-900">{{ dashboard.fleet_health.healthy }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-amber-600 font-semibold">Mittel</div>
+                    <div class="text-lg font-bold text-slate-900">{{ dashboard.fleet_health.moderate }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-rose-600 font-semibold">Schwach</div>
+                    <div class="text-lg font-bold text-slate-900">{{ dashboard.fleet_health.poor }}</div>
+                  </div>
+                </div>
+                <div class="text-xs text-slate-500 mt-3">{{ dashboard.fleet_health.scored_devices }} bewertete Geräte</div>
+              </div>
+              <div v-else class="text-center text-slate-400 py-12">
+                <div class="text-3xl mb-2">📊</div>
+                <div class="text-sm">Noch keine Daten</div>
+                <div class="text-xs mt-1">Agents müssen erst Heartbeats senden</div>
+              </div>
+            </div>
+
+            <!-- Compliance Grid (2/3) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 lg:col-span-2">
+              <h3 class="text-sm font-semibold text-slate-700 mb-4">Security Compliance</h3>
+              <div v-if="dashboard.compliance && dashboard.compliance.total > 0" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div v-for="f in complianceFeatures" :key="f.key">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium text-slate-700">{{ f.emoji }} {{ f.label }}</span>
+                    <span class="text-sm font-bold" :class="complianceColor(dashboard.compliance[f.key], dashboard.compliance.total)">
+                      {{ Math.round((dashboard.compliance[f.key] / dashboard.compliance.total) * 100) }}%
+                    </span>
+                  </div>
+                  <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-2 rounded-full transition-all"
+                         :class="complianceBg(dashboard.compliance[f.key], dashboard.compliance.total)"
+                         :style="{ width: ((dashboard.compliance[f.key] / dashboard.compliance.total) * 100) + '%' }"></div>
+                  </div>
+                  <div class="text-xs text-slate-500 mt-1">{{ dashboard.compliance[f.key] }} von {{ dashboard.compliance.total }}</div>
+                </div>
+              </div>
+              <div v-else class="text-center text-slate-400 py-8">
+                <div class="text-sm">Noch keine Compliance-Daten</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row: Recent Alerts + Weakest Devices + Disk Distribution -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Recent Alerts -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-slate-700">Aktuelle Alerts</h3>
+                <button @click="goto('alerts')" class="text-xs text-cyan-600 hover:underline">Alle →</button>
+              </div>
+              <div v-if="dashboard.recent_alerts && dashboard.recent_alerts.length > 0" class="space-y-3">
+                <div v-for="a in dashboard.recent_alerts" :key="a.id" @click="goto('alerts')" class="flex items-start gap-2 cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1.5 rounded">
+                  <span class="text-lg flex-shrink-0">{{ a.severity === 'critical' ? '🔴' : (a.severity === 'warning' ? '🟡' : '🟢') }}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-slate-900 truncate">{{ a.title }}</div>
+                    <div class="text-xs text-slate-500 truncate">{{ a.device_hostname || '—' }} · {{ formatRelative(a.first_seen) }}</div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-center text-slate-400 py-8">
+                <div class="text-3xl mb-2">✨</div>
+                <div class="text-sm">Keine offenen Alerts</div>
+              </div>
+            </div>
+
+            <!-- Weakest devices -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-slate-700">Schwächste Geräte</h3>
+                <button @click="goto('devices')" class="text-xs text-cyan-600 hover:underline">Alle →</button>
+              </div>
+              <div v-if="dashboard.weakest_devices && dashboard.weakest_devices.length > 0" class="space-y-3">
+                <div v-for="d in dashboard.weakest_devices" :key="d.id" @click="openDeviceDetail(d)" class="flex items-center gap-3 cursor-pointer hover:bg-slate-50 -mx-2 px-2 py-1.5 rounded">
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-slate-900 truncate">{{ d.hostname }}</div>
+                    <div class="text-xs text-slate-500 truncate">{{ d.manufacturer }} · {{ d.agent_status === 'online' ? '🟢 online' : '○ offline' }}</div>
+                  </div>
+                  <div class="flex-shrink-0 flex items-center gap-2">
+                    <div class="w-12 h-1.5 rounded-full bg-slate-100">
+                      <div class="h-1.5 rounded-full" :class="scoreColor(d.security_score)" :style="{ width: d.security_score + '%' }"></div>
+                    </div>
+                    <span class="text-sm font-bold w-8 text-right" :class="scoreTextColor(d.security_score)">{{ d.security_score }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-center text-slate-400 py-8">
+                <div class="text-sm">Noch keine Geräte</div>
+              </div>
+            </div>
+
+            <!-- Disk distribution -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6">
+              <h3 class="text-sm font-semibold text-slate-700 mb-4">Disk-Auslastung</h3>
+              <div v-if="dashboard.disk_distribution" class="space-y-3">
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-600">&lt; 50% (gesund)</span>
+                    <span class="text-xs font-medium text-emerald-600">{{ dashboard.disk_distribution.low }}</span>
+                  </div>
+                  <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-2 bg-emerald-500 rounded-full" :style="{ width: diskPct('low') + '%' }"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-600">50-79% (normal)</span>
+                    <span class="text-xs font-medium text-slate-600">{{ dashboard.disk_distribution.medium }}</span>
+                  </div>
+                  <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-2 bg-slate-400 rounded-full" :style="{ width: diskPct('medium') + '%' }"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-600">80-94% (hoch)</span>
+                    <span class="text-xs font-medium text-amber-600">{{ dashboard.disk_distribution.high }}</span>
+                  </div>
+                  <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-2 bg-amber-500 rounded-full" :style="{ width: diskPct('high') + '%' }"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-600">&gt;= 95% (kritisch)</span>
+                    <span class="text-xs font-medium text-rose-600">{{ dashboard.disk_distribution.critical }}</span>
+                  </div>
+                  <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-2 bg-rose-500 rounded-full" :style="{ width: diskPct('critical') + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick actions footer -->
+          <div class="bg-gradient-to-br from-slate-50 to-cyan-50/30 rounded-xl border border-slate-200 p-6">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="font-semibold text-slate-900">Willkommen, {{ session.user_email }}</h3>
+                <p class="text-sm text-slate-600 mt-0.5">Mandant: <strong>{{ session.tenant_name }}</strong> · Plan: <strong>{{ session.plan }}</strong></p>
+              </div>
+              <div class="text-xs text-slate-500">{{ alertStats30dLabel }}</div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+              <button @click="goto('agents')" class="text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-xl mb-1">⚡</div>
+                <div class="font-semibold text-sm text-slate-900">Agent ausrollen</div>
+                <div class="text-xs text-slate-500 mt-0.5">Neuer PC anbinden</div>
               </button>
-              <button @click="openLicenseModal()" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
-                <div class="text-2xl mb-1">🔑</div>
+              <button @click="openDeviceModal()" class="text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-xl mb-1">💻</div>
+                <div class="font-semibold text-sm text-slate-900">Gerät manuell</div>
+                <div class="text-xs text-slate-500 mt-0.5">Ohne Agent erfassen</div>
+              </button>
+              <button @click="openLicenseModal()" class="text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-xl mb-1">🔑</div>
                 <div class="font-semibold text-sm text-slate-900">Lizenz erfassen</div>
-                <div class="text-xs text-slate-500 mt-1">M365, Antivirus, ERP …</div>
+                <div class="text-xs text-slate-500 mt-0.5">M365, Adobe, ERP…</div>
               </button>
-              <button @click="goto('import')" class="text-left p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
-                <div class="text-2xl mb-1">📤</div>
-                <div class="font-semibold text-sm text-slate-900">CSV bulk-Import</div>
-                <div class="text-xs text-slate-500 mt-1">Viele Geräte auf einmal</div>
+              <button @click="goto('import')" class="text-left p-3 rounded-lg bg-white border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 transition">
+                <div class="text-xl mb-1">📤</div>
+                <div class="font-semibold text-sm text-slate-900">CSV Import</div>
+                <div class="text-xs text-slate-500 mt-0.5">Viele auf einmal</div>
               </button>
             </div>
           </div>
@@ -1265,6 +1429,15 @@ createApp({
       loginLoading: false,
       loginError: '',
       stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0, agent_online:0, agent_offline:0 },
+      dashboard: { fleet_health: null, weakest_devices: [], recent_alerts: [], disk_distribution: null, compliance: null, alert_stats_30d: null },
+      complianceFeatures: [
+        { key: 'bitlocker', label: 'BitLocker', emoji: '🔒' },
+        { key: 'av', label: 'Antivirus', emoji: '🛡' },
+        { key: 'av_current', label: 'AV aktuell', emoji: '📅' },
+        { key: 'tpm', label: 'TPM bereit', emoji: '🔐' },
+        { key: 'secure_boot', label: 'Secure Boot', emoji: '🚀' },
+        { key: 'firewall', label: 'Firewall', emoji: '🔥' },
+      ],
       devices: [], licenses: [], users: [], audit: [],
       agents: [], enrollResult: null, enrolling: false,
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
@@ -1320,6 +1493,11 @@ createApp({
         (s.name || '').toLowerCase().includes(q) ||
         (s.publisher || '').toLowerCase().includes(q)
       );
+    },
+    alertStats30dLabel() {
+      const s = this.dashboard.alert_stats_30d;
+      if (!s || s.total === 0) return 'Letzte 30 Tage: keine Alerts';
+      return `Letzte 30 Tage: ${s.total} Alerts · ${s.resolved} behoben · ${s.critical} kritisch`;
     }
   },
   mounted() {
@@ -1388,6 +1566,32 @@ createApp({
       if (s >= 80) return '#10b981';
       if (s >= 60) return '#f59e0b';
       return '#f43f5e';
+    },
+    diskPct(level) {
+      const dd = this.dashboard.disk_distribution;
+      if (!dd) return 0;
+      const total = (dd.low || 0) + (dd.medium || 0) + (dd.high || 0) + (dd.critical || 0);
+      if (total === 0) return 0;
+      return Math.round(((dd[level] || 0) / total) * 100);
+    },
+    complianceColor(value, total) {
+      if (!total) return 'text-slate-400';
+      const pct = (value / total) * 100;
+      if (pct >= 80) return 'text-emerald-600';
+      if (pct >= 50) return 'text-amber-600';
+      return 'text-rose-600';
+    },
+    complianceBg(value, total) {
+      if (!total) return 'bg-slate-300';
+      const pct = (value / total) * 100;
+      if (pct >= 80) return 'bg-emerald-500';
+      if (pct >= 50) return 'bg-amber-500';
+      return 'bg-rose-500';
+    },
+    async loadDashboard() {
+      try {
+        this.dashboard = await this.api('/api/dashboard');
+      } catch(e) { /* ignore — dashboard is optional */ }
     },
     async openDeviceDetail(d) {
       this.detailDevice = d;
@@ -1526,6 +1730,7 @@ createApp({
     },
     goto(p) {
       this.page = p;
+      if (p === 'overview') this.loadDashboard();
       if (p === 'audit') this.loadAudit();
       if (p === 'agents') this.loadAgents();
       if (p === 'alerts') { this.alertTab = 'open'; this.loadAlerts(); this.loadAlertCount(); }
@@ -1554,13 +1759,14 @@ createApp({
     },
     async loadAll() {
       try {
-        const [stats, devices, licenses, users, agents, alertCount] = await Promise.all([
+        const [stats, devices, licenses, users, agents, alertCount, dashboard] = await Promise.all([
           this.api('/api/stats'),
           this.api('/api/devices'),
           this.api('/api/licenses'),
           this.api('/api/users'),
           this.api('/api/agents'),
-          this.api('/api/alerts/count')
+          this.api('/api/alerts/count'),
+          this.api('/api/dashboard')
         ]);
         this.stats = stats;
         this.devices = devices.items || [];
@@ -1568,6 +1774,7 @@ createApp({
         this.users = users.items || [];
         this.agents = agents.items || [];
         this.alertCount = alertCount;
+        this.dashboard = dashboard;
       } catch(e) { this.toast(e.message, 'error'); }
     },
     async loadAudit() {

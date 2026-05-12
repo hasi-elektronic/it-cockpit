@@ -145,6 +145,114 @@ async function handleStats(req: Request, env: Env, sess: Session): Promise<Respo
   });
 }
 
+// Dashboard: rich aggregated view for Overview page
+async function handleDashboard(req: Request, env: Env, sess: Session): Promise<Response> {
+  // 1. Fleet health: average security_score across all devices with score
+  const health = await env.DB.prepare(`
+    SELECT
+      ROUND(AVG(s.security_score), 0) AS avg_score,
+      MIN(s.security_score) AS min_score,
+      MAX(s.security_score) AS max_score,
+      COUNT(s.device_id) AS scored_devices,
+      SUM(CASE WHEN s.security_score >= 80 THEN 1 ELSE 0 END) AS healthy,
+      SUM(CASE WHEN s.security_score BETWEEN 60 AND 79 THEN 1 ELSE 0 END) AS moderate,
+      SUM(CASE WHEN s.security_score < 60 THEN 1 ELSE 0 END) AS poor
+    FROM security_status s
+    JOIN devices d ON d.id = s.device_id
+    WHERE d.tenant_id = ?
+  `).bind(sess.tenant_id).first<any>();
+
+  // 2. Weakest 5 devices (lowest score, online)
+  const weakest = await env.DB.prepare(`
+    SELECT d.id, d.hostname, d.manufacturer, d.model, d.agent_status, s.security_score,
+           s.bitlocker_enabled, s.av_enabled, s.wu_critical_count
+    FROM devices d JOIN security_status s ON s.device_id = d.id
+    WHERE d.tenant_id = ?
+    ORDER BY s.security_score ASC LIMIT 5
+  `).bind(sess.tenant_id).all();
+
+  // 3. Recent alerts (last 5 open)
+  const recentAlerts = await env.DB.prepare(`
+    SELECT a.id, a.severity, a.title, a.value, a.first_seen, d.hostname AS device_hostname
+    FROM alerts a LEFT JOIN devices d ON d.id = a.device_id
+    WHERE a.tenant_id = ? AND a.status IN ('open','acknowledged')
+    ORDER BY
+      CASE a.severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
+      a.first_seen DESC
+    LIMIT 5
+  `).bind(sess.tenant_id).all();
+
+  // 4. Disk usage distribution (latest telemetry per device)
+  const diskDist = await env.DB.prepare(`
+    SELECT
+      SUM(CASE WHEN disk < 50 THEN 1 ELSE 0 END) AS low,
+      SUM(CASE WHEN disk BETWEEN 50 AND 79 THEN 1 ELSE 0 END) AS medium,
+      SUM(CASE WHEN disk BETWEEN 80 AND 94 THEN 1 ELSE 0 END) AS high,
+      SUM(CASE WHEN disk >= 95 THEN 1 ELSE 0 END) AS critical
+    FROM (
+      SELECT (SELECT disk_c_percent FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS disk
+      FROM devices d WHERE d.tenant_id = ?
+    ) WHERE disk IS NOT NULL
+  `).bind(sess.tenant_id).first<any>();
+
+  // 5. Security feature compliance (% of devices with each feature on)
+  const compliance = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN bitlocker_enabled=1 THEN 1 ELSE 0 END) AS bitlocker,
+      SUM(CASE WHEN av_enabled=1 THEN 1 ELSE 0 END) AS av,
+      SUM(CASE WHEN av_up_to_date=1 THEN 1 ELSE 0 END) AS av_current,
+      SUM(CASE WHEN tpm_ready=1 THEN 1 ELSE 0 END) AS tpm,
+      SUM(CASE WHEN secure_boot=1 THEN 1 ELSE 0 END) AS secure_boot,
+      SUM(CASE WHEN firewall_domain=1 AND firewall_private=1 AND firewall_public=1 THEN 1 ELSE 0 END) AS firewall
+    FROM security_status WHERE tenant_id = ?
+  `).bind(sess.tenant_id).first<any>();
+
+  // 6. Alerts by severity (resolution time avg in last 30 days)
+  const alertStats = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS total_fired_30d,
+      SUM(CASE WHEN status='resolved' THEN 1 ELSE 0 END) AS resolved,
+      SUM(CASE WHEN severity='critical' THEN 1 ELSE 0 END) AS critical
+    FROM alerts WHERE tenant_id = ?
+      AND first_seen >= datetime('now','-30 days')
+  `).bind(sess.tenant_id).first<any>();
+
+  return json({
+    fleet_health: {
+      avg_score: health?.avg_score || null,
+      min_score: health?.min_score || null,
+      max_score: health?.max_score || null,
+      scored_devices: health?.scored_devices || 0,
+      healthy: health?.healthy || 0,
+      moderate: health?.moderate || 0,
+      poor: health?.poor || 0,
+    },
+    weakest_devices: weakest.results || [],
+    recent_alerts: recentAlerts.results || [],
+    disk_distribution: {
+      low: diskDist?.low || 0,
+      medium: diskDist?.medium || 0,
+      high: diskDist?.high || 0,
+      critical: diskDist?.critical || 0,
+    },
+    compliance: {
+      total: compliance?.total || 0,
+      bitlocker: compliance?.bitlocker || 0,
+      av: compliance?.av || 0,
+      av_current: compliance?.av_current || 0,
+      tpm: compliance?.tpm || 0,
+      secure_boot: compliance?.secure_boot || 0,
+      firewall: compliance?.firewall || 0,
+    },
+    alert_stats_30d: {
+      total: alertStats?.total_fired_30d || 0,
+      resolved: alertStats?.resolved || 0,
+      critical: alertStats?.critical || 0,
+    },
+  });
+}
+
 // ============== DEVICES ==============
 async function handleDevicesList(req: Request, env: Env, sess: Session): Promise<Response> {
   const res = await env.DB.prepare(
@@ -966,6 +1074,7 @@ export default {
       if (!sess) return jsonError('Unauthorized', 401);
 
       if (path === '/api/stats') return handleStats(req, env, sess);
+      if (path === '/api/dashboard') return handleDashboard(req, env, sess);
       if (path === '/api/audit' && m === 'GET') return handleAuditList(req, env, sess);
 
       if (path === '/api/devices' && m === 'GET') return handleDevicesList(req, env, sess);
