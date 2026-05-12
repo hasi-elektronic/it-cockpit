@@ -1374,7 +1374,7 @@ async function handleTenantSwitch(req: Request, env: Env, sess: Session): Promis
     token: ''
   };
   const tokenPayload = { ...newSess, exp: Date.now() + 8 * 3600 * 1000 };
-  const newToken = await signToken(env.TOKEN_SECRET, tokenPayload);
+  const newToken = await makeToken(env.TOKEN_SECRET, tokenPayload);
   newSess.token = newToken;
 
   await logAudit(env, sess, 'switch', 'tenant', t.id, { from: sess.tenant_slug, to: t.slug }, req.headers.get('CF-Connecting-IP'));
