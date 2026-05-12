@@ -753,11 +753,11 @@ function Test-IsAdmin {
 if (-not (Test-IsAdmin)) {
     Write-Host ""
     Write-Host "Installer benoetigt Admin-Rechte. Starte UAC-Prompt..." -ForegroundColor Yellow
-    # Aktuelles Script neu starten als Admin
-    $scriptUrl = "${apiUrl}/install-script/${enrollToken}"
-    $args = "-NoProfile -ExecutionPolicy Bypass -Command \\"iex (irm '$scriptUrl'); Read-Host 'Fertig - Enter zum Schliessen'\\""
+    $scriptUrl = '${apiUrl}/install-script/${enrollToken}'
+    $psCommand = 'iex (irm ''' + $scriptUrl + '''); Read-Host ''Fertig - Enter zum Schliessen'''
+    $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $psCommand)
     try {
-        Start-Process powershell.exe -Verb RunAs -ArgumentList $args
+        Start-Process powershell.exe -Verb RunAs -ArgumentList $psArgs
         Write-Host "Bitte UAC-Prompt bestaetigen. Dieses Fenster kann geschlossen werden." -ForegroundColor Green
     } catch {
         Write-Host "FEHLER: UAC-Elevation nicht moeglich. Bitte manuell als Admin starten." -ForegroundColor Red
