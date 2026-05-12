@@ -389,6 +389,36 @@ async function handleDeviceSoftware(id: number, req: Request, env: Env, sess: Se
   return json({ items: r.results });
 }
 
+async function handleDeviceDisks(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const own = await env.DB.prepare('SELECT id FROM devices WHERE id = ? AND tenant_id = ?').bind(id, sess.tenant_id).first();
+  if (!own) return jsonError('Gerät nicht gefunden', 404);
+  const r = await env.DB.prepare(
+    `SELECT mount, label, filesystem, total_gb, free_gb, percent, smart_health, disk_type, last_seen
+     FROM device_disks WHERE device_id = ? ORDER BY mount`
+  ).bind(id).all();
+  return json({ items: r.results });
+}
+
+async function handleDeviceProcesses(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const own = await env.DB.prepare('SELECT id FROM devices WHERE id = ? AND tenant_id = ?').bind(id, sess.tenant_id).first();
+  if (!own) return jsonError('Gerät nicht gefunden', 404);
+  const r = await env.DB.prepare(
+    `SELECT name, pid, ram_mb, cpu_pct, rank, captured_at FROM device_processes
+     WHERE device_id = ? ORDER BY rank ASC LIMIT 20`
+  ).bind(id).all();
+  return json({ items: r.results });
+}
+
+async function handleDeviceBrowsers(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const own = await env.DB.prepare('SELECT id FROM devices WHERE id = ? AND tenant_id = ?').bind(id, sess.tenant_id).first();
+  if (!own) return jsonError('Gerät nicht gefunden', 404);
+  const r = await env.DB.prepare(
+    `SELECT browser_name, version, outdated, last_seen FROM device_browsers
+     WHERE device_id = ? ORDER BY browser_name`
+  ).bind(id).all();
+  return json({ items: r.results });
+}
+
 // ============== LICENSES ==============
 async function handleLicensesList(req: Request, env: Env, sess: Session): Promise<Response> {
   const res = await env.DB.prepare('SELECT * FROM licenses WHERE tenant_id = ? ORDER BY software_name').bind(sess.tenant_id).all();
@@ -629,18 +659,40 @@ async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
 }
 
 function computeSecurityScore(s: any): number {
+  // Total 100 points, gewichtet nach Sicherheitsrelevanz
   let score = 0;
-  if (s.bitlocker_enabled) score += 20;
-  if (s.av_enabled) score += 15;
-  if (s.av_up_to_date) score += 10;
-  if (s.av_signature_age_days != null && s.av_signature_age_days < 7) score += 5;
-  if (s.tpm_present && s.tpm_ready) score += 10;
-  if (s.secure_boot) score += 10;
+  // Verschluesselung & Auth (25)
+  if (s.bitlocker_enabled) score += 15;
+  if (s.uac_enabled) score += 5;
+  if (!s.auto_login_enabled) score += 5;
+  // Antivirus (20)
+  if (s.av_enabled) score += 10;
+  if (s.av_up_to_date) score += 7;
+  if (s.av_signature_age_days != null && s.av_signature_age_days < 7) score += 3;
+  // Defender tamper protection (5) — gilt nur wenn Defender genutzt
+  if (s.defender_tamper_on) score += 5;
+  // Hardware-Trust (15)
+  if (s.tpm_present && s.tpm_ready) score += 8;
+  if (s.secure_boot) score += 7;
+  // Firewall (10)
   if (s.firewall_domain && s.firewall_private && s.firewall_public) score += 10;
+  else if (s.firewall_private || s.firewall_public) score += 4;
+  // Updates (15)
   if (s.wu_critical_count === 0) score += 10;
   else if (s.wu_critical_count != null && s.wu_critical_count <= 2) score += 5;
-  if (s.wu_pending_count != null && s.wu_pending_count < 10) score += 10;
-  return Math.min(score, 100);
+  if (s.wu_pending_count != null && s.wu_pending_count < 10) score += 5;
+  // Pending reboot (-5) — wartet auf Reboot ist Risiko
+  if (s.pending_reboot) score -= 5;
+  // Failed logons (-5) — Brute-Force-Indikator
+  if (s.failed_logons_24h != null && s.failed_logons_24h > 20) score -= 5;
+  // Local admin count (-3) — zu viele Admins
+  if (s.local_admin_count != null && s.local_admin_count > 3) score -= 3;
+  // RDP exposed (-5) — Risikoflache
+  if (s.rdp_enabled) score -= 3;
+  // Hygiene (10)
+  if (s.open_ports_count != null && s.open_ports_count < 30) score += 10;
+  else if (s.open_ports_count != null && s.open_ports_count < 60) score += 5;
+  return Math.max(0, Math.min(score, 100));
 }
 
 async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
@@ -659,15 +711,18 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
   await env.DB.prepare(
     `INSERT INTO device_telemetry (tenant_id, device_id, agent_id, uptime_seconds, logged_in_user,
        cpu_percent, ram_percent, ram_total_gb, ram_used_gb, disk_c_percent, disk_c_total_gb,
-       disk_c_free_gb, ip_internal, ip_external, last_boot)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       disk_c_free_gb, ip_internal, ip_external, last_boot,
+       cpu_temp_c, battery_wear_pct, battery_health, boot_time_sec, outdated_sw_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     agent.tenant_id, agent.device_id, agent.id,
     body.uptime_seconds || null, body.logged_in_user || null,
     body.cpu_percent || null, body.ram_percent || null,
     body.ram_total_gb || null, body.ram_used_gb || null,
     body.disk_c_percent || null, body.disk_c_total_gb || null, body.disk_c_free_gb || null,
-    body.ip_internal || null, ip, body.last_boot || null
+    body.ip_internal || null, ip, body.last_boot || null,
+    body.cpu_temp_c || null, body.battery_wear_pct || null, body.battery_health || null,
+    body.boot_time_sec || null, body.outdated_sw_count || null
   ).run();
 
   await env.DB.prepare(
@@ -685,8 +740,12 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
          av_product, av_enabled, av_up_to_date, av_signature_age_days,
          wu_last_search, wu_last_install, wu_pending_count, wu_critical_count,
          tpm_present, tpm_ready, secure_boot, firewall_domain, firewall_private, firewall_public,
-         security_score, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         security_score,
+         defender_tamper_on, uac_enabled, rdp_enabled, auto_login_enabled,
+         pending_reboot, pending_reboot_reason, failed_logons_24h, local_admin_count,
+         open_ports_count, open_ports_list,
+         updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
        ON CONFLICT(device_id) DO UPDATE SET
          bitlocker_enabled=excluded.bitlocker_enabled,
          bitlocker_status_text=excluded.bitlocker_status_text,
@@ -697,7 +756,13 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
          tpm_present=excluded.tpm_present, tpm_ready=excluded.tpm_ready,
          secure_boot=excluded.secure_boot, firewall_domain=excluded.firewall_domain,
          firewall_private=excluded.firewall_private, firewall_public=excluded.firewall_public,
-         security_score=excluded.security_score, updated_at=datetime('now')`
+         security_score=excluded.security_score,
+         defender_tamper_on=excluded.defender_tamper_on, uac_enabled=excluded.uac_enabled,
+         rdp_enabled=excluded.rdp_enabled, auto_login_enabled=excluded.auto_login_enabled,
+         pending_reboot=excluded.pending_reboot, pending_reboot_reason=excluded.pending_reboot_reason,
+         failed_logons_24h=excluded.failed_logons_24h, local_admin_count=excluded.local_admin_count,
+         open_ports_count=excluded.open_ports_count, open_ports_list=excluded.open_ports_list,
+         updated_at=datetime('now')`
     ).bind(
       agent.device_id, agent.tenant_id,
       s.bitlocker_enabled ? 1 : 0, s.bitlocker_status || null,
@@ -709,8 +774,72 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
       s.tpm_present ? 1 : 0, s.tpm_ready ? 1 : 0,
       s.secure_boot ? 1 : 0,
       s.firewall_domain ? 1 : 0, s.firewall_private ? 1 : 0, s.firewall_public ? 1 : 0,
-      score
+      score,
+      s.defender_tamper_on ? 1 : 0, s.uac_enabled ? 1 : 0,
+      s.rdp_enabled ? 1 : 0, s.auto_login_enabled ? 1 : 0,
+      s.pending_reboot ? 1 : 0, s.pending_reboot_reason || null,
+      s.failed_logons_24h != null ? s.failed_logons_24h : 0,
+      s.local_admin_count != null ? s.local_admin_count : 0,
+      s.open_ports_count != null ? s.open_ports_count : 0,
+      s.open_ports_list || null
     ).run();
+  }
+
+  // v0.5.0: Multi-disk insert/upsert
+  if (body.disks && Array.isArray(body.disks)) {
+    // Önce eski silmek yerine UPSERT, böylece USB takılıp çıkartılırsa kaybolmaz
+    for (const d of body.disks.slice(0, 20)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO device_disks (tenant_id, device_id, mount, label, filesystem, total_gb, free_gb, percent, smart_health, disk_type, last_seen)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+           ON CONFLICT(device_id, mount) DO UPDATE SET
+             label=excluded.label, filesystem=excluded.filesystem,
+             total_gb=excluded.total_gb, free_gb=excluded.free_gb, percent=excluded.percent,
+             smart_health=excluded.smart_health, disk_type=excluded.disk_type,
+             last_seen=excluded.last_seen`
+        ).bind(
+          agent.tenant_id, agent.device_id, d.mount, d.label || null,
+          d.filesystem || null, d.total_gb || null, d.free_gb || null, d.percent || null,
+          d.smart_health || null, d.type || null
+        ).run();
+      } catch(e) {}
+    }
+  }
+
+  // v0.5.0: Top processes — eski silinir, yeni 10 eklenir
+  if (body.top_processes && Array.isArray(body.top_processes)) {
+    await env.DB.prepare(`DELETE FROM device_processes WHERE device_id = ?`).bind(agent.device_id).run();
+    let rank = 0;
+    for (const p of body.top_processes.slice(0, 10)) {
+      rank++;
+      try {
+        await env.DB.prepare(
+          `INSERT INTO device_processes (tenant_id, device_id, name, pid, ram_mb, cpu_pct, rank, captured_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+        ).bind(
+          agent.tenant_id, agent.device_id, p.name || 'unknown', p.pid || null,
+          p.ram_mb || null, p.cpu_pct || null, rank
+        ).run();
+      } catch(e) {}
+    }
+  }
+
+  // v0.5.0: Browsers — UPSERT
+  if (body.browsers && Array.isArray(body.browsers)) {
+    for (const b of body.browsers.slice(0, 10)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO device_browsers (tenant_id, device_id, browser_name, version, outdated, last_seen)
+           VALUES (?, ?, ?, ?, ?, datetime('now'))
+           ON CONFLICT(device_id, browser_name) DO UPDATE SET
+             version=excluded.version, outdated=excluded.outdated, last_seen=excluded.last_seen`
+        ).bind(
+          agent.tenant_id, agent.device_id, b.name, b.version || null,
+          b.outdated ? 1 : 0
+        ).run();
+      } catch(e) {}
+    }
   }
 
   if (body.software && Array.isArray(body.software) && body.software.length > 0) {
@@ -1391,7 +1520,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.3.0', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.0', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -1426,6 +1555,12 @@ export default {
       if (mt && m === 'GET') return handleDeviceSecurity(Number(mt[1]), req, env, sess);
       mt = path.match(/^\/api\/devices\/(\d+)\/software$/);
       if (mt && m === 'GET') return handleDeviceSoftware(Number(mt[1]), req, env, sess);
+      mt = path.match(/^\/api\/devices\/(\d+)\/disks$/);
+      if (mt && m === 'GET') return handleDeviceDisks(Number(mt[1]), req, env, sess);
+      mt = path.match(/^\/api\/devices\/(\d+)\/processes$/);
+      if (mt && m === 'GET') return handleDeviceProcesses(Number(mt[1]), req, env, sess);
+      mt = path.match(/^\/api\/devices\/(\d+)\/browsers$/);
+      if (mt && m === 'GET') return handleDeviceBrowsers(Number(mt[1]), req, env, sess);
 
       if (path === '/api/licenses' && m === 'GET') return handleLicensesList(req, env, sess);
       if (path === '/api/licenses' && m === 'POST') return handleLicenseCreate(req, env, sess);

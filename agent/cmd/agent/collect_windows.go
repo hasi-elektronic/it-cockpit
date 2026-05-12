@@ -127,7 +127,7 @@ func collectHeartbeat() *HeartbeatPayload {
 		}
 	}
 
-	// Disk C:
+	// Disk C: (legacy, hep doldurulur)
 	diskInfo := runPS(`$d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"; "$($d.Size)|$($d.FreeSpace)"`)
 	if parts := strings.SplitN(diskInfo, "|", 2); len(parts) == 2 {
 		total := parseFloat(parts[0])
@@ -139,12 +139,232 @@ func collectHeartbeat() *HeartbeatPayload {
 		}
 	}
 
+	// v0.5.0: Multi-disk (alle lokalen Laufwerke)
+	hb.Disks = collectDisks()
+
+	// v0.5.0: Top processes (RAM nach Verbrauch)
+	hb.TopProcesses = collectTopProcesses()
+
+	// v0.5.0: Browser-Versionen
+	hb.Browsers = collectBrowsers()
+
+	// v0.5.0: CPU Temperatur
+	hb.CPUTempC = collectCPUTemp()
+
+	// v0.5.0: Battery wear
+	hb.BatteryWearPct, hb.BatteryHealth = collectBattery()
+
+	// v0.5.0: Boot time (Sekunden)
+	hb.BootTimeSec = collectBootTime()
+
+	// v0.5.0: Outdated software count (winget)
+	hb.OutdatedSwCount = collectOutdatedSoftware()
+
 	// Security
 	hb.Security = collectWindowsSecurity()
 
 	// Software inventory
 	hb.Software = collectWindowsSoftware()
 	return hb
+}
+
+// ==================== v0.5.0 NEW COLLECTORS ====================
+
+func collectDisks() []DiskInfo {
+	// Win32_LogicalDisk: DriveType 3 = lokal, 2 = entfernbar (USB)
+	// Get-PhysicalDisk: HealthStatus, MediaType, BusType -> nur wenn lokal
+	raw := runPS(`
+Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3 OR DriveType=2" | ForEach-Object {
+    $vol = $_
+    $total = [math]::Round($vol.Size / 1GB, 2)
+    $free  = [math]::Round($vol.FreeSpace / 1GB, 2)
+    $pct = if ($vol.Size -gt 0) { [math]::Round((($vol.Size - $vol.FreeSpace) / $vol.Size) * 100, 1) } else { 0 }
+    $type = if ($vol.DriveType -eq 2) { 'USB' } else { 'Local' }
+    "$($vol.DeviceID)|$($vol.VolumeName)|$($vol.FileSystem)|$total|$free|$pct|$type"
+}`)
+	var disks []DiskInfo
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) < 7 {
+			continue
+		}
+		d := DiskInfo{
+			Mount:      parts[0],
+			Label:      parts[1],
+			FileSystem: parts[2],
+			TotalGb:    parseFloat(parts[3]),
+			FreeGb:     parseFloat(parts[4]),
+			Percent:    parseFloat(parts[5]),
+			Type:       parts[6],
+		}
+		disks = append(disks, d)
+	}
+
+	// SMART health pro PhysicalDisk (mapped per mount letter via partition)
+	smartMap := runPS(`
+try {
+  Get-PhysicalDisk -ErrorAction Stop | ForEach-Object {
+    $p = $_
+    $partitions = Get-Partition -DiskNumber $p.DeviceId -ErrorAction SilentlyContinue
+    $letters = ($partitions | Where-Object { $_.DriveLetter } | ForEach-Object { $_.DriveLetter + ':' }) -join ','
+    $mediaType = if ($p.MediaType) { $p.MediaType } else { 'Unknown' }
+    "$letters|$($p.HealthStatus)|$mediaType"
+  }
+} catch { '' }`)
+	for _, line := range strings.Split(smartMap, "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) < 3 {
+			continue
+		}
+		letters := parts[0]
+		health := parts[1]
+		mediaType := parts[2]
+		for _, letter := range strings.Split(letters, ",") {
+			letter = strings.TrimSpace(letter)
+			for i := range disks {
+				if disks[i].Mount == letter {
+					disks[i].SMARTHealth = health
+					if disks[i].Type == "Local" && mediaType != "" && mediaType != "Unspecified" {
+						disks[i].Type = mediaType // SSD, HDD, NVMe
+					}
+				}
+			}
+		}
+	}
+	return disks
+}
+
+func collectTopProcesses() []ProcessInfo {
+	// Top 10 nach RAM (Working Set)
+	raw := runPS(`Get-Process | Sort-Object WS -Descending | Select-Object -First 10 | ForEach-Object { "$($_.Name)|$($_.Id)|$($_.WS)" }`)
+	var procs []ProcessInfo
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) < 3 {
+			continue
+		}
+		procs = append(procs, ProcessInfo{
+			Name:  parts[0],
+			PID:   parseInt(parts[1]),
+			RAMMb: parseFloat(parts[2]) / (1024 * 1024),
+		})
+	}
+	return procs
+}
+
+func collectBrowsers() []BrowserInfo {
+	// Chrome, Edge, Firefox Versionen aus Registry / Executable
+	var browsers []BrowserInfo
+
+	chrome := runPS(`(Get-Item -Path 'HKLM:\SOFTWARE\WOW6432Node\Google\Update\Clients\{8A69D345-D564-463c-AFF1-A69D9E530F96}' -ErrorAction SilentlyContinue).GetValue('pv')`)
+	if chrome == "" {
+		chrome = runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\Google\Chrome\BLBeacon' -ErrorAction SilentlyContinue).version`)
+	}
+	if chrome != "" {
+		// Latest stable as of 2026 is around 130+. Mark anything below 120 as outdated.
+		outdated := isVersionOlderThan(chrome, 120)
+		browsers = append(browsers, BrowserInfo{Name: "Google Chrome", Version: chrome, Outdated: outdated})
+	}
+
+	edge := runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}' -ErrorAction SilentlyContinue).pv`)
+	if edge == "" {
+		edge = runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Edge\BLBeacon' -ErrorAction SilentlyContinue).version`)
+	}
+	if edge != "" {
+		outdated := isVersionOlderThan(edge, 120)
+		browsers = append(browsers, BrowserInfo{Name: "Microsoft Edge", Version: edge, Outdated: outdated})
+	}
+
+	firefox := runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\Mozilla\Mozilla Firefox' -ErrorAction SilentlyContinue).CurrentVersion`)
+	if firefox != "" {
+		outdated := isVersionOlderThan(firefox, 115)
+		browsers = append(browsers, BrowserInfo{Name: "Mozilla Firefox", Version: firefox, Outdated: outdated})
+	}
+
+	return browsers
+}
+
+func isVersionOlderThan(ver string, minMajor int) bool {
+	parts := strings.Split(ver, ".")
+	if len(parts) == 0 {
+		return false
+	}
+	major := parseInt(parts[0])
+	if major == 0 {
+		return false
+	}
+	return major < minMajor
+}
+
+func collectCPUTemp() float64 {
+	// MSAcpi_ThermalZoneTemperature gibt in Zehntel-Kelvin
+	tempRaw := runPS(`try { (Get-CimInstance -Namespace root/WMI -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1).CurrentTemperature } catch { '' }`)
+	if tempRaw == "" {
+		return 0
+	}
+	tenthsKelvin := parseFloat(tempRaw)
+	if tenthsKelvin <= 0 {
+		return 0
+	}
+	return (tenthsKelvin / 10.0) - 273.15
+}
+
+func collectBattery() (float64, string) {
+	// Get-CimInstance Win32_Battery: nur bei Laptops vorhanden
+	batt := runPS(`try {
+  $b = Get-CimInstance Win32_Battery -ErrorAction Stop | Select-Object -First 1
+  if ($b) {
+    $design = (Get-CimInstance -Namespace root/WMI -ClassName BatteryStaticData -ErrorAction SilentlyContinue | Select-Object -First 1).DesignedCapacity
+    $full = (Get-CimInstance -Namespace root/WMI -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object -First 1).FullChargedCapacity
+    if ($design -gt 0 -and $full -gt 0) {
+      $wear = [math]::Round((($design - $full) / $design) * 100, 1)
+      "$wear|$design|$full"
+    } else { '' }
+  } else { '' }
+} catch { '' }`)
+	if batt == "" || !strings.Contains(batt, "|") {
+		return 0, ""
+	}
+	parts := strings.Split(batt, "|")
+	wear := parseFloat(parts[0])
+	health := "Gut"
+	if wear > 30 {
+		health = "Schlecht"
+	} else if wear > 15 {
+		health = "OK"
+	}
+	return wear, health
+}
+
+func collectBootTime() int {
+	// Letzte Bootzeit in Sekunden (Win32_PerfFormattedData_PerfOS_System -> SystemUpTime is uptime, not boot duration)
+	// Alternativ: EventLog 12 (boot) und 6005 timestamps
+	raw := runPS(`try {
+  $boot = Get-WinEvent -FilterHashtable @{ LogName='System'; Id=100; ProviderName='Microsoft-Windows-Kernel-Boot' } -MaxEvents 1 -ErrorAction Stop
+  if ($boot) { [int]($boot.Properties[0].Value / 1000) } else { 0 }
+} catch { 0 }`)
+	return parseInt(raw)
+}
+
+func collectOutdatedSoftware() int {
+	// winget upgrade --include-unknown returns lines of pending updates
+	raw := runPS(`try {
+  $count = (winget upgrade --include-unknown 2>$null | Where-Object { $_ -match '^\S+\s+\S+\s+\d' }).Count
+  $count
+} catch { 0 }`)
+	return parseInt(raw)
 }
 
 // ==================== SECURITY ====================
@@ -157,25 +377,111 @@ func collectWindowsSecurity() *SecurityStatus {
 	sec.BitlockerStatus = blStatus
 	sec.BitlockerEnabled = (blStatus == "FullyEncrypted" || blStatus == "EncryptionInProgress")
 
-	// Windows Defender / AV via Get-MpComputerStatus
-	avInfo := runPS(`try {
-		$m = Get-MpComputerStatus -ErrorAction Stop
-		$age = (Get-Date) - $m.AntivirusSignatureLastUpdated
-		"$($m.AMServiceEnabled)|$($m.AntispywareSignatureLastUpdated.ToString('yyyy-MM-dd'))|$([int]$age.TotalDays)"
-	} catch { 'unknown' }`)
-	if parts := strings.SplitN(avInfo, "|", 3); len(parts) == 3 {
-		sec.AVProduct = "Windows Defender"
-		sec.AVEnabled = strings.EqualFold(parts[0], "True")
-		ageDays := parseInt(parts[2])
-		sec.AVSignatureAgeDays = ageDays
-		sec.AVUpToDate = ageDays < 7
+	// ==================== ANTIVIRUS DETECTION (all vendors) ====================
+	//
+	// SecurityCenter2 namespace listet ALLE registrierten AV-Produkte mit productState.
+	// productState ist ein 32-bit Bitfield:
+	//   - Byte 2 (Bits 16-23): Produkt-Typ (0x10=AV, 0x40=AS, 0x01=FW)
+	//   - Byte 1 (Bits 8-15):  Status (0x10=On/aktiv, 0x00=Off/inaktiv, 0x01=Snoozed)
+	//   - Byte 0 (Bits 0-7):   Signaturen (0x00=aktuell, 0x10=veraltet/expired)
+	//
+	// Wir nehmen das erste aktive Produkt (Priorität: 3rd-party > Defender),
+	// damit z.B. G Data, Bitdefender, Kaspersky korrekt erkannt werden.
+
+	avListRaw := runPS(`try {
+		Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ErrorAction Stop |
+		ForEach-Object { "$($_.displayName)|$($_.productState)" }
+	} catch { '' }`)
+
+	type avEntry struct {
+		Name    string
+		State   int64
+		IsOn    bool
+		IsCurrent bool
+		IsDefender bool
+	}
+	var avEntries []avEntry
+	for _, line := range strings.Split(avListRaw, "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" || !strings.Contains(line, "|") {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 2)
+		name := strings.TrimSpace(parts[0])
+		stateStr := strings.TrimSpace(parts[1])
+		state, _ := strconv.ParseInt(stateStr, 10, 64)
+		// Bit 12 (0x1000) = enabled/On
+		isOn := (state & 0x1000) != 0
+		// Bit 4 (0x10) on signature byte = outdated; 0 = current
+		isCurrent := (state & 0x10) == 0
+		isDefender := strings.Contains(strings.ToLower(name), "defender") ||
+			strings.Contains(strings.ToLower(name), "microsoft")
+		avEntries = append(avEntries, avEntry{name, state, isOn, isCurrent, isDefender})
 	}
 
-	// Check for 3rd-party AV (SecurityCenter)
-	thirdParty := runPS(`Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct -ErrorAction SilentlyContinue | Where-Object { $_.displayName -notlike '*Defender*' } | Select-Object -First 1 -ExpandProperty displayName`)
-	if thirdParty != "" {
-		sec.AVProduct = thirdParty
-		sec.AVEnabled = true
+	// Wähle das beste AV-Produkt: aktiv vor inaktiv, 3rd-party vor Defender
+	bestIdx := -1
+	for i, a := range avEntries {
+		if bestIdx == -1 {
+			bestIdx = i
+			continue
+		}
+		best := avEntries[bestIdx]
+		// Bewertung: aktiv (4) + 3rd-party (2) + current (1)
+		bestScore := 0
+		if best.IsOn { bestScore += 4 }
+		if !best.IsDefender { bestScore += 2 }
+		if best.IsCurrent { bestScore += 1 }
+		curScore := 0
+		if a.IsOn { curScore += 4 }
+		if !a.IsDefender { curScore += 2 }
+		if a.IsCurrent { curScore += 1 }
+		if curScore > bestScore {
+			bestIdx = i
+		}
+	}
+
+	if bestIdx >= 0 {
+		best := avEntries[bestIdx]
+		sec.AVProduct = best.Name
+		sec.AVEnabled = best.IsOn
+		// Wenn das beste AV Defender ist, sind die genauen Signatur-Daten via Get-MpComputerStatus präziser
+		if best.IsDefender {
+			avInfo := runPS(`try {
+				$m = Get-MpComputerStatus -ErrorAction Stop
+				$age = (Get-Date) - $m.AntivirusSignatureLastUpdated
+				"$($m.AMServiceEnabled)|$([int]$age.TotalDays)"
+			} catch { '' }`)
+			if parts := strings.SplitN(avInfo, "|", 2); len(parts) == 2 {
+				sec.AVEnabled = strings.EqualFold(parts[0], "True")
+				ageDays := parseInt(parts[1])
+				sec.AVSignatureAgeDays = ageDays
+				sec.AVUpToDate = ageDays < 7
+			}
+		} else {
+			// 3rd-party AV: Signatur-Status aus productState ableiten
+			sec.AVUpToDate = best.IsCurrent
+			// SignatureAgeDays: 0 wenn current, sonst 30 (Annahme, da exakte Daten vendor-spezifisch)
+			if best.IsCurrent {
+				sec.AVSignatureAgeDays = 0
+			} else {
+				sec.AVSignatureAgeDays = 30
+			}
+		}
+	} else {
+		// Fallback: Get-MpComputerStatus direkt (alte Windows ohne SecurityCenter2)
+		avInfo := runPS(`try {
+			$m = Get-MpComputerStatus -ErrorAction Stop
+			$age = (Get-Date) - $m.AntivirusSignatureLastUpdated
+			"$($m.AMServiceEnabled)|$([int]$age.TotalDays)"
+		} catch { '' }`)
+		if parts := strings.SplitN(avInfo, "|", 2); len(parts) == 2 {
+			sec.AVProduct = "Windows Defender"
+			sec.AVEnabled = strings.EqualFold(parts[0], "True")
+			ageDays := parseInt(parts[1])
+			sec.AVSignatureAgeDays = ageDays
+			sec.AVUpToDate = ageDays < 7
+		}
 	}
 
 	// Windows Update info
@@ -215,6 +521,67 @@ func collectWindowsSecurity() *SecurityStatus {
 		} else if strings.HasPrefix(line, "Public:") {
 			sec.FirewallPublic = strings.Contains(line, "True")
 		}
+	}
+
+	// ============== v0.5.0 NEW SECURITY METRICS ==============
+
+	// Defender Tamper Protection (verhindert dass Malware Defender deaktiviert)
+	tamper := runPS(`try { (Get-MpComputerStatus -ErrorAction Stop).IsTamperProtected } catch { '' }`)
+	sec.DefenderTamperOn = strings.EqualFold(tamper, "True")
+
+	// UAC enabled (EnableLUA in Registry)
+	uac := runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -ErrorAction SilentlyContinue).EnableLUA`)
+	sec.UACEnabled = uac == "1"
+
+	// RDP enabled (fDenyTSConnections == 0 = aktiv)
+	rdp := runPS(`(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' -ErrorAction SilentlyContinue).fDenyTSConnections`)
+	sec.RDPEnabled = rdp == "0"
+
+	// Auto-login enabled
+	autoLogin := runPS(`(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -ErrorAction SilentlyContinue).AutoAdminLogon`)
+	sec.AutoLoginEnabled = autoLogin == "1"
+
+	// Pending reboot (4 yöntem)
+	rebootReason := runPS(`
+$reasons = @()
+if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') { $reasons += 'CBS' }
+if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { $reasons += 'WindowsUpdate' }
+$pfro = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
+if ($pfro) { $reasons += 'FileRename' }
+try {
+  $ccm = Invoke-CimMethod -Namespace 'ROOT\ccm\ClientSDK' -ClassName CCM_ClientUtilities -MethodName DetermineIfRebootPending -ErrorAction Stop
+  if ($ccm.RebootPending) { $reasons += 'SCCM' }
+} catch {}
+$reasons -join ','`)
+	sec.PendingReboot = rebootReason != ""
+	sec.PendingRebootReason = rebootReason
+
+	// Failed logons (last 24h) — Event ID 4625
+	failedLogons := runPS(`try {
+  $since = (Get-Date).AddDays(-1)
+  $count = (Get-WinEvent -FilterHashtable @{ LogName='Security'; Id=4625; StartTime=$since } -ErrorAction Stop -MaxEvents 500 | Measure-Object).Count
+  $count
+} catch { 0 }`)
+	sec.FailedLogons24h = parseInt(failedLogons)
+
+	// Local administrators
+	localAdmins := runPS(`try {
+  $g = Get-LocalGroupMember -Group 'Administratoren' -ErrorAction Stop
+  if (-not $g) { $g = Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue }
+  if ($g) { ($g | Measure-Object).Count } else { 0 }
+} catch {
+  try { (Get-LocalGroupMember -Group 'Administrators' -ErrorAction Stop | Measure-Object).Count } catch { 0 }
+}`)
+	sec.LocalAdminCount = parseInt(localAdmins)
+
+	// Open listening ports
+	openPorts := runPS(`try {
+  $tcp = Get-NetTCPConnection -State Listen -ErrorAction Stop | Select-Object -ExpandProperty LocalPort | Sort-Object -Unique
+  $tcp -join ','
+} catch { '' }`)
+	sec.OpenPortsList = openPorts
+	if openPorts != "" {
+		sec.OpenPortsCount = len(strings.Split(openPorts, ","))
 	}
 
 	return sec

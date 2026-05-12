@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.4.0"
+const AgentVersion = "0.5.0"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -162,6 +162,41 @@ type SecurityStatus struct {
 	FirewallDomain      bool   `json:"firewall_domain"`
 	FirewallPrivate     bool   `json:"firewall_private"`
 	FirewallPublic      bool   `json:"firewall_public"`
+	// v0.5.0 additions
+	DefenderTamperOn    bool   `json:"defender_tamper_on"`
+	UACEnabled          bool   `json:"uac_enabled"`
+	RDPEnabled          bool   `json:"rdp_enabled"`
+	AutoLoginEnabled    bool   `json:"auto_login_enabled"`
+	PendingReboot       bool   `json:"pending_reboot"`
+	PendingRebootReason string `json:"pending_reboot_reason,omitempty"`
+	FailedLogons24h     int    `json:"failed_logons_24h"`
+	LocalAdminCount     int    `json:"local_admin_count"`
+	OpenPortsCount      int    `json:"open_ports_count"`
+	OpenPortsList       string `json:"open_ports_list,omitempty"` // comma-separated
+}
+
+type DiskInfo struct {
+	Mount       string  `json:"mount"`        // e.g. "C:"
+	Label       string  `json:"label,omitempty"`
+	FileSystem  string  `json:"filesystem,omitempty"`
+	TotalGb     float64 `json:"total_gb"`
+	FreeGb      float64 `json:"free_gb"`
+	Percent     float64 `json:"percent"`
+	SMARTHealth string  `json:"smart_health,omitempty"` // Healthy / Warning / Unhealthy / Unknown
+	Type        string  `json:"type,omitempty"`         // SSD / HDD / NVMe / USB
+}
+
+type ProcessInfo struct {
+	Name    string  `json:"name"`
+	PID     int     `json:"pid"`
+	RAMMb   float64 `json:"ram_mb"`
+	CPUPct  float64 `json:"cpu_pct,omitempty"`
+}
+
+type BrowserInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+	Outdated bool  `json:"outdated"`
 }
 
 type SoftwareItem struct {
@@ -185,6 +220,15 @@ type HeartbeatPayload struct {
 	LastBoot       string          `json:"last_boot,omitempty"`
 	Security       *SecurityStatus `json:"security,omitempty"`
 	Software       []SoftwareItem  `json:"software,omitempty"`
+	// v0.5.0 additions
+	Disks          []DiskInfo      `json:"disks,omitempty"`
+	TopProcesses   []ProcessInfo   `json:"top_processes,omitempty"`
+	Browsers       []BrowserInfo   `json:"browsers,omitempty"`
+	CPUTempC       float64         `json:"cpu_temp_c,omitempty"`
+	BatteryWearPct float64         `json:"battery_wear_pct,omitempty"`
+	BatteryHealth  string          `json:"battery_health,omitempty"`
+	BootTimeSec    int             `json:"boot_time_sec,omitempty"`
+	OutdatedSwCount int            `json:"outdated_sw_count,omitempty"`
 }
 
 // ==================== HTTP ====================

@@ -29,6 +29,20 @@ interface AlertSettings {
   agent_offline_warn_h: number;
   agent_offline_crit_h: number;
   wu_critical_count: number;
+  // v0.5.0 new
+  rule_pending_reboot: number;
+  rule_uptime_long: number;
+  rule_smart_warning: number;
+  rule_failed_logon_spike: number;
+  rule_browser_outdated: number;
+  rule_patch_high: number;
+  rule_battery_wear: number;
+  rule_defender_tamper_off: number;
+  pending_reboot_days: number;
+  uptime_max_days: number;
+  failed_logon_threshold: number;
+  patch_high_threshold: number;
+  battery_wear_threshold: number;
 }
 
 interface FiredAlert {
@@ -181,7 +195,15 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
       SELECT d.id, d.hostname, d.agent_status, d.agent_last_seen, d.auto_discovered, d.created_at,
              s.bitlocker_enabled, s.av_enabled, s.av_up_to_date, s.av_signature_age_days,
              s.wu_critical_count, s.wu_pending_count,
-             (SELECT disk_c_percent FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS disk_c_percent
+             s.pending_reboot, s.pending_reboot_reason, s.failed_logons_24h,
+             s.defender_tamper_on, s.av_product,
+             (SELECT disk_c_percent FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS disk_c_percent,
+             (SELECT battery_wear_pct FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS battery_wear_pct,
+             (SELECT uptime_seconds FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS uptime_seconds,
+             (SELECT MIN(smart_health) FROM device_disks WHERE device_id = d.id AND smart_health IS NOT NULL AND smart_health != 'Healthy') AS worst_smart,
+             (SELECT GROUP_CONCAT(mount || ':' || smart_health, ', ') FROM device_disks WHERE device_id = d.id AND smart_health IS NOT NULL AND smart_health NOT IN ('Healthy', 'OK')) AS smart_problem_disks,
+             (SELECT COUNT(*) FROM device_browsers WHERE device_id = d.id AND outdated = 1) AS outdated_browsers,
+             (SELECT GROUP_CONCAT(browser_name || ' ' || version, ', ') FROM device_browsers WHERE device_id = d.id AND outdated = 1) AS outdated_browser_list
       FROM devices d
       LEFT JOIN security_status s ON s.device_id = d.id
       WHERE d.tenant_id = ?
@@ -313,6 +335,110 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
             value: dev.hostname,
           });
         }
+      }
+
+      // ============ v0.5.0 NEW RULES ============
+
+      // ---- Rule: Pending reboot > N Tage ----
+      if (tenantSettings.rule_pending_reboot && dev.pending_reboot === 1) {
+        // Wir haben kein 'seit wann' Feld; daher direkter Alarm aber als warning
+        shouldFire.set(`${dev.id}:pending_reboot`, {
+          device_id: dev.id,
+          rule_key: 'pending_reboot',
+          severity: 'warning',
+          title: 'Neustart ausstehend',
+          message: `Der PC wartet auf einen Neustart (${dev.pending_reboot_reason || 'Updates installiert'}). Bitte zeitnah neu starten.`,
+          value: dev.pending_reboot_reason || 'pending',
+        });
+      }
+
+      // ---- Rule: Uptime zu lang (PC seit zu vielen Tagen nicht neu gestartet) ----
+      if (tenantSettings.rule_uptime_long && dev.uptime_seconds != null) {
+        const uptimeDays = dev.uptime_seconds / 86400;
+        if (uptimeDays > (tenantSettings.uptime_max_days || 60)) {
+          shouldFire.set(`${dev.id}:uptime_long`, {
+            device_id: dev.id,
+            rule_key: 'uptime_long',
+            severity: 'warning',
+            title: 'Lange ohne Neustart',
+            message: `Der PC laeuft seit ${Math.round(uptimeDays)} Tagen ohne Neustart. Updates koennten nicht aktiv sein.`,
+            value: `${Math.round(uptimeDays)} Tage`,
+          });
+        }
+      }
+
+      // ---- Rule: SMART warning (festplatte gibt warning aus) ----
+      if (tenantSettings.rule_smart_warning && dev.worst_smart && dev.worst_smart !== 'Healthy' && dev.worst_smart !== 'OK') {
+        shouldFire.set(`${dev.id}:smart_warning`, {
+          device_id: dev.id,
+          rule_key: 'smart_warning',
+          severity: 'critical',
+          title: 'Festplatte zeigt Problem',
+          message: `SMART meldet Probleme (${dev.smart_problem_disks}). Datenverlust-Risiko - Backup pruefen und Platte tauschen!`,
+          value: dev.worst_smart,
+        });
+      }
+
+      // ---- Rule: Failed logon spike ----
+      if (tenantSettings.rule_failed_logon_spike && dev.failed_logons_24h != null && dev.failed_logons_24h > (tenantSettings.failed_logon_threshold || 20)) {
+        shouldFire.set(`${dev.id}:failed_logon_spike`, {
+          device_id: dev.id,
+          rule_key: 'failed_logon_spike',
+          severity: 'warning',
+          title: 'Viele fehlgeschlagene Logins',
+          message: `${dev.failed_logons_24h} fehlgeschlagene Anmeldungen in 24h. Brute-Force-Versuch oder defektes Konto pruefen.`,
+          value: `${dev.failed_logons_24h} Versuche`,
+        });
+      }
+
+      // ---- Rule: Browser veraltet ----
+      if (tenantSettings.rule_browser_outdated && dev.outdated_browsers > 0) {
+        shouldFire.set(`${dev.id}:browser_outdated`, {
+          device_id: dev.id,
+          rule_key: 'browser_outdated',
+          severity: 'warning',
+          title: 'Browser veraltet',
+          message: `${dev.outdated_browsers} veraltete Browser-Version(en) erkannt: ${dev.outdated_browser_list || ''}. Sofortiges Update empfohlen (Sicherheitsluecken).`,
+          value: dev.outdated_browser_list || `${dev.outdated_browsers} Browser`,
+        });
+      }
+
+      // ---- Rule: Sehr viele Updates ausstehend ----
+      if (tenantSettings.rule_patch_high && dev.wu_pending_count != null && dev.wu_pending_count > (tenantSettings.patch_high_threshold || 20)) {
+        shouldFire.set(`${dev.id}:patch_high`, {
+          device_id: dev.id,
+          rule_key: 'patch_high',
+          severity: 'warning',
+          title: 'Viele Updates ausstehend',
+          message: `${dev.wu_pending_count} Windows-Updates wurden lange nicht installiert. Vermutlich Patch-Vernachlaessigung.`,
+          value: `${dev.wu_pending_count} Updates`,
+        });
+      }
+
+      // ---- Rule: Battery wear hoch (Laptop) ----
+      if (tenantSettings.rule_battery_wear && dev.battery_wear_pct != null && dev.battery_wear_pct > (tenantSettings.battery_wear_threshold || 30)) {
+        shouldFire.set(`${dev.id}:battery_wear`, {
+          device_id: dev.id,
+          rule_key: 'battery_wear',
+          severity: 'info',
+          title: 'Akku gealtert',
+          message: `Akku-Verschleiss: ${Math.round(dev.battery_wear_pct)}%. Tausch in den naechsten Monaten empfohlen.`,
+          value: `${Math.round(dev.battery_wear_pct)}% wear`,
+        });
+      }
+
+      // ---- Rule: Defender Tamper Protection AUS (nur wenn Defender genutzt wird) ----
+      if (tenantSettings.rule_defender_tamper_off && dev.av_product &&
+          (dev.av_product.toLowerCase().includes('defender') || dev.av_product.toLowerCase().includes('microsoft')) &&
+          dev.defender_tamper_on === 0) {
+        shouldFire.set(`${dev.id}:defender_tamper_off`, {
+          device_id: dev.id,
+          rule_key: 'defender_tamper_off',
+          severity: 'warning',
+          title: 'Defender Tamper-Schutz aus',
+          message: 'Tamper Protection ist deaktiviert - Defender kann von Malware abgeschaltet werden.',
+          value: 'Tamper off',
+        });
       }
     }
 
