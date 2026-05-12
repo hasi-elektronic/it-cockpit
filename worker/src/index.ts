@@ -1,7 +1,9 @@
 /**
- * Hasi IT-Cockpit — Cloudflare Worker API v0.2
- * Adds: agent registration, heartbeat, telemetry, security status, install script
+ * Hasi IT-Cockpit — Cloudflare Worker API v0.3
+ * Adds: alert evaluator (cron), Telegram notifications, alert management endpoints
  */
+
+import { evaluateAlerts, sendTestTelegram } from './alerts';
 
 export interface Env {
   DB: D1Database;
@@ -828,6 +830,115 @@ async function handleAgentBinary(filename: string, env: Env): Promise<Response> 
   });
 }
 
+// ============== ALERT MANAGEMENT ==============
+
+async function handleAlertsList(req: Request, env: Env, sess: Session): Promise<Response> {
+  const url = new URL(req.url);
+  const status = url.searchParams.get('status') || 'open';
+  const res = await env.DB.prepare(`
+    SELECT a.*, d.hostname AS device_hostname
+    FROM alerts a LEFT JOIN devices d ON d.id = a.device_id
+    WHERE a.tenant_id = ?
+      AND (? = 'all' OR a.status = ? OR (? = 'open' AND a.status IN ('open','acknowledged')))
+    ORDER BY
+      CASE a.severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
+      a.last_seen DESC
+    LIMIT 200
+  `).bind(sess.tenant_id, status, status, status).all();
+  return json({ items: res.results });
+}
+
+async function handleAlertAck(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const r = await env.DB.prepare(`
+    UPDATE alerts SET status='acknowledged', acknowledged_at=datetime('now'), acknowledged_by=?
+    WHERE id=? AND tenant_id=? AND status='open'
+  `).bind(sess.user_id, id, sess.tenant_id).run();
+  if (r.meta.changes === 0) return jsonError('Alert nicht gefunden oder bereits bearbeitet', 404);
+  await env.DB.prepare(`INSERT INTO alert_history (tenant_id, alert_id, rule_key, severity, event)
+    SELECT tenant_id, id, rule_key, severity, 'acknowledged' FROM alerts WHERE id = ?`).bind(id).run();
+  return json({ ok: true });
+}
+
+async function handleAlertResolve(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const r = await env.DB.prepare(`
+    UPDATE alerts SET status='resolved', resolved_at=datetime('now')
+    WHERE id=? AND tenant_id=? AND status IN ('open','acknowledged')
+  `).bind(id, sess.tenant_id).run();
+  if (r.meta.changes === 0) return jsonError('Alert nicht gefunden', 404);
+  return json({ ok: true });
+}
+
+async function handleAlertSettings(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (req.method === 'GET') {
+    const s = await env.DB.prepare(`SELECT * FROM alert_settings WHERE tenant_id = ?`).bind(sess.tenant_id).first();
+    if (!s) {
+      await env.DB.prepare(`INSERT INTO alert_settings (tenant_id) VALUES (?)`).bind(sess.tenant_id).run();
+      const fresh = await env.DB.prepare(`SELECT * FROM alert_settings WHERE tenant_id = ?`).bind(sess.tenant_id).first();
+      return json(fresh);
+    }
+    return json(s);
+  }
+  if (req.method === 'PUT') {
+    if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+    const body = await req.json<any>();
+    const allowedKeys = [
+      'telegram_enabled','telegram_bot_token','telegram_chat_id',
+      'email_enabled','email_recipient',
+      'rule_disk_critical','rule_disk_warning','rule_av_disabled','rule_av_outdated',
+      'rule_bitlocker_off','rule_agent_offline','rule_wu_critical','rule_new_device',
+      'disk_critical_pct','disk_warning_pct','av_signature_days',
+      'agent_offline_warn_h','agent_offline_crit_h','wu_critical_count'
+    ];
+    const setParts: string[] = [];
+    const values: any[] = [];
+    for (const k of allowedKeys) {
+      if (k in body) {
+        setParts.push(`${k} = ?`);
+        values.push(body[k]);
+      }
+    }
+    if (setParts.length === 0) return jsonError('Keine Aenderungen', 400);
+    setParts.push(`updated_at = datetime('now')`);
+    values.push(sess.tenant_id);
+    await env.DB.prepare(`
+      INSERT INTO alert_settings (tenant_id) VALUES (?) ON CONFLICT(tenant_id) DO NOTHING
+    `).bind(sess.tenant_id).run();
+    await env.DB.prepare(`UPDATE alert_settings SET ${setParts.join(', ')} WHERE tenant_id = ?`).bind(...values).run();
+    await logAudit(env, sess, 'update', 'alert_settings', sess.tenant_id, {}, req.headers.get('CF-Connecting-IP'));
+    return json({ ok: true });
+  }
+  return jsonError('Method not allowed', 405);
+}
+
+async function handleAlertTestTelegram(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+  const r = await sendTestTelegram(env, sess.tenant_id);
+  return json(r);
+}
+
+async function handleAlertEvaluate(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+  const r = await evaluateAlerts(env);
+  await logAudit(env, sess, 'evaluate', 'alerts', null, r, req.headers.get('CF-Connecting-IP'));
+  return json(r);
+}
+
+async function handleAlertCount(req: Request, env: Env, sess: Session): Promise<Response> {
+  const r = await env.DB.prepare(`
+    SELECT
+      SUM(CASE WHEN severity='critical' AND status IN ('open','acknowledged') THEN 1 ELSE 0 END) AS critical,
+      SUM(CASE WHEN severity='warning' AND status IN ('open','acknowledged') THEN 1 ELSE 0 END) AS warning,
+      SUM(CASE WHEN severity='info' AND status IN ('open','acknowledged') THEN 1 ELSE 0 END) AS info
+    FROM alerts WHERE tenant_id = ?
+  `).bind(sess.tenant_id).first<any>();
+  return json({
+    critical: r?.critical || 0,
+    warning: r?.warning || 0,
+    info: r?.info || 0,
+    total: (r?.critical || 0) + (r?.warning || 0) + (r?.info || 0),
+  });
+}
+
 // ============== ROUTER ==============
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -838,7 +949,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.2.0', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.3.0', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -887,10 +998,32 @@ export default {
       mt = path.match(/^\/api\/agents\/(\d+)\/revoke$/);
       if (mt && m === 'POST') return handleAgentRevoke(Number(mt[1]), req, env, sess);
 
+      // Alerts
+      if (path === '/api/alerts' && m === 'GET') return handleAlertsList(req, env, sess);
+      if (path === '/api/alerts/count' && m === 'GET') return handleAlertCount(req, env, sess);
+      if (path === '/api/alerts/settings' && (m === 'GET' || m === 'PUT')) return handleAlertSettings(req, env, sess);
+      if (path === '/api/alerts/test-telegram' && m === 'POST') return handleAlertTestTelegram(req, env, sess);
+      if (path === '/api/alerts/evaluate' && m === 'POST') return handleAlertEvaluate(req, env, sess);
+      mt = path.match(/^\/api\/alerts\/(\d+)\/acknowledge$/);
+      if (mt && m === 'POST') return handleAlertAck(Number(mt[1]), req, env, sess);
+      mt = path.match(/^\/api\/alerts\/(\d+)\/resolve$/);
+      if (mt && m === 'POST') return handleAlertResolve(Number(mt[1]), req, env, sess);
+
       return jsonError('Not Found', 404);
     } catch(e: any) {
       console.error(e);
       return jsonError(e.message || 'Internal error', 500);
+    }
+  },
+
+  // ============== CRON: alert evaluator (every 15 min) ==============
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    console.log(`[cron] alert evaluation triggered at ${new Date().toISOString()}`);
+    try {
+      const result = await evaluateAlerts(env);
+      console.log(`[cron] result:`, JSON.stringify(result));
+    } catch (e: any) {
+      console.error(`[cron] error:`, e.message || e);
     }
   }
 };

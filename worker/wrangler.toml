@@ -11,6 +11,10 @@ database_id = "REPLACE_AFTER_D1_CREATE"
 binding = "AGENTS"
 bucket_name = "hasi-agent-binaries"
 
+# Cron triggers: alert evaluator every 15 min
+[triggers]
+crons = ["*/15 * * * *"]
+
 # Secrets (mit wrangler secret put):
 #   PW_SALT       — z.B. langer Random-String, z.B. 64 Zeichen
 #   TOKEN_SECRET  — Random für Bearer Token Signing
