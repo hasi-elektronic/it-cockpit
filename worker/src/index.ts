@@ -3,13 +3,14 @@
  * Adds: alert evaluator (cron), Telegram notifications, alert management endpoints
  */
 
-import { evaluateAlerts, sendTestTelegram } from './alerts';
+import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
 
 export interface Env {
   DB: D1Database;
   AGENTS: R2Bucket;
   PW_SALT: string;
   TOKEN_SECRET: string;
+  RESEND_API_KEY?: string;
 }
 
 interface Session {
@@ -1024,6 +1025,12 @@ async function handleAlertTestTelegram(req: Request, env: Env, sess: Session): P
   return json(r);
 }
 
+async function handleAlertTestEmail(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+  const r = await sendTestEmail(env, sess.tenant_id);
+  return json(r);
+}
+
 async function handleAlertEvaluate(req: Request, env: Env, sess: Session): Promise<Response> {
   if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
   const r = await evaluateAlerts(env);
@@ -1112,6 +1119,7 @@ export default {
       if (path === '/api/alerts/count' && m === 'GET') return handleAlertCount(req, env, sess);
       if (path === '/api/alerts/settings' && (m === 'GET' || m === 'PUT')) return handleAlertSettings(req, env, sess);
       if (path === '/api/alerts/test-telegram' && m === 'POST') return handleAlertTestTelegram(req, env, sess);
+      if (path === '/api/alerts/test-email' && m === 'POST') return handleAlertTestEmail(req, env, sess);
       if (path === '/api/alerts/evaluate' && m === 'POST') return handleAlertEvaluate(req, env, sess);
       mt = path.match(/^\/api\/alerts\/(\d+)\/acknowledge$/);
       if (mt && m === 'POST') return handleAlertAck(Number(mt[1]), req, env, sess);

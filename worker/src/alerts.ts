@@ -5,6 +5,7 @@
 
 export interface AlertEnv {
   DB: D1Database;
+  RESEND_API_KEY?: string;  // optional secret
 }
 
 interface AlertSettings {
@@ -82,6 +83,81 @@ function formatTelegramMessage(alert: FiredAlert, deviceHostname: string | null,
   msg += `\n${alert.message}\n\n`;
   msg += `<a href="https://it-cockpit.pages.dev">→ Cockpit öffnen</a>`;
   return msg;
+}
+
+// ---------- Email (Resend) ----------
+
+async function sendEmail(apiKey: string, to: string, subject: string, html: string): Promise<boolean> {
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: 'Hasi IT-Cockpit <noreply@machbar24.com>',
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error('Resend error:', resp.status, err);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Email send error:', e);
+    return false;
+  }
+}
+
+function formatEmailHtml(alert: FiredAlert, deviceHostname: string | null, tenantName: string): string {
+  const colors: Record<string, string> = {
+    critical: '#dc2626',
+    warning: '#d97706',
+    info: '#059669',
+  };
+  const color = colors[alert.severity];
+  const emoji = SEVERITY_EMOJI[alert.severity];
+  const label = SEVERITY_LABEL[alert.severity];
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f5f9;padding:32px 16px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+  <tr><td style="background:${color};padding:24px 28px;color:#ffffff;">
+    <div style="font-size:14px;text-transform:uppercase;letter-spacing:1px;opacity:0.9;">${emoji} ${label}</div>
+    <div style="font-size:24px;font-weight:bold;margin-top:8px;">${alert.title}</div>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+      ${deviceHostname ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px;width:120px;">💻 Gerät</td><td style="padding:6px 0;color:#0f172a;font-weight:600;">${escapeHtml(deviceHostname)}</td></tr>` : ''}
+      <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">🏢 Mandant</td><td style="padding:6px 0;color:#0f172a;font-weight:600;">${escapeHtml(tenantName)}</td></tr>
+      ${alert.value ? `<tr><td style="padding:6px 0;color:#64748b;font-size:13px;">📊 Wert</td><td style="padding:6px 0;color:#0f172a;font-family:monospace;">${escapeHtml(alert.value)}</td></tr>` : ''}
+    </table>
+    <div style="margin-top:20px;padding:16px;background:#f8fafc;border-radius:8px;color:#334155;font-size:14px;line-height:1.5;">
+      ${escapeHtml(alert.message)}
+    </div>
+    <div style="margin-top:24px;text-align:center;">
+      <a href="https://it-cockpit.pages.dev" style="display:inline-block;padding:12px 28px;background:#0891b2;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">Cockpit öffnen</a>
+    </div>
+  </td></tr>
+  <tr><td style="padding:16px 28px;background:#f8fafc;color:#64748b;font-size:12px;text-align:center;border-top:1px solid #e2e8f0;">
+    Hasi IT-Cockpit · Automatische Benachrichtigung
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} as any)[c]);
 }
 
 // ---------- Evaluator ----------
@@ -300,6 +376,20 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
             notifiedCount++;
           }
         }
+
+        // Email notification (Resend, only critical & warning)
+        if (tenantSettings.email_enabled && tenantSettings.email_recipient && env.RESEND_API_KEY && fired.severity !== 'info') {
+          const hostname = fired.device_id ? deviceHostnames.get(fired.device_id) || null : null;
+          const subject = `${SEVERITY_EMOJI[fired.severity]} ${SEVERITY_LABEL[fired.severity]}: ${fired.title}${hostname ? ' · ' + hostname : ''}`;
+          const html = formatEmailHtml(fired, hostname, tenantName);
+          const ok = await sendEmail(env.RESEND_API_KEY, tenantSettings.email_recipient, subject, html);
+          if (ok) {
+            await env.DB.prepare(`
+              INSERT INTO alert_history (tenant_id, alert_id, device_id, rule_key, severity, event, details)
+              VALUES (?, ?, ?, ?, ?, 'email_sent', ?)
+            `).bind(tenantId, alertId, fired.device_id, fired.rule_key, fired.severity, tenantSettings.email_recipient).run();
+          }
+        }
       }
     }
 
@@ -343,4 +433,24 @@ export async function sendTestTelegram(env: AlertEnv, tenantId: number): Promise
   const msg = `✅ <b>Hasi IT-Cockpit — Test</b>\n\nDie Telegram-Verbindung funktioniert für <b>${t?.name || 'Tenant'}</b>.\n\nAb jetzt erhältst du Alerts auf diesem Chat.`;
   const ok = await sendTelegram(s.telegram_bot_token, s.telegram_chat_id, msg);
   return { ok, error: ok ? undefined : 'Telegram API-Aufruf fehlgeschlagen (Token/Chat-ID prüfen)' };
+}
+
+export async function sendTestEmail(env: AlertEnv, tenantId: number): Promise<{ ok: boolean; error?: string }> {
+  const s = await env.DB.prepare(`SELECT email_recipient FROM alert_settings WHERE tenant_id = ?`).bind(tenantId).first<any>();
+  if (!s || !s.email_recipient) {
+    return { ok: false, error: 'Empfänger-E-Mail nicht konfiguriert' };
+  }
+  if (!env.RESEND_API_KEY) {
+    return { ok: false, error: 'RESEND_API_KEY auf dem Worker nicht gesetzt' };
+  }
+  const t = await env.DB.prepare(`SELECT name FROM tenants WHERE id = ?`).bind(tenantId).first<any>();
+  const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:32px;background:#f1f5f9;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;">
+<h2 style="color:#059669;margin:0 0 16px;">✅ Hasi IT-Cockpit — Test</h2>
+<p style="color:#334155;line-height:1.6;">Die E-Mail-Verbindung funktioniert für <b>${escapeHtml(t?.name || 'Tenant')}</b>.</p>
+<p style="color:#334155;line-height:1.6;">Ab jetzt erhältst du Alerts auf diese Adresse.</p>
+<a href="https://it-cockpit.pages.dev" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#0891b2;color:#fff;text-decoration:none;border-radius:6px;">Cockpit öffnen</a>
+</div></body></html>`;
+  const ok = await sendEmail(env.RESEND_API_KEY, s.email_recipient, '✅ Hasi IT-Cockpit — Test', html);
+  return { ok, error: ok ? undefined : 'Resend API-Aufruf fehlgeschlagen' };
 }

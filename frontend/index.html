@@ -912,6 +912,31 @@ tailwind.config = {
               </div>
             </div>
 
+            <!-- Email -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+              <div class="flex items-start justify-between mb-4">
+                <div>
+                  <h3 class="font-semibold text-slate-900 text-lg">✉ Email Benachrichtigungen</h3>
+                  <p class="text-sm text-slate-600 mt-1">Klassisch per E-Mail. Praktisch als zweiter Kanal oder für Kunden ohne Telegram.</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" v-model="settingsForm.email_enabled" :true-value="1" :false-value="0" class="sr-only peer" />
+                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                </label>
+              </div>
+              <div v-if="settingsForm.email_enabled" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Empfänger E-Mail</label>
+                  <input v-model="settingsForm.email_recipient" type="email" placeholder="z.B. it@firma.de" class="w-full px-3 py-2 border border-slate-300 rounded text-sm" />
+                  <div class="text-xs text-slate-500 mt-1">Absender ist <code>noreply@machbar24.com</code>. Nur kritische & Warnungen werden per E-Mail versandt (kein Info-Spam).</div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                  <button @click="saveSettings" :disabled="settingsSaving" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded font-medium disabled:opacity-50">{{ settingsSaving ? 'Speichere…' : 'Speichern' }}</button>
+                  <button @click="testEmail" :disabled="testingEmail" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded font-medium disabled:opacity-50">{{ testingEmail ? 'Teste…' : 'Test-E-Mail senden' }}</button>
+                </div>
+              </div>
+            </div>
+
             <!-- Rules -->
             <div class="bg-white rounded-xl border border-slate-200 p-6">
               <h3 class="font-semibold text-slate-900 text-lg mb-1">🔔 Regeln</h3>
@@ -1445,12 +1470,13 @@ createApp({
       alertTab: 'open', evaluating: false,
       settingsForm: {
         telegram_enabled: 0, telegram_bot_token: '', telegram_chat_id: '',
+        email_enabled: 0, email_recipient: '',
         rule_disk_critical: 1, rule_disk_warning: 1, rule_av_disabled: 1, rule_av_outdated: 1,
         rule_bitlocker_off: 1, rule_agent_offline: 1, rule_wu_critical: 1, rule_new_device: 1,
         disk_critical_pct: 95, disk_warning_pct: 85, av_signature_days: 14,
         agent_offline_warn_h: 2, agent_offline_crit_h: 24, wu_critical_count: 5,
       },
-      settingsSaving: false, testingTelegram: false,
+      settingsSaving: false, testingTelegram: false, testingEmail: false,
       alertRulesList: [
         { key: 'rule_disk_critical', label: 'Disk kritisch voll', emoji: '💾', severity: 'critical', desc: 'Festplatte erreicht kritische Auslastung', threshold: 'disk_critical_pct', unit: '%' },
         { key: 'rule_disk_warning', label: 'Disk fuellt sich', emoji: '💾', severity: 'warning', desc: 'Festplatte naehert sich der Grenze', threshold: 'disk_warning_pct', unit: '%' },
@@ -1700,6 +1726,22 @@ createApp({
         this.toast('Fehler: ' + e.message, 'error');
       } finally {
         this.testingTelegram = false;
+      }
+    },
+    async testEmail() {
+      await this.saveSettings();
+      this.testingEmail = true;
+      try {
+        const r = await this.api('/api/alerts/test-email', { method: 'POST' });
+        if (r.ok) {
+          this.toast('Test-E-Mail gesendet! Schau in dein Postfach.', 'success');
+        } else {
+          this.toast('Fehlgeschlagen: ' + (r.error || 'unbekannt'), 'error');
+        }
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      } finally {
+        this.testingEmail = false;
       }
     },
     async enrollNewAgent() {
