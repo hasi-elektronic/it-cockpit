@@ -793,12 +793,49 @@ Write-Host "[OK] Konfiguration: $configPath" -ForegroundColor Green
 $agentUrl  = "${apiUrl.replace('/api', '')}/agent-binary/hasi-agent-windows-amd64.exe"
 $agentPath = "$installDir\\\\hasi-agent.exe"
 
-# Falls bereits laufender Service: vorher stoppen
-$existing = Get-Service -Name "HasiCockpitAgent" -ErrorAction SilentlyContinue
-if ($existing -and $existing.Status -eq 'Running') {
-    Write-Host "-> Stoppe laufenden Service fuer Update..."
-    Stop-Service -Name "HasiCockpitAgent" -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
+# Vorbereitung: alles Alte stoppen (Service + Task + Prozess), Datei freigeben
+function Stop-AgentCompletely {
+    # 1. Windows Service stoppen falls vorhanden
+    $existing = Get-Service -Name "HasiCockpitAgent" -ErrorAction SilentlyContinue
+    if ($existing) {
+        Write-Host "-> Stoppe Windows Service..."
+        Stop-Service -Name "HasiCockpitAgent" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+    }
+    # 2. Scheduled Task stoppen falls vorhanden
+    $task = Get-ScheduledTask -TaskName "HasiCockpitAgent" -ErrorAction SilentlyContinue
+    if ($task) {
+        Write-Host "-> Stoppe Scheduled Task..."
+        Stop-ScheduledTask -TaskName "HasiCockpitAgent" -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+    }
+    # 3. Hartes Kill aller Agent-Prozesse (Fallback)
+    $procs = Get-Process -Name "hasi-agent" -ErrorAction SilentlyContinue
+    if ($procs) {
+        Write-Host "-> Beende laufende Agent-Prozesse..." -ForegroundColor Yellow
+        $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+    }
+}
+
+Stop-AgentCompletely
+
+# Pruefen ob die Binary noch gelockt ist
+if (Test-Path $agentPath) {
+    $maxTries = 5
+    $tryNum = 0
+    while ($tryNum -lt $maxTries) {
+        try {
+            $fs = [System.IO.File]::Open($agentPath, 'Open', 'ReadWrite', 'None')
+            $fs.Close()
+            break
+        } catch {
+            $tryNum++
+            Write-Host "-> Datei noch gelockt, warte 2s (Versuch $tryNum/$maxTries)..." -ForegroundColor Yellow
+            Stop-AgentCompletely
+            Start-Sleep -Seconds 2
+        }
+    }
 }
 
 Write-Host "-> Lade Agent herunter..."
@@ -806,6 +843,11 @@ try {
     Invoke-WebRequest -Uri $agentUrl -OutFile $agentPath -UseBasicParsing -ErrorAction Stop
     $size = [math]::Round((Get-Item $agentPath).Length / 1MB, 1)
     Write-Host "[OK] Agent installiert: $agentPath ($size MB)" -ForegroundColor Green
+    # Version aus dem Binary lesen
+    $verOutput = & $agentPath --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "    Version: $verOutput" -ForegroundColor Green
+    }
 } catch {
     Write-Host "FEHLER beim Download: $_" -ForegroundColor Red
     Write-Host "  URL: $agentUrl"
