@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.2.0"
+const AgentVersion = "0.4.0"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -201,6 +201,24 @@ func postJSON(url string, payload interface{}, headers map[string]string) ([]byt
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "HasiCockpitAgent/"+AgentVersion)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return body, resp.StatusCode, nil
+}
+
+func getJSON(url string, headers map[string]string) ([]byte, int, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, 0, err
+	}
 	req.Header.Set("User-Agent", "HasiCockpitAgent/"+AgentVersion)
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -378,23 +396,36 @@ func main() {
 	} else {
 		log.Printf("Initial heartbeat OK")
 	}
+	// First command poll
+	pollCommands(cfg, state)
 
 	if *onceMode {
 		log.Printf("Once-mode. Exiting.")
 		return
 	}
 
-	// Loop
-	interval := time.Duration(cfg.HeartbeatSeconds) * time.Second
-	log.Printf("Entering heartbeat loop (%v interval)", interval)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	// Main loops: slow heartbeat (every cfg.HeartbeatSeconds) + fast command poll (30s)
+	hbInterval := time.Duration(cfg.HeartbeatSeconds) * time.Second
+	cmdInterval := 30 * time.Second
+	log.Printf("Entering loop (heartbeat=%v, command-poll=%v)", hbInterval, cmdInterval)
 
-	for range ticker.C {
-		if err := sendHeartbeat(cfg, state); err != nil {
-			log.Printf("Heartbeat error: %v", err)
-		} else {
-			log.Printf("Heartbeat OK")
+	hbTicker := time.NewTicker(hbInterval)
+	cmdTicker := time.NewTicker(cmdInterval)
+	defer hbTicker.Stop()
+	defer cmdTicker.Stop()
+
+	for {
+		select {
+		case <-hbTicker.C:
+			if err := sendHeartbeat(cfg, state); err != nil {
+				log.Printf("Heartbeat error: %v", err)
+			} else {
+				log.Printf("Heartbeat OK")
+			}
+			// Heartbeat also triggers a command poll
+			pollCommands(cfg, state)
+		case <-cmdTicker.C:
+			pollCommands(cfg, state)
 		}
 	}
 }

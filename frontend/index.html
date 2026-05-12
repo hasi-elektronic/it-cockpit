@@ -79,6 +79,10 @@ tailwind.config = {
   .toast-error   { background: rgb(254 226 226); color: rgb(153 27 27);   border: 1px solid rgb(252 165 165); }
   .toast-info    { background: rgb(207 250 254); color: rgb(14 116 144);   border: 1px solid rgb(165 243 252); }
   @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+  /* Action cards (Remote actions tab) */
+  .action-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.75rem 1rem; background: white; border: 1px solid; border-radius: 0.5rem; text-align: left; transition: all 0.15s; cursor: pointer; }
+  .action-card:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body class="bg-slate-50">
@@ -992,12 +996,13 @@ tailwind.config = {
 
         <!-- Tabs -->
         <div class="px-6 border-b border-slate-200 flex gap-1">
-          <button v-for="t in ['hardware','security','telemetry','software']" :key="t"
-                  @click="detailTab = t"
+          <button v-for="t in detailTabs" :key="t"
+                  @click="detailTab = t; if (t==='actions') loadDeviceCommands()"
                   :class="['px-4 py-2.5 text-sm font-medium border-b-2 transition',
                            detailTab===t ? 'border-cyan-500 text-cyan-700' : 'border-transparent text-slate-600 hover:text-slate-900']">
-            {{ ({hardware:'Hardware',security:'Sicherheit',telemetry:'Telemetrie',software:'Software'})[t] }}
+            {{ ({hardware:'Hardware',security:'Sicherheit',telemetry:'Telemetrie',software:'Software',actions:'⚡ Aktionen'})[t] }}
             <span v-if="t==='software' && detailSoftware.length>0" class="ml-1 text-xs text-slate-400">{{ detailSoftware.length }}</span>
+            <span v-if="t==='actions' && deviceCommands.filter(c=>c.status==='queued'||c.status==='sent').length>0" class="ml-1 px-1.5 rounded bg-amber-100 text-amber-700 text-xs">{{ deviceCommands.filter(c=>c.status==='queued'||c.status==='sent').length }}</span>
           </button>
         </div>
 
@@ -1198,6 +1203,92 @@ tailwind.config = {
                 </table>
               </div>
               <div class="text-xs text-slate-500 mt-2">{{ filteredSoftware.length }} von {{ detailSoftware.length }} angezeigt</div>
+            </div>
+          </div>
+
+          <!-- ACTIONS -->
+          <div v-if="detailTab==='actions'">
+            <!-- Quick action grid -->
+            <div class="mb-6">
+              <h4 class="font-semibold text-slate-900 mb-3">Schnellaktionen</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button @click="dispatchCommand('ping', {})" class="action-card border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50">
+                  <div class="text-2xl">📡</div>
+                  <div class="font-semibold text-sm">Ping</div>
+                  <div class="text-xs text-slate-500">Agent erreichbar?</div>
+                </button>
+                <button @click="openCommandModal('msg')" class="action-card border-blue-200 hover:border-blue-400 hover:bg-blue-50">
+                  <div class="text-2xl">💬</div>
+                  <div class="font-semibold text-sm">Nachricht</div>
+                  <div class="text-xs text-slate-500">Popup beim Nutzer</div>
+                </button>
+                <button @click="confirmDispatch('lock')" class="action-card border-amber-200 hover:border-amber-400 hover:bg-amber-50">
+                  <div class="text-2xl">🔒</div>
+                  <div class="font-semibold text-sm">Bildschirm sperren</div>
+                  <div class="text-xs text-slate-500">Sofort</div>
+                </button>
+                <button @click="openCommandModal('reboot')" class="action-card border-rose-200 hover:border-rose-400 hover:bg-rose-50">
+                  <div class="text-2xl">🔄</div>
+                  <div class="font-semibold text-sm">Neustart</div>
+                  <div class="text-xs text-slate-500">60s Vorlauf</div>
+                </button>
+                <button @click="openCommandModal('ps')" class="action-card border-purple-200 hover:border-purple-400 hover:bg-purple-50 col-span-2">
+                  <div class="text-2xl">⚡</div>
+                  <div class="font-semibold text-sm">PowerShell Skript</div>
+                  <div class="text-xs text-slate-500">Eigenes Skript ausfuehren</div>
+                </button>
+                <button @click="openCommandModal('cmd')" class="action-card border-slate-200 hover:border-slate-400 hover:bg-slate-50 col-span-2">
+                  <div class="text-2xl">📟</div>
+                  <div class="font-semibold text-sm">CMD Befehl</div>
+                  <div class="text-xs text-slate-500">Beliebigen Shell-Befehl</div>
+                </button>
+              </div>
+              <div class="text-xs text-slate-500 mt-3">
+                💡 Befehle werden in die Warteschlange gesetzt. Der Agent pollt alle 30 Sekunden. Maximale Wartezeit: ~30s.
+              </div>
+            </div>
+
+            <!-- Command history -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-semibold text-slate-900">Verlauf</h4>
+                <button @click="loadDeviceCommands" class="text-xs text-cyan-600 hover:underline">🔄 Aktualisieren</button>
+              </div>
+              <div v-if="deviceCommands.length === 0" class="text-center text-slate-500 py-8 border border-dashed border-slate-200 rounded-lg">
+                Noch keine Befehle ausgefuehrt.
+              </div>
+              <div v-else class="space-y-2 max-h-96 overflow-auto">
+                <div v-for="c in deviceCommands" :key="c.id" class="border border-slate-200 rounded-lg p-3">
+                  <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-sm text-slate-900">{{ commandTypeLabel(c.command_type) }}</span>
+                      <span :class="['px-1.5 py-0.5 rounded text-xs font-medium', commandStatusClass(c.status)]">{{ commandStatusLabel(c.status) }}</span>
+                      <span v-if="c.result_exit != null && c.status === 'done'" class="text-xs text-slate-500">exit {{ c.result_exit }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-slate-500">{{ formatRelative(c.created_at) }}</span>
+                      <button v-if="c.status === 'queued'" @click="cancelCommand(c)" class="text-xs text-rose-600 hover:underline">Abbrechen</button>
+                    </div>
+                  </div>
+                  <div v-if="c.command_args && c.command_args !== '{}'" class="text-xs text-slate-600 font-mono bg-slate-50 rounded px-2 py-1 mt-1 truncate">
+                    {{ formatCommandArgs(c.command_args, c.command_type) }}
+                  </div>
+                  <div v-if="c.result_stdout" class="mt-2">
+                    <details>
+                      <summary class="text-xs text-slate-600 cursor-pointer hover:text-slate-900">stdout ({{ c.result_stdout.length }} bytes)</summary>
+                      <pre class="text-xs bg-slate-50 rounded p-2 mt-1 max-h-40 overflow-auto whitespace-pre-wrap">{{ c.result_stdout }}</pre>
+                    </details>
+                  </div>
+                  <div v-if="c.result_stderr" class="mt-1">
+                    <details>
+                      <summary class="text-xs text-rose-600 cursor-pointer hover:text-rose-800">stderr ({{ c.result_stderr.length }} bytes)</summary>
+                      <pre class="text-xs bg-rose-50 rounded p-2 mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-rose-900">{{ c.result_stderr }}</pre>
+                    </details>
+                  </div>
+                  <div v-if="c.error_message" class="mt-1 text-xs text-rose-700">⚠ {{ c.error_message }}</div>
+                  <div v-if="c.created_by_email" class="text-xs text-slate-400 mt-1">durch {{ c.created_by_email }}</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1423,6 +1514,60 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- ==================== COMMAND MODAL ==================== -->
+    <div v-if="modal === 'command'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel" :class="commandForm.type === 'ps' || commandForm.type === 'cmd' ? 'max-w-3xl' : 'max-w-lg'">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">{{ commandTypeLabel(commandForm.type) }} an {{ detailDevice && detailDevice.hostname }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body space-y-4">
+          <!-- msg -->
+          <div v-if="commandForm.type === 'msg'">
+            <label class="form-label">Nachricht (max 500 Zeichen)</label>
+            <textarea v-model="commandForm.message" rows="3" class="form-input" placeholder="z.B. Bitte ungespeicherte Arbeit sichern. Wartungsfenster in 5 Min."></textarea>
+            <div class="text-xs text-slate-500 mt-1">Wird per <code>msg.exe</code> in der Sitzung des Nutzers angezeigt (60s Anzeigedauer).</div>
+          </div>
+          <!-- reboot -->
+          <div v-if="commandForm.type === 'reboot'">
+            <label class="form-label">Verzoegerung (Sekunden)</label>
+            <input v-model.number="commandForm.delay_seconds" type="number" min="0" max="3600" class="form-input" />
+            <div class="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              ⚠ Der PC startet nach {{ commandForm.delay_seconds || 60 }} Sekunden neu. Ein Hinweisfenster wird beim Nutzer angezeigt.
+            </div>
+          </div>
+          <!-- ps -->
+          <div v-if="commandForm.type === 'ps'">
+            <label class="form-label">PowerShell-Skript (max 8000 Zeichen)</label>
+            <textarea v-model="commandForm.script" rows="8" class="form-input font-mono text-xs" placeholder="z.B.&#10;Get-Service | Where-Object Status -eq 'Stopped' | Select-Object -First 10"></textarea>
+            <div class="flex flex-wrap gap-1 mt-2">
+              <button v-for="t in psTemplates" :key="t.label" @click="commandForm.script = t.script" class="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700">{{ t.label }}</button>
+            </div>
+            <div class="text-xs text-rose-700 mt-2 bg-rose-50 border border-rose-200 rounded px-3 py-2">
+              ⚠ Wird als <strong>SYSTEM</strong> mit <code>-ExecutionPolicy Bypass</code> ausgefuehrt. Maximale Laufzeit 180s.
+            </div>
+          </div>
+          <!-- cmd -->
+          <div v-if="commandForm.type === 'cmd'">
+            <label class="form-label">CMD/Shell Befehl (max 4000 Zeichen)</label>
+            <textarea v-model="commandForm.command" rows="5" class="form-input font-mono text-xs" placeholder="z.B. ipconfig /all"></textarea>
+            <div class="text-xs text-rose-700 mt-2 bg-rose-50 border border-rose-200 rounded px-3 py-2">
+              ⚠ Windows: cmd.exe /c · Linux/Mac: sh -c · Max 180s.
+            </div>
+          </div>
+          <!-- Common: notes -->
+          <div>
+            <label class="form-label">Notiz (optional, fuer Audit-Log)</label>
+            <input v-model="commandForm.notes" class="form-input text-sm" placeholder="z.B. Routinepruefung Disk-Status" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="submitCommand" :disabled="commandSubmitting" class="btn-primary">{{ commandSubmitting ? 'Sende…' : '🚀 Senden' }}</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -1466,6 +1611,16 @@ createApp({
       devices: [], licenses: [], users: [], audit: [],
       agents: [], enrollResult: null, enrolling: false,
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
+      deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
+      commandSubmitting: false,
+      psTemplates: [
+        { label: 'Disk-Auslastung', script: "Get-WmiObject -Class Win32_LogicalDisk | Where-Object DriveType -eq 3 | Select-Object DeviceID, @{N='Size(GB)';E={[math]::Round($_.Size/1GB,1)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpace/1GB,1)}}, @{N='Free%';E={[math]::Round($_.FreeSpace/$_.Size*100,1)}} | Format-Table" },
+        { label: 'Top 10 Prozesse', script: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, CPU, WS, Id | Format-Table' },
+        { label: 'Letzte Updates', script: 'Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10 HotFixID, Description, InstalledOn | Format-Table' },
+        { label: 'IP-Konfig', script: 'Get-NetIPConfiguration | Where-Object NetAdapter.Status -eq "Up"' },
+        { label: 'Reboot pending?', script: '(Get-WmiObject -Namespace "ROOT\\\\ccm\\\\ClientSDK" -Class CCM_ClientUtilities -ErrorAction SilentlyContinue).DetermineIfRebootPending().RebootPending; Test-Path "HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Component Based Servicing\\\\RebootPending"' },
+        { label: 'Defender Status', script: 'Get-MpComputerStatus | Select-Object AMServiceEnabled, AntivirusEnabled, RealTimeProtectionEnabled, AntivirusSignatureLastUpdated' },
+      ],
       alerts: [], alertCount: { critical: 0, warning: 0, info: 0, total: 0 },
       alertTab: 'open', evaluating: false,
       settingsForm: {
@@ -1524,6 +1679,14 @@ createApp({
       const s = this.dashboard.alert_stats_30d;
       if (!s || s.total === 0) return 'Letzte 30 Tage: keine Alerts';
       return `Letzte 30 Tage: ${s.total} Alerts · ${s.resolved} behoben · ${s.critical} kritisch`;
+    },
+    detailTabs() {
+      const base = ['hardware', 'security', 'telemetry', 'software'];
+      // Show "actions" tab only when device has an active agent
+      if (this.detailDevice && (this.detailDevice.agent_status === 'online' || this.detailDevice.agent_status === 'offline')) {
+        return [...base, 'actions'];
+      }
+      return base;
     }
   },
   mounted() {
@@ -1699,6 +1862,99 @@ createApp({
           if (s[k] != null) this.settingsForm[k] = s[k];
         }
       } catch(e) { this.toast('Fehler beim Laden der Einstellungen', 'error'); }
+    },
+    // ---------- Remote commands ----------
+    async loadDeviceCommands() {
+      if (!this.detailDevice) return;
+      try {
+        const r = await this.api('/api/commands?device_id=' + this.detailDevice.id + '&limit=30');
+        this.deviceCommands = r.items || [];
+      } catch(e) { this.toast('Fehler beim Laden der Befehle: ' + e.message, 'error'); }
+    },
+    commandTypeLabel(t) {
+      return ({ ping:'Ping', msg:'Nachricht', lock:'Bildschirm sperren', reboot:'Neustart', ps:'PowerShell', cmd:'CMD' })[t] || t;
+    },
+    commandStatusLabel(s) {
+      return ({ queued:'Wartet', sent:'Gesendet', running:'Laeuft', done:'Erledigt', error:'Fehler', timeout:'Timeout', cancelled:'Abgebrochen' })[s] || s;
+    },
+    commandStatusClass(s) {
+      return ({
+        queued:'bg-slate-100 text-slate-700',
+        sent:'bg-blue-100 text-blue-700',
+        running:'bg-amber-100 text-amber-700',
+        done:'bg-emerald-100 text-emerald-700',
+        error:'bg-rose-100 text-rose-700',
+        timeout:'bg-amber-100 text-amber-700',
+        cancelled:'bg-slate-200 text-slate-600',
+      })[s] || 'bg-slate-100 text-slate-700';
+    },
+    formatCommandArgs(argsJson, type) {
+      try {
+        const a = JSON.parse(argsJson);
+        if (type === 'msg') return '"' + (a.message || '') + '"';
+        if (type === 'reboot') return 'delay: ' + (a.delay_seconds || 60) + 's';
+        if (type === 'ps') return (a.script || '').slice(0, 120) + (a.script && a.script.length > 120 ? '…' : '');
+        if (type === 'cmd') return (a.command || '').slice(0, 120) + (a.command && a.command.length > 120 ? '…' : '');
+        return '';
+      } catch(e) { return argsJson; }
+    },
+    async dispatchCommand(type, args) {
+      if (!this.detailDevice) return;
+      try {
+        const r = await this.api('/api/commands', {
+          method: 'POST',
+          body: JSON.stringify({ device_id: this.detailDevice.id, command_type: type, command_args: args })
+        });
+        this.toast(`Befehl #${r.command_id} in Warteschlange (max ~30s)`, 'success');
+        await this.loadDeviceCommands();
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      }
+    },
+    confirmDispatch(type) {
+      const labels = { lock: 'Bildschirm sperren' };
+      if (!confirm(`${labels[type]} wirklich ausfuehren?`)) return;
+      this.dispatchCommand(type, {});
+    },
+    openCommandModal(type) {
+      this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
+      this.modal = 'command';
+    },
+    async submitCommand() {
+      this.commandSubmitting = true;
+      try {
+        const args = {};
+        const t = this.commandForm.type;
+        if (t === 'msg')    args.message = this.commandForm.message;
+        if (t === 'reboot') args.delay_seconds = this.commandForm.delay_seconds || 60;
+        if (t === 'ps')     args.script = this.commandForm.script;
+        if (t === 'cmd')    args.command = this.commandForm.command;
+        const r = await this.api('/api/commands', {
+          method: 'POST',
+          body: JSON.stringify({
+            device_id: this.detailDevice.id,
+            command_type: t,
+            command_args: args,
+            notes: this.commandForm.notes || null
+          })
+        });
+        this.toast(`Befehl #${r.command_id} gesendet (max ~30s Wartezeit)`, 'success');
+        this.modal = null;
+        await this.loadDeviceCommands();
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      } finally {
+        this.commandSubmitting = false;
+      }
+    },
+    async cancelCommand(c) {
+      try {
+        await this.api('/api/commands/' + c.id + '/cancel', { method: 'POST' });
+        this.toast('Befehl abgebrochen', 'success');
+        await this.loadDeviceCommands();
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      }
     },
     async saveSettings() {
       this.settingsSaving = true;

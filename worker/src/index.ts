@@ -1059,6 +1059,175 @@ async function handleAlertCount(req: Request, env: Env, sess: Session): Promise<
   });
 }
 
+// ============== REMOTE COMMANDS ==============
+
+const COMMAND_TYPES = new Set(['ping', 'msg', 'lock', 'reboot', 'ps', 'cmd']);
+const DANGEROUS_TYPES = new Set(['reboot', 'ps', 'cmd']);
+
+interface CommandArgs {
+  message?: string;       // for 'msg'
+  script?: string;        // for 'ps'
+  command?: string;       // for 'cmd'
+  delay_seconds?: number; // for 'reboot' (default 60)
+}
+
+function validateCommand(type: string, args: CommandArgs): { ok: boolean; error?: string } {
+  if (!COMMAND_TYPES.has(type)) return { ok: false, error: `Unbekannter Command-Typ: ${type}` };
+  if (type === 'msg') {
+    if (!args.message || args.message.length < 1) return { ok: false, error: 'message ist erforderlich' };
+    if (args.message.length > 500) return { ok: false, error: 'Nachricht zu lang (max 500 Zeichen)' };
+  }
+  if (type === 'ps') {
+    if (!args.script || args.script.length < 1) return { ok: false, error: 'script ist erforderlich' };
+    if (args.script.length > 8000) return { ok: false, error: 'Skript zu lang (max 8000 Zeichen)' };
+  }
+  if (type === 'cmd') {
+    if (!args.command || args.command.length < 1) return { ok: false, error: 'command ist erforderlich' };
+    if (args.command.length > 4000) return { ok: false, error: 'Befehl zu lang (max 4000 Zeichen)' };
+  }
+  if (type === 'reboot' && args.delay_seconds != null) {
+    if (args.delay_seconds < 0 || args.delay_seconds > 3600) return { ok: false, error: 'delay_seconds 0..3600' };
+  }
+  return { ok: true };
+}
+
+// Cockpit: list commands for a device (history + queue)
+async function handleCommandsList(req: Request, env: Env, sess: Session): Promise<Response> {
+  const url = new URL(req.url);
+  const deviceId = url.searchParams.get('device_id');
+  const limit = Math.min(Number(url.searchParams.get('limit') || 50), 200);
+  let res;
+  if (deviceId) {
+    res = await env.DB.prepare(`
+      SELECT c.*, u.email AS created_by_email
+      FROM commands c LEFT JOIN users u ON u.id = c.created_by
+      WHERE c.tenant_id = ? AND c.device_id = ?
+      ORDER BY c.id DESC LIMIT ?
+    `).bind(sess.tenant_id, Number(deviceId), limit).all();
+  } else {
+    res = await env.DB.prepare(`
+      SELECT c.*, u.email AS created_by_email, d.hostname AS device_hostname
+      FROM commands c
+      LEFT JOIN users u ON u.id = c.created_by
+      LEFT JOIN devices d ON d.id = c.device_id
+      WHERE c.tenant_id = ?
+      ORDER BY c.id DESC LIMIT ?
+    `).bind(sess.tenant_id, limit).all();
+  }
+  return json({ items: res.results });
+}
+
+// Cockpit: dispatch a new command to a device
+async function handleCommandDispatch(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+  const body = await req.json<any>();
+  const deviceId = Number(body.device_id);
+  const type = String(body.command_type || '');
+  const args = (body.command_args || {}) as CommandArgs;
+  const notes = body.notes || null;
+
+  // Validate device belongs to tenant
+  const dev = await env.DB.prepare(`SELECT id, tenant_id, hostname FROM devices WHERE id = ? AND tenant_id = ?`)
+    .bind(deviceId, sess.tenant_id).first<any>();
+  if (!dev) return jsonError('Geraet nicht gefunden', 404);
+
+  // Find active agent for that device
+  const agent = await env.DB.prepare(`
+    SELECT id FROM agents WHERE tenant_id = ? AND device_id = ? AND status='active' ORDER BY id DESC LIMIT 1
+  `).bind(sess.tenant_id, deviceId).first<any>();
+  if (!agent) return jsonError('Kein aktiver Agent fuer dieses Geraet', 400);
+
+  const v = validateCommand(type, args);
+  if (!v.ok) return jsonError(v.error!, 400);
+
+  // Block too many queued commands for one device
+  const queued = await env.DB.prepare(`SELECT COUNT(*) AS n FROM commands WHERE device_id = ? AND status='queued'`)
+    .bind(deviceId).first<any>();
+  if ((queued?.n || 0) >= 5) return jsonError('Zu viele wartende Befehle. Bitte abwarten oder abbrechen.', 429);
+
+  const r = await env.DB.prepare(`
+    INSERT INTO commands (tenant_id, device_id, agent_id, command_type, command_args, status, created_by, notes, timeout_seconds)
+    VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?)
+  `).bind(sess.tenant_id, deviceId, agent.id, type, JSON.stringify(args), sess.user_id, notes,
+          type === 'ps' || type === 'cmd' ? 180 : 60).run();
+
+  await logAudit(env, sess, 'dispatch', 'command', r.meta.last_row_id, { type, device_id: deviceId, hostname: dev.hostname }, req.headers.get('CF-Connecting-IP'));
+
+  return json({ ok: true, command_id: r.meta.last_row_id });
+}
+
+// Cockpit: cancel a queued command
+async function handleCommandCancel(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+  const r = await env.DB.prepare(`
+    UPDATE commands SET status='cancelled', completed_at=datetime('now'), error_message='Vom Admin abgebrochen'
+    WHERE id = ? AND tenant_id = ? AND status='queued'
+  `).bind(id, sess.tenant_id).run();
+  if (r.meta.changes === 0) return jsonError('Befehl nicht abbrechbar (bereits in Bearbeitung?)', 404);
+  return json({ ok: true });
+}
+
+// Agent: fetch pending commands (called every heartbeat OR fast-poll)
+async function handleAgentCommandsFetch(req: Request, env: Env): Promise<Response> {
+  const token = req.headers.get('X-Agent-Token');
+  if (!token) return jsonError('Token fehlt', 401);
+  const agent = await env.DB.prepare(`SELECT id, tenant_id, device_id, status FROM agents WHERE agent_token = ?`).bind(token).first<any>();
+  if (!agent || agent.status !== 'active') return jsonError('Token ungueltig', 401);
+
+  // Pick all queued commands for this agent, mark as 'sent'
+  const cmds = await env.DB.prepare(`
+    SELECT id, command_type, command_args, timeout_seconds
+    FROM commands WHERE agent_id = ? AND status = 'queued'
+    ORDER BY id ASC LIMIT 10
+  `).bind(agent.id).all<any>();
+
+  const items = (cmds.results || []).map((c: any) => ({
+    id: c.id,
+    type: c.command_type,
+    args: c.command_args ? JSON.parse(c.command_args) : {},
+    timeout: c.timeout_seconds,
+  }));
+
+  // Mark as sent
+  for (const c of items) {
+    await env.DB.prepare(`UPDATE commands SET status='sent', picked_at=datetime('now') WHERE id = ? AND status='queued'`)
+      .bind(c.id).run();
+  }
+
+  // Mark stuck 'sent' commands as timeout (defensive)
+  await env.DB.prepare(`
+    UPDATE commands SET status='timeout', completed_at=datetime('now'), error_message='Agent hat sich nicht zurueckgemeldet'
+    WHERE agent_id = ? AND status IN ('sent','running')
+      AND picked_at < datetime('now', '-' || (timeout_seconds + 60) || ' seconds')
+  `).bind(agent.id).run();
+
+  return json({ commands: items });
+}
+
+// Agent: post command result
+async function handleAgentCommandResult(id: number, req: Request, env: Env): Promise<Response> {
+  const token = req.headers.get('X-Agent-Token');
+  if (!token) return jsonError('Token fehlt', 401);
+  const agent = await env.DB.prepare(`SELECT id FROM agents WHERE agent_token = ? AND status='active'`).bind(token).first<any>();
+  if (!agent) return jsonError('Token ungueltig', 401);
+
+  const body = await req.json<any>();
+  const status = body.status === 'done' || body.status === 'error' ? body.status : 'done';
+  const stdout = (body.stdout || '').slice(0, 16000);
+  const stderr = (body.stderr || '').slice(0, 4000);
+  const exitCode = body.exit_code != null ? Number(body.exit_code) : null;
+  const errorMessage = body.error_message || null;
+
+  const r = await env.DB.prepare(`
+    UPDATE commands SET status=?, completed_at=datetime('now'),
+           result_stdout=?, result_stderr=?, result_exit=?, error_message=?
+    WHERE id=? AND agent_id=? AND status IN ('sent','running')
+  `).bind(status, stdout, stderr, exitCode, errorMessage, id, agent.id).run();
+
+  if (r.meta.changes === 0) return jsonError('Befehl bereits abgeschlossen oder gehoert nicht zu diesem Agent', 404);
+  return json({ ok: true });
+}
+
 // ============== ROUTER ==============
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -1075,6 +1244,9 @@ export default {
       // Public agent endpoints
       if (path === '/api/agent/register' && m === 'POST') return handleAgentRegister(req, env);
       if (path === '/api/agent/heartbeat' && m === 'POST') return handleAgentHeartbeat(req, env);
+      if (path === '/api/agent/commands' && m === 'GET') return handleAgentCommandsFetch(req, env);
+      const cmdResMatch = path.match(/^\/api\/agent\/commands\/(\d+)\/result$/);
+      if (cmdResMatch && m === 'POST') return handleAgentCommandResult(Number(cmdResMatch[1]), req, env);
       const isMatch = path.match(/^\/api\/install-script\/(.+)$/);
       if (isMatch && m === 'GET') return handleInstallScript(isMatch[1], req, env);
 
@@ -1130,6 +1302,12 @@ export default {
       if (mt && m === 'POST') return handleAlertAck(Number(mt[1]), req, env, sess);
       mt = path.match(/^\/api\/alerts\/(\d+)\/resolve$/);
       if (mt && m === 'POST') return handleAlertResolve(Number(mt[1]), req, env, sess);
+
+      // Remote commands
+      if (path === '/api/commands' && m === 'GET') return handleCommandsList(req, env, sess);
+      if (path === '/api/commands' && m === 'POST') return handleCommandDispatch(req, env, sess);
+      mt = path.match(/^\/api\/commands\/(\d+)\/cancel$/);
+      if (mt && m === 'POST') return handleCommandCancel(Number(mt[1]), req, env, sess);
 
       return jsonError('Not Found', 404);
     } catch(e: any) {
