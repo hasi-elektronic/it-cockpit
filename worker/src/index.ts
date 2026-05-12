@@ -4,6 +4,7 @@
  */
 
 import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
+import { generateMonthlyReports } from './monthly_report';
 
 export interface Env {
   DB: D1Database;
@@ -11,6 +12,8 @@ export interface Env {
   PW_SALT: string;
   TOKEN_SECRET: string;
   RESEND_API_KEY?: string;
+  BROWSER_RENDERING_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
 }
 
 interface Session {
@@ -207,7 +210,12 @@ async function handleDashboard(req: Request, env: Env, sess: Session): Promise<R
       SUM(CASE WHEN av_up_to_date=1 THEN 1 ELSE 0 END) AS av_current,
       SUM(CASE WHEN tpm_ready=1 THEN 1 ELSE 0 END) AS tpm,
       SUM(CASE WHEN secure_boot=1 THEN 1 ELSE 0 END) AS secure_boot,
-      SUM(CASE WHEN firewall_domain=1 AND firewall_private=1 AND firewall_public=1 THEN 1 ELSE 0 END) AS firewall
+      SUM(CASE WHEN firewall_domain=1 AND firewall_private=1 AND firewall_public=1 THEN 1 ELSE 0 END) AS firewall,
+      SUM(CASE WHEN uac_enabled=1 THEN 1 ELSE 0 END) AS uac_on,
+      SUM(CASE WHEN rdp_enabled=0 OR rdp_enabled IS NULL THEN 1 ELSE 0 END) AS no_rdp,
+      SUM(CASE WHEN auto_login_enabled=0 OR auto_login_enabled IS NULL THEN 1 ELSE 0 END) AS no_auto_login,
+      SUM(CASE WHEN defender_tamper_on=1 THEN 1 ELSE 0 END) AS tamper_on,
+      SUM(CASE WHEN pending_reboot=0 OR pending_reboot IS NULL THEN 1 ELSE 0 END) AS no_pending_reboot
     FROM security_status WHERE tenant_id = ?
   `).bind(sess.tenant_id).first<any>();
 
@@ -247,6 +255,11 @@ async function handleDashboard(req: Request, env: Env, sess: Session): Promise<R
       tpm: compliance?.tpm || 0,
       secure_boot: compliance?.secure_boot || 0,
       firewall: compliance?.firewall || 0,
+      uac_on: compliance?.uac_on || 0,
+      no_rdp: compliance?.no_rdp || 0,
+      no_auto_login: compliance?.no_auto_login || 0,
+      tamper_on: compliance?.tamper_on || 0,
+      no_pending_reboot: compliance?.no_pending_reboot || 0,
     },
     alert_stats_30d: {
       total: alertStats?.total_fired_30d || 0,
@@ -775,12 +788,12 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
       s.secure_boot ? 1 : 0,
       s.firewall_domain ? 1 : 0, s.firewall_private ? 1 : 0, s.firewall_public ? 1 : 0,
       score,
-      s.defender_tamper_on ? 1 : 0, s.uac_enabled ? 1 : 0,
-      s.rdp_enabled ? 1 : 0, s.auto_login_enabled ? 1 : 0,
-      s.pending_reboot ? 1 : 0, s.pending_reboot_reason || null,
-      s.failed_logons_24h != null ? s.failed_logons_24h : 0,
-      s.local_admin_count != null ? s.local_admin_count : 0,
-      s.open_ports_count != null ? s.open_ports_count : 0,
+      s.defender_tamper_on != null ? (s.defender_tamper_on ? 1 : 0) : null, s.uac_enabled != null ? (s.uac_enabled ? 1 : 0) : null,
+      s.rdp_enabled != null ? (s.rdp_enabled ? 1 : 0) : null, s.auto_login_enabled != null ? (s.auto_login_enabled ? 1 : 0) : null,
+      s.pending_reboot != null ? (s.pending_reboot ? 1 : 0) : null, s.pending_reboot_reason || null,
+      s.failed_logons_24h != null ? s.failed_logons_24h : null,
+      s.local_admin_count != null ? s.local_admin_count : null,
+      s.open_ports_count != null ? s.open_ports_count : null,
       s.open_ports_list || null
     ).run();
   }
@@ -1520,7 +1533,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.0', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.1', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -1605,6 +1618,20 @@ export default {
       if (mt && m === 'PUT') return handleTenantUpdate(Number(mt[1]), req, env, sess);
       if (mt && m === 'DELETE') return handleTenantDelete(Number(mt[1]), req, env, sess);
 
+      // v0.5.0: Monatsbericht (manuell triggern, super_admin)
+      if (path === '/api/reports/monthly/generate' && m === 'POST') {
+        const err = requireSuperAdmin(sess); if (err) return err;
+        if (!env.BROWSER_RENDERING_TOKEN || !env.CF_ACCOUNT_ID || !env.RESEND_API_KEY) {
+          return jsonError('BROWSER_RENDERING_TOKEN / CF_ACCOUNT_ID / RESEND_API_KEY fehlt', 500);
+        }
+        try {
+          const r = await generateMonthlyReports(env as any);
+          return json({ ok: true, ...r });
+        } catch(e: any) {
+          return jsonError('Report-Generierung fehlgeschlagen: ' + (e.message || e), 500);
+        }
+      }
+
       return jsonError('Not Found', 404);
     } catch(e: any) {
       console.error(e);
@@ -1612,12 +1639,24 @@ export default {
     }
   },
 
-  // ============== CRON: alert evaluator (every 15 min) ==============
+  // ============== CRON: alert evaluator (every 15 min) + monthly report (1st of month, 09:00) ==============
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log(`[cron] alert evaluation triggered at ${new Date().toISOString()}`);
+    const cron = event.cron;
+    console.log(`[cron] triggered: ${cron} at ${new Date().toISOString()}`);
     try {
-      const result = await evaluateAlerts(env);
-      console.log(`[cron] result:`, JSON.stringify(result));
+      if (cron === '0 9 1 * *') {
+        // Monthly Hausmeister report
+        if (env.BROWSER_RENDERING_TOKEN && env.CF_ACCOUNT_ID && env.RESEND_API_KEY) {
+          const r = await generateMonthlyReports(env as any);
+          console.log('[cron] monthly report:', JSON.stringify(r));
+        } else {
+          console.warn('[cron] monthly report skipped — missing BROWSER_RENDERING_TOKEN/CF_ACCOUNT_ID/RESEND_API_KEY');
+        }
+      } else {
+        // Default: */15 * * * * → alert evaluator
+        const result = await evaluateAlerts(env);
+        console.log(`[cron] alert evaluator result:`, JSON.stringify(result));
+      }
     } catch (e: any) {
       console.error(`[cron] error:`, e.message || e);
     }

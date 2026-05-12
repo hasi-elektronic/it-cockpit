@@ -339,9 +339,8 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
 
       // ============ v0.5.0 NEW RULES ============
 
-      // ---- Rule: Pending reboot > N Tage ----
-      if (tenantSettings.rule_pending_reboot && dev.pending_reboot === 1) {
-        // Wir haben kein 'seit wann' Feld; daher direkter Alarm aber als warning
+      // ---- Rule: Pending reboot ----
+      if (tenantSettings.rule_pending_reboot && dev.pending_reboot != null && dev.pending_reboot === 1) {
         shouldFire.set(`${dev.id}:pending_reboot`, {
           device_id: dev.id,
           rule_key: 'pending_reboot',
@@ -427,8 +426,8 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
         });
       }
 
-      // ---- Rule: Defender Tamper Protection AUS (nur wenn Defender genutzt wird) ----
-      if (tenantSettings.rule_defender_tamper_off && dev.av_product &&
+      // ---- Rule: Defender Tamper Protection AUS (nur wenn Defender genutzt wird UND agent v0.5+) ----
+      if (tenantSettings.rule_defender_tamper_off && dev.av_product && dev.defender_tamper_on != null &&
           (dev.av_product.toLowerCase().includes('defender') || dev.av_product.toLowerCase().includes('microsoft')) &&
           dev.defender_tamper_on === 0) {
         shouldFire.set(`${dev.id}:defender_tamper_off`, {

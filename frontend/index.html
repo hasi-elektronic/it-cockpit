@@ -394,7 +394,14 @@ tailwind.config = {
             <div>
               <div class="text-sm text-slate-500">{{ tenants.length }} Mandant{{ tenants.length === 1 ? '' : 'en' }} · {{ activeTenantCount }} aktiv</div>
             </div>
-            <button @click="openTenantModal()" class="btn-primary">+ Neuer Mandant</button>
+            <div class="flex gap-2">
+              <button @click="triggerMonthlyReport()" :disabled="generatingReport"
+                      class="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span v-if="!generatingReport">📄 Monatsbericht senden</span>
+                <span v-else>⏳ Generiere & sende…</span>
+              </button>
+              <button @click="openTenantModal()" class="btn-primary">+ Neuer Mandant</button>
+            </div>
           </div>
 
           <!-- Tenant cards grid -->
@@ -1112,26 +1119,131 @@ tailwind.config = {
         <div class="flex-1 overflow-auto p-6">
 
           <!-- HARDWARE -->
-          <div v-if="detailTab==='hardware'" class="grid grid-cols-2 gap-x-8 gap-y-4">
-            <div><div class="text-xs text-slate-500 uppercase">Hostname</div><div class="font-semibold text-slate-900">{{ detailDevice.hostname }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">Hersteller</div><div class="font-semibold text-slate-900">{{ detailDevice.manufacturer || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">Modell</div><div class="font-semibold text-slate-900">{{ detailDevice.model || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">Seriennummer</div><div class="font-mono text-sm text-slate-900">{{ detailDevice.serial_number || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">CPU</div><div class="text-sm text-slate-900">{{ detailDevice.cpu || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">RAM</div><div class="font-semibold text-slate-900">{{ detailDevice.ram_gb || '—' }} GB</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">Speicher</div><div class="font-semibold text-slate-900">{{ detailDevice.storage_gb || '—' }} GB</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">OS</div><div class="text-sm text-slate-900">{{ detailDevice.os || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">MAC</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.mac_address || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">IP</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.ip_address || '—' }}</div></div>
-            <div><div class="text-xs text-slate-500 uppercase">Zugewiesen an</div>
-              <div class="text-sm text-slate-900">
-                <span v-if="detailDevice.assigned_email">{{ detailDevice.assigned_name || detailDevice.assigned_email }}</span>
-                <span v-else class="text-slate-400">—</span>
+          <div v-if="detailTab==='hardware'">
+            <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div><div class="text-xs text-slate-500 uppercase">Hostname</div><div class="font-semibold text-slate-900">{{ detailDevice.hostname }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">Hersteller</div><div class="font-semibold text-slate-900">{{ detailDevice.manufacturer || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">Modell</div><div class="font-semibold text-slate-900">{{ detailDevice.model || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">Seriennummer</div><div class="font-mono text-sm text-slate-900">{{ detailDevice.serial_number || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">CPU</div><div class="text-sm text-slate-900">{{ detailDevice.cpu || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">RAM</div><div class="font-semibold text-slate-900">{{ detailDevice.ram_gb || '—' }} GB</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">Speicher</div><div class="font-semibold text-slate-900">{{ detailDevice.storage_gb || '—' }} GB</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">OS</div><div class="text-sm text-slate-900">{{ detailDevice.os || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">MAC</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.mac_address || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">IP</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.ip_address || '—' }}</div></div>
+              <div><div class="text-xs text-slate-500 uppercase">Zugewiesen an</div>
+                <div class="text-sm text-slate-900">
+                  <span v-if="detailDevice.assigned_email">{{ detailDevice.assigned_name || detailDevice.assigned_email }}</span>
+                  <span v-else class="text-slate-400">—</span>
+                </div>
+              </div>
+              <div><div class="text-xs text-slate-500 uppercase">Auto-discovered</div><div class="text-sm">{{ detailDevice.auto_discovered ? '✓ via Agent' : '⌨ manuell' }}</div></div>
+              <div class="col-span-2"><div class="text-xs text-slate-500 uppercase">Letzter Heartbeat</div>
+                <div class="text-sm text-slate-900">{{ detailDevice.agent_last_seen ? formatDate(detailDevice.agent_last_seen) + ' (' + formatRelative(detailDevice.agent_last_seen) + ')' : '—' }}</div>
               </div>
             </div>
-            <div><div class="text-xs text-slate-500 uppercase">Auto-discovered</div><div class="text-sm">{{ detailDevice.auto_discovered ? '✓ via Agent' : '⌨ manuell' }}</div></div>
-            <div class="col-span-2"><div class="text-xs text-slate-500 uppercase">Letzter Heartbeat</div>
-              <div class="text-sm text-slate-900">{{ detailDevice.agent_last_seen ? formatDate(detailDevice.agent_last_seen) + ' (' + formatRelative(detailDevice.agent_last_seen) + ')' : '—' }}</div>
+
+            <!-- v0.5.0: System health (CPU temp, battery, boot time) -->
+            <div v-if="detailTelemetry.length > 0 && (detailTelemetry[0].cpu_temp_c || detailTelemetry[0].battery_wear_pct || detailTelemetry[0].boot_time_sec)"
+                 class="mt-6 grid grid-cols-3 gap-4">
+              <div v-if="detailTelemetry[0].cpu_temp_c" class="bg-slate-50 rounded-lg p-4">
+                <div class="text-xs text-slate-500 uppercase">🌡 CPU-Temperatur</div>
+                <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].cpu_temp_c > 85 ? 'text-rose-600' : (detailTelemetry[0].cpu_temp_c > 75 ? 'text-amber-600' : 'text-emerald-600')">
+                  {{ Math.round(detailTelemetry[0].cpu_temp_c) }} °C
+                </div>
+              </div>
+              <div v-if="detailTelemetry[0].battery_wear_pct != null" class="bg-slate-50 rounded-lg p-4">
+                <div class="text-xs text-slate-500 uppercase">🔋 Akku-Verschleiss</div>
+                <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].battery_wear_pct > 30 ? 'text-rose-600' : (detailTelemetry[0].battery_wear_pct > 15 ? 'text-amber-600' : 'text-emerald-600')">
+                  {{ Math.round(detailTelemetry[0].battery_wear_pct) }} %
+                </div>
+                <div class="text-xs text-slate-500 mt-1">{{ detailTelemetry[0].battery_health || '' }}</div>
+              </div>
+              <div v-if="detailTelemetry[0].boot_time_sec" class="bg-slate-50 rounded-lg p-4">
+                <div class="text-xs text-slate-500 uppercase">⏱ Boot-Zeit</div>
+                <div class="text-2xl font-bold mt-1 text-slate-900">{{ detailTelemetry[0].boot_time_sec }} s</div>
+              </div>
+              <div v-if="detailTelemetry[0].outdated_sw_count != null" class="bg-slate-50 rounded-lg p-4">
+                <div class="text-xs text-slate-500 uppercase">📦 Veraltete Software</div>
+                <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].outdated_sw_count > 20 ? 'text-rose-600' : (detailTelemetry[0].outdated_sw_count > 5 ? 'text-amber-600' : 'text-emerald-600')">
+                  {{ detailTelemetry[0].outdated_sw_count }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1">via winget</div>
+              </div>
+            </div>
+
+            <!-- v0.5.0: All disks -->
+            <div v-if="detailDisks && detailDisks.length > 0" class="mt-6">
+              <div class="text-sm font-semibold text-slate-700 mb-2">💾 Festplatten ({{ detailDisks.length }})</div>
+              <table class="w-full text-sm">
+                <thead><tr class="text-xs text-slate-500 uppercase border-b">
+                  <th class="text-left py-2">Mount</th>
+                  <th class="text-left py-2">Label</th>
+                  <th class="text-left py-2">Typ</th>
+                  <th class="text-right py-2">Frei</th>
+                  <th class="text-right py-2">Gesamt</th>
+                  <th class="text-right py-2">Auslastung</th>
+                  <th class="text-center py-2">SMART</th>
+                </tr></thead>
+                <tbody>
+                  <tr v-for="d in detailDisks" :key="d.mount" class="border-b border-slate-100">
+                    <td class="py-2 font-mono font-semibold">{{ d.mount }}</td>
+                    <td class="py-2 text-slate-600">{{ d.label || '—' }}</td>
+                    <td class="py-2"><span class="px-1.5 py-0.5 rounded bg-slate-100 text-xs">{{ d.disk_type || '—' }}</span></td>
+                    <td class="py-2 text-right">{{ d.free_gb != null ? d.free_gb.toFixed(1) : '—' }} GB</td>
+                    <td class="py-2 text-right">{{ d.total_gb != null ? d.total_gb.toFixed(1) : '—' }} GB</td>
+                    <td class="py-2 text-right">
+                      <span v-if="d.percent != null" :class="d.percent > 90 ? 'text-rose-600 font-semibold' : (d.percent > 75 ? 'text-amber-600' : 'text-slate-700')">
+                        {{ Math.round(d.percent) }}%
+                      </span>
+                      <span v-else class="text-slate-400">—</span>
+                    </td>
+                    <td class="py-2 text-center">
+                      <span v-if="d.smart_health === 'Healthy' || d.smart_health === 'OK'" class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs">✓ {{ d.smart_health }}</span>
+                      <span v-else-if="d.smart_health" class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-xs">⚠ {{ d.smart_health }}</span>
+                      <span v-else class="text-slate-400 text-xs">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- v0.5.0: Top processes -->
+            <div v-if="detailProcesses && detailProcesses.length > 0" class="mt-6">
+              <div class="text-sm font-semibold text-slate-700 mb-2">📊 Top RAM-Verbrauch (Snapshot)</div>
+              <table class="w-full text-sm">
+                <thead><tr class="text-xs text-slate-500 uppercase border-b">
+                  <th class="text-left py-2 w-12">#</th>
+                  <th class="text-left py-2">Prozess</th>
+                  <th class="text-right py-2 w-20">PID</th>
+                  <th class="text-right py-2 w-24">RAM</th>
+                </tr></thead>
+                <tbody>
+                  <tr v-for="p in detailProcesses" :key="p.pid + '-' + p.name" class="border-b border-slate-100">
+                    <td class="py-1.5 text-slate-400">{{ p.rank }}</td>
+                    <td class="py-1.5 font-mono">{{ p.name }}</td>
+                    <td class="py-1.5 text-right text-slate-500">{{ p.pid }}</td>
+                    <td class="py-1.5 text-right font-semibold" :class="p.ram_mb > 2000 ? 'text-rose-600' : (p.ram_mb > 500 ? 'text-amber-600' : 'text-slate-700')">
+                      {{ p.ram_mb != null ? p.ram_mb.toFixed(0) : '—' }} MB
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- v0.5.0: Browsers -->
+            <div v-if="detailBrowsers && detailBrowsers.length > 0" class="mt-6">
+              <div class="text-sm font-semibold text-slate-700 mb-2">🌐 Browser-Versionen</div>
+              <div class="grid grid-cols-3 gap-3">
+                <div v-for="b in detailBrowsers" :key="b.browser_name" class="rounded-lg p-3 border" :class="b.outdated ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'">
+                  <div class="text-sm font-semibold text-slate-900">{{ b.browser_name }}</div>
+                  <div class="text-xs text-slate-600 mt-0.5">{{ b.version || '—' }}</div>
+                  <div class="text-xs mt-1">
+                    <span v-if="b.outdated" class="text-amber-700">⚠ veraltet — Update empfohlen</span>
+                    <span v-else class="text-emerald-700">✓ aktuell</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1215,6 +1327,54 @@ tailwind.config = {
                   <span class="text-sm text-slate-700">🚨 Kritische Updates</span>
                   <span v-if="detailSecurity.wu_critical_count != null" :class="['px-2 py-0.5 rounded text-xs font-medium', detailSecurity.wu_critical_count > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700']">
                     {{ detailSecurity.wu_critical_count }}
+                  </span>
+                  <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+
+                <!-- v0.5.0 NEW SECURITY BADGES -->
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🛡 Defender Tamper</span>
+                  <span v-if="detailSecurity.defender_tamper_on" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aktiv</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ aus</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔁 Neustart ausstehend</span>
+                  <span v-if="!detailSecurity.pending_reboot" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ nein</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium" :title="detailSecurity.pending_reboot_reason || ''">⚠ ja ({{ detailSecurity.pending_reboot_reason }})</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🛡 UAC</span>
+                  <span v-if="detailSecurity.uac_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aktiv</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ deaktiviert</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🖥 RDP</span>
+                  <span v-if="!detailSecurity.rdp_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aus</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ aktiv (Risiko)</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔑 Auto-Login</span>
+                  <span v-if="!detailSecurity.auto_login_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aus</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ aktiv</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🚪 Fehlgeschlagene Logins (24h)</span>
+                  <span v-if="detailSecurity.failed_logons_24h != null" :class="['px-2 py-0.5 rounded text-xs font-medium', detailSecurity.failed_logons_24h > 20 ? 'bg-rose-100 text-rose-700' : (detailSecurity.failed_logons_24h > 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')]">
+                    {{ detailSecurity.failed_logons_24h }}
+                  </span>
+                  <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">👥 Lokale Admins</span>
+                  <span v-if="detailSecurity.local_admin_count != null" :class="['px-2 py-0.5 rounded text-xs font-medium', detailSecurity.local_admin_count > 3 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700']">
+                    {{ detailSecurity.local_admin_count }}
+                  </span>
+                  <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔌 Offene Ports</span>
+                  <span v-if="detailSecurity.open_ports_count != null" class="text-xs text-slate-600" :title="detailSecurity.open_ports_list || ''">
+                    {{ detailSecurity.open_ports_count }} Listening
                   </span>
                   <span v-else class="text-slate-400 text-xs">—</span>
                 </div>
@@ -1789,15 +1949,22 @@ createApp({
         { key: 'tpm', label: 'TPM bereit', emoji: '🔐' },
         { key: 'secure_boot', label: 'Secure Boot', emoji: '🚀' },
         { key: 'firewall', label: 'Firewall', emoji: '🔥' },
+        { key: 'uac_on', label: 'UAC aktiv', emoji: '🛡' },
+        { key: 'no_rdp', label: 'RDP geschlossen', emoji: '🖥' },
+        { key: 'no_auto_login', label: 'kein Auto-Login', emoji: '🔑' },
+        { key: 'tamper_on', label: 'Defender Tamper', emoji: '🛡' },
+        { key: 'no_pending_reboot', label: 'kein Reboot ausstehend', emoji: '🔁' },
       ],
       devices: [], licenses: [], users: [], audit: [],
       agents: [], enrollResult: null, enrolling: false,
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
+      detailDisks: [], detailProcesses: [], detailBrowsers: [],
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
       tenants: [],
       tenantForm: { id: null, slug: '', name: '', plan: 'starter', status: 'active', device_quota: 50, monthly_fee: 0, contact_name: '', contact_email: '', contact_phone: '', address: '', city: '', industry: '', notes: '' },
       tenantSaving: false,
+      generatingReport: false,
       psTemplates: [
         { label: 'Disk-Auslastung', script: "Get-WmiObject -Class Win32_LogicalDisk | Where-Object DriveType -eq 3 | Select-Object DeviceID, @{N='Size(GB)';E={[math]::Round($_.Size/1GB,1)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpace/1GB,1)}}, @{N='Free%';E={[math]::Round($_.FreeSpace/$_.Size*100,1)}} | Format-Table" },
         { label: 'Top 10 Prozesse', script: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, CPU, WS, Id | Format-Table' },
@@ -1815,6 +1982,12 @@ createApp({
         rule_bitlocker_off: 1, rule_agent_offline: 1, rule_wu_critical: 1, rule_new_device: 1,
         disk_critical_pct: 95, disk_warning_pct: 85, av_signature_days: 14,
         agent_offline_warn_h: 2, agent_offline_crit_h: 24, wu_critical_count: 5,
+        // v0.5.0 new rules
+        rule_pending_reboot: 1, rule_uptime_long: 1, rule_smart_warning: 1,
+        rule_failed_logon_spike: 1, rule_browser_outdated: 1, rule_patch_high: 1,
+        rule_battery_wear: 1, rule_defender_tamper_off: 1,
+        pending_reboot_days: 7, uptime_max_days: 60, failed_logon_threshold: 20,
+        patch_high_threshold: 20, battery_wear_threshold: 30,
       },
       settingsSaving: false, testingTelegram: false, testingEmail: false,
       alertRulesList: [
@@ -1826,6 +1999,15 @@ createApp({
         { key: 'rule_agent_offline', label: 'Agent offline', emoji: '📡', severity: 'warning', desc: 'Kein Heartbeat seit einer Weile', threshold: 'agent_offline_warn_h', unit: 'h (Warnung)' },
         { key: 'rule_wu_critical', label: 'Kritische Updates', emoji: '🔄', severity: 'warning', desc: 'Windows-Updates ausstehend', threshold: 'wu_critical_count', unit: 'Updates' },
         { key: 'rule_new_device', label: 'Neues Geraet entdeckt', emoji: '✨', severity: 'info', desc: 'Ein neuer Agent hat sich registriert' },
+        // v0.5.0 new rules
+        { key: 'rule_pending_reboot', label: 'Neustart ausstehend', emoji: '🔁', severity: 'warning', desc: 'PC wartet auf Restart nach Update' },
+        { key: 'rule_uptime_long', label: 'Lange ohne Neustart', emoji: '⏱', severity: 'warning', desc: 'PC laeuft seit langem ohne Reboot', threshold: 'uptime_max_days', unit: 'Tage' },
+        { key: 'rule_smart_warning', label: 'Festplatten-Problem (SMART)', emoji: '⚠️', severity: 'critical', desc: 'Disk meldet SMART-Warnung — Datenverlust-Risiko' },
+        { key: 'rule_failed_logon_spike', label: 'Fehlgeschlagene Logins', emoji: '🚪', severity: 'warning', desc: 'Viele fehlgeschlagene Anmeldungen', threshold: 'failed_logon_threshold', unit: 'Versuche/24h' },
+        { key: 'rule_browser_outdated', label: 'Browser veraltet', emoji: '🌐', severity: 'warning', desc: 'Chrome/Edge/Firefox alt — Sicherheitsluecken' },
+        { key: 'rule_patch_high', label: 'Viele Updates ausstehend', emoji: '📦', severity: 'warning', desc: 'Zu viele Windows-Updates angesammelt', threshold: 'patch_high_threshold', unit: 'Updates' },
+        { key: 'rule_battery_wear', label: 'Akku gealtert', emoji: '🔋', severity: 'info', desc: 'Battery wear hoch — Tausch faellig', threshold: 'battery_wear_threshold', unit: '% wear' },
+        { key: 'rule_defender_tamper_off', label: 'Defender Tamper aus', emoji: '🛡', severity: 'warning', desc: 'Tamper Protection deaktiviert' },
       ],
       csvPreview: [],
       importing: false,
@@ -1977,18 +2159,27 @@ createApp({
       this.detailSecurity = null;
       this.detailTelemetry = [];
       this.detailSoftware = [];
+      this.detailDisks = [];
+      this.detailProcesses = [];
+      this.detailBrowsers = [];
       this.softwareFilter = '';
       this.modal = 'detail';
-      // Async load: security, telemetry, software
+      // Async load: security, telemetry, software + v0.5 new (disks, processes, browsers)
       try {
-        const [sec, tel, sw] = await Promise.all([
+        const [sec, tel, sw, disks, procs, browsers] = await Promise.all([
           this.api(`/api/devices/${d.id}/security`),
           this.api(`/api/devices/${d.id}/telemetry`),
-          this.api(`/api/devices/${d.id}/software`)
+          this.api(`/api/devices/${d.id}/software`),
+          this.api(`/api/devices/${d.id}/disks`).catch(() => ({items: []})),
+          this.api(`/api/devices/${d.id}/processes`).catch(() => ({items: []})),
+          this.api(`/api/devices/${d.id}/browsers`).catch(() => ({items: []})),
         ]);
         this.detailSecurity = sec;
         this.detailTelemetry = tel.items || [];
         this.detailSoftware = sw.items || [];
+        this.detailDisks = disks.items || [];
+        this.detailProcesses = procs.items || [];
+        this.detailBrowsers = browsers.items || [];
       } catch(e) {
         this.toast('Fehler beim Laden der Details: ' + e.message, 'error');
       }
@@ -1998,6 +2189,19 @@ createApp({
         () => this.toast('In Zwischenablage kopiert', 'success'),
         () => this.toast('Kopieren fehlgeschlagen', 'error')
       );
+    },
+    async triggerMonthlyReport() {
+      if (this.generatingReport) return;
+      if (!confirm('Monatsbericht jetzt fuer alle Mandanten mit Kontakt-Email generieren und versenden?\n\nDies kann 30-60 Sekunden dauern.')) return;
+      this.generatingReport = true;
+      try {
+        const r = await this.api('/api/reports/monthly/generate', { method: 'POST' });
+        this.toast(`Versendet: ${r.generated || 0} · Fehler: ${r.errors || 0}`, (r.errors > 0 ? 'warning' : 'success'));
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      } finally {
+        this.generatingReport = false;
+      }
     },
     async loadAgents() {
       try {

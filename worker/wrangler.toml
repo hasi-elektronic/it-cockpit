@@ -13,7 +13,7 @@ bucket_name = "hasi-agent-binaries"
 
 # Cron triggers: alert evaluator every 15 min
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/15 * * * *", "0 9 1 * *"]
 
 # Secrets (mit wrangler secret put):
 #   PW_SALT       — z.B. langer Random-String, z.B. 64 Zeichen
