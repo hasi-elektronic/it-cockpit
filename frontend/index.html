@@ -416,14 +416,14 @@ tailwind.config = {
         <div v-if="page==='devices'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table class="w-full">
-              <thead><tr><th>Hostname</th><th>Typ</th><th>Modell</th><th>OS</th><th>Zugewiesen</th><th>Garantie</th><th>Status</th><th class="text-right">Aktionen</th></tr></thead>
+              <thead><tr><th>Hostname</th><th>User</th><th>Hardware</th><th>OS</th><th>Agent</th><th>Sicherheit</th><th>Garantie</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
                 <tr v-if="devices.length===0"><td colspan="8" class="text-center text-slate-500 py-12">Noch keine Geräte. <button @click="openDeviceModal()" class="text-cyan-600 hover:underline font-semibold">+ Gerät hinzufügen</button> oder CSV-Import.</td></tr>
-                <tr v-for="d in devices" :key="d.id" class="hover:bg-slate-50">
-                  <td class="font-semibold text-slate-900">{{ d.hostname }}</td>
-                  <td>{{ deviceTypeLabel(d.device_type) }}</td>
-                  <td><span v-if="d.manufacturer">{{ d.manufacturer }}</span> {{ d.model || '' }}</td>
-                  <td>{{ d.os || '—' }}</td>
+                <tr v-for="d in devices" :key="d.id" @click="openDeviceDetail(d)" class="hover:bg-cyan-50/40 cursor-pointer">
+                  <td>
+                    <div class="font-semibold text-slate-900">{{ d.hostname }}</div>
+                    <div class="text-xs text-slate-500">{{ d.manufacturer }} {{ d.model || '' }}</div>
+                  </td>
                   <td>
                     <div v-if="d.assigned_email" class="text-sm">
                       <div class="font-medium text-slate-700">{{ d.assigned_name || d.assigned_email }}</div>
@@ -431,13 +431,29 @@ tailwind.config = {
                     </div>
                     <span v-else class="text-slate-400">—</span>
                   </td>
+                  <td class="text-xs">
+                    <div v-if="d.cpu" class="text-slate-700">{{ shortCpu(d.cpu) }}</div>
+                    <div v-if="d.ram_gb" class="text-slate-500">{{ d.ram_gb }} GB RAM · {{ d.storage_gb || '?' }} GB</div>
+                  </td>
+                  <td class="text-xs text-slate-600">{{ shortOs(d.os) || '—' }}</td>
+                  <td>
+                    <span v-if="d.agent_status==='online'" class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">● online</span>
+                    <span v-else-if="d.agent_status==='offline'" class="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">○ offline</span>
+                    <span v-else class="text-slate-400 text-xs">kein Agent</span>
+                  </td>
+                  <td>
+                    <div v-if="d.security_score != null" class="flex items-center gap-2">
+                      <div :class="['w-10 h-1.5 rounded-full', scoreColor(d.security_score)]"></div>
+                      <span class="text-sm font-semibold" :class="scoreTextColor(d.security_score)">{{ d.security_score }}</span>
+                    </div>
+                    <span v-else class="text-slate-400 text-xs">—</span>
+                  </td>
                   <td>
                     <span v-if="!d.warranty_until" class="text-slate-400">—</span>
-                    <span v-else-if="isWarrantyWarn(d.warranty_until)" class="text-amber-700 font-medium">⚠ {{ d.warranty_until }}</span>
-                    <span v-else>{{ d.warranty_until }}</span>
+                    <span v-else-if="isWarrantyWarn(d.warranty_until)" class="text-amber-700 font-medium text-xs">⚠ {{ d.warranty_until }}</span>
+                    <span v-else class="text-xs">{{ d.warranty_until }}</span>
                   </td>
-                  <td><span :class="['px-2 py-0.5 rounded text-xs font-medium', statusColor(d.status)]">{{ d.status }}</span></td>
-                  <td class="text-right">
+                  <td class="text-right" @click.stop>
                     <button @click="openDeviceModal(d)" class="text-cyan-600 hover:text-cyan-800 text-xs font-medium mr-3">Edit</button>
                     <button @click="askDelete('Gerät', d.hostname, () => deleteDevice(d.id))" class="text-red-500 hover:text-red-700 text-xs font-medium">Löschen</button>
                   </td>
@@ -613,6 +629,239 @@ tailwind.config = {
 
       </div>
     </main>
+
+    <!-- ==================== DEVICE DETAIL PANEL ==================== -->
+    <div v-if="modal === 'detail' && detailDevice" class="modal-backdrop" @click.self="closeModal">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-white text-xl font-bold">💻</div>
+            <div>
+              <div class="text-lg font-bold text-slate-900">{{ detailDevice.hostname }}</div>
+              <div class="text-sm text-slate-500">{{ detailDevice.manufacturer }} {{ detailDevice.model }} · {{ shortOs(detailDevice.os) }}</div>
+            </div>
+            <span v-if="detailDevice.agent_status==='online'" class="ml-3 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">● online</span>
+            <span v-else-if="detailDevice.agent_status==='offline'" class="ml-3 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">○ offline</span>
+            <span v-else class="ml-3 text-slate-400 text-xs">kein Agent</span>
+          </div>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="px-6 border-b border-slate-200 flex gap-1">
+          <button v-for="t in ['hardware','security','telemetry','software']" :key="t"
+                  @click="detailTab = t"
+                  :class="['px-4 py-2.5 text-sm font-medium border-b-2 transition',
+                           detailTab===t ? 'border-cyan-500 text-cyan-700' : 'border-transparent text-slate-600 hover:text-slate-900']">
+            {{ ({hardware:'Hardware',security:'Sicherheit',telemetry:'Telemetrie',software:'Software'})[t] }}
+            <span v-if="t==='software' && detailSoftware.length>0" class="ml-1 text-xs text-slate-400">{{ detailSoftware.length }}</span>
+          </button>
+        </div>
+
+        <!-- Tab content -->
+        <div class="flex-1 overflow-auto p-6">
+
+          <!-- HARDWARE -->
+          <div v-if="detailTab==='hardware'" class="grid grid-cols-2 gap-x-8 gap-y-4">
+            <div><div class="text-xs text-slate-500 uppercase">Hostname</div><div class="font-semibold text-slate-900">{{ detailDevice.hostname }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">Hersteller</div><div class="font-semibold text-slate-900">{{ detailDevice.manufacturer || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">Modell</div><div class="font-semibold text-slate-900">{{ detailDevice.model || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">Seriennummer</div><div class="font-mono text-sm text-slate-900">{{ detailDevice.serial_number || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">CPU</div><div class="text-sm text-slate-900">{{ detailDevice.cpu || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">RAM</div><div class="font-semibold text-slate-900">{{ detailDevice.ram_gb || '—' }} GB</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">Speicher</div><div class="font-semibold text-slate-900">{{ detailDevice.storage_gb || '—' }} GB</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">OS</div><div class="text-sm text-slate-900">{{ detailDevice.os || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">MAC</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.mac_address || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">IP</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.ip_address || '—' }}</div></div>
+            <div><div class="text-xs text-slate-500 uppercase">Zugewiesen an</div>
+              <div class="text-sm text-slate-900">
+                <span v-if="detailDevice.assigned_email">{{ detailDevice.assigned_name || detailDevice.assigned_email }}</span>
+                <span v-else class="text-slate-400">—</span>
+              </div>
+            </div>
+            <div><div class="text-xs text-slate-500 uppercase">Auto-discovered</div><div class="text-sm">{{ detailDevice.auto_discovered ? '✓ via Agent' : '⌨ manuell' }}</div></div>
+            <div class="col-span-2"><div class="text-xs text-slate-500 uppercase">Letzter Heartbeat</div>
+              <div class="text-sm text-slate-900">{{ detailDevice.agent_last_seen ? formatDate(detailDevice.agent_last_seen) + ' (' + formatRelative(detailDevice.agent_last_seen) + ')' : '—' }}</div>
+            </div>
+          </div>
+
+          <!-- SECURITY -->
+          <div v-if="detailTab==='security'">
+            <div v-if="!detailSecurity || detailSecurity.security_score == null" class="text-center text-slate-500 py-12">
+              Noch keine Sicherheits-Daten. Agent läuft, aber Heartbeat enthält noch keine Security-Infos.
+            </div>
+            <div v-else>
+              <div class="flex items-center gap-6 mb-8 pb-6 border-b border-slate-200">
+                <div class="flex-shrink-0">
+                  <div class="relative w-28 h-28">
+                    <svg viewBox="0 0 36 36" class="w-28 h-28 -rotate-90">
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="#e2e8f0" stroke-width="2"></circle>
+                      <circle cx="18" cy="18" r="16" fill="none" :stroke="scoreStrokeColor(detailSecurity.security_score)" stroke-width="2"
+                              :stroke-dasharray="(detailSecurity.security_score * 100.5 / 100) + ' 100.5'" stroke-linecap="round"></circle>
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                      <div class="text-3xl font-bold" :class="scoreTextColor(detailSecurity.security_score)">{{ detailSecurity.security_score }}</div>
+                      <div class="text-xs text-slate-500">/ 100</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold text-slate-900">Security Score</div>
+                  <div class="text-sm text-slate-600 mt-1">
+                    <span v-if="detailSecurity.security_score >= 80" class="text-emerald-600 font-medium">Sehr gut · System gut gehärtet</span>
+                    <span v-else-if="detailSecurity.security_score >= 60" class="text-amber-600 font-medium">Akzeptabel · einige Härtungen empfohlen</span>
+                    <span v-else class="text-rose-600 font-medium">Kritisch · sofort Maßnahmen ergreifen</span>
+                  </div>
+                  <div class="text-xs text-slate-500 mt-2">Aktualisiert: {{ formatDate(detailSecurity.updated_at) }}</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-8 gap-y-3">
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔒 BitLocker</span>
+                  <span v-if="detailSecurity.bitlocker_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ {{ detailSecurity.bitlocker_status_text || 'aktiv' }}</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ {{ detailSecurity.bitlocker_status_text || 'inaktiv' }}</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🛡 Antivirus</span>
+                  <span v-if="detailSecurity.av_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ {{ detailSecurity.av_product || 'aktiv' }}</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ inaktiv</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">📅 AV Signaturen aktuell</span>
+                  <span v-if="detailSecurity.av_up_to_date" class="text-xs">✓ {{ detailSecurity.av_signature_age_days != null ? detailSecurity.av_signature_age_days + ' Tage' : 'aktuell' }}</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ veraltet ({{ detailSecurity.av_signature_age_days }} Tage)</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔐 TPM</span>
+                  <span v-if="detailSecurity.tpm_ready" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ bereit</span>
+                  <span v-else-if="detailSecurity.tpm_present" class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">vorhanden, nicht bereit</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ nicht vorhanden</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🚀 Secure Boot</span>
+                  <span v-if="detailSecurity.secure_boot" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aktiv</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ inaktiv</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔥 Firewall</span>
+                  <span class="text-xs flex gap-1">
+                    <span :class="detailSecurity.firewall_domain ? 'text-emerald-600' : 'text-rose-600'">Domain {{ detailSecurity.firewall_domain ? '✓' : '✗' }}</span>
+                    <span class="text-slate-300">·</span>
+                    <span :class="detailSecurity.firewall_private ? 'text-emerald-600' : 'text-rose-600'">Privat {{ detailSecurity.firewall_private ? '✓' : '✗' }}</span>
+                    <span class="text-slate-300">·</span>
+                    <span :class="detailSecurity.firewall_public ? 'text-emerald-600' : 'text-rose-600'">Öffentl. {{ detailSecurity.firewall_public ? '✓' : '✗' }}</span>
+                  </span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🔄 Updates ausstehend</span>
+                  <span v-if="detailSecurity.wu_pending_count === 0" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ alle aktuell</span>
+                  <span v-else-if="detailSecurity.wu_pending_count != null" class="px-2 py-0.5 rounded text-xs font-medium" :class="detailSecurity.wu_pending_count > 5 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'">
+                    {{ detailSecurity.wu_pending_count }} ausstehend
+                  </span>
+                  <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                  <span class="text-sm text-slate-700">🚨 Kritische Updates</span>
+                  <span v-if="detailSecurity.wu_critical_count != null" :class="['px-2 py-0.5 rounded text-xs font-medium', detailSecurity.wu_critical_count > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700']">
+                    {{ detailSecurity.wu_critical_count }}
+                  </span>
+                  <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TELEMETRY -->
+          <div v-if="detailTab==='telemetry'">
+            <div v-if="detailTelemetry.length === 0" class="text-center text-slate-500 py-12">
+              Noch keine Telemetrie-Daten.
+            </div>
+            <div v-else>
+              <!-- Latest values -->
+              <div class="grid grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-50 rounded-lg p-4">
+                  <div class="text-xs text-slate-500 uppercase">CPU</div>
+                  <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].cpu_percent > 80 ? 'text-rose-600' : 'text-slate-900'">{{ Math.round(detailTelemetry[0].cpu_percent || 0) }}%</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-4">
+                  <div class="text-xs text-slate-500 uppercase">RAM</div>
+                  <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].ram_percent > 85 ? 'text-rose-600' : 'text-slate-900'">{{ Math.round(detailTelemetry[0].ram_percent || 0) }}%</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-4">
+                  <div class="text-xs text-slate-500 uppercase">Disk C:</div>
+                  <div class="text-2xl font-bold mt-1" :class="detailTelemetry[0].disk_c_percent > 90 ? 'text-rose-600' : (detailTelemetry[0].disk_c_percent > 80 ? 'text-amber-600' : 'text-slate-900')">{{ Math.round(detailTelemetry[0].disk_c_percent || 0) }}%</div>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-4">
+                  <div class="text-xs text-slate-500 uppercase">User</div>
+                  <div class="text-lg font-bold mt-1 text-slate-900 truncate">{{ detailTelemetry[0].logged_in_user || '—' }}</div>
+                </div>
+              </div>
+
+              <!-- History table -->
+              <div class="text-sm font-semibold text-slate-900 mb-2">Verlauf (letzte 7 Tage)</div>
+              <div class="border border-slate-200 rounded-lg max-h-96 overflow-auto">
+                <table class="w-full text-xs">
+                  <thead class="bg-slate-50 sticky top-0">
+                    <tr>
+                      <th class="px-3 py-2 text-left">Zeitpunkt</th>
+                      <th class="px-3 py-2 text-left">User</th>
+                      <th class="px-3 py-2 text-right">CPU</th>
+                      <th class="px-3 py-2 text-right">RAM</th>
+                      <th class="px-3 py-2 text-right">Disk</th>
+                      <th class="px-3 py-2 text-left">IP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in detailTelemetry" :key="t.recorded_at" class="border-t border-slate-100">
+                      <td class="px-3 py-1.5 font-mono">{{ formatDate(t.recorded_at) }}</td>
+                      <td class="px-3 py-1.5">{{ t.logged_in_user || '—' }}</td>
+                      <td class="px-3 py-1.5 text-right">{{ Math.round(t.cpu_percent || 0) }}%</td>
+                      <td class="px-3 py-1.5 text-right">{{ Math.round(t.ram_percent || 0) }}%</td>
+                      <td class="px-3 py-1.5 text-right">{{ Math.round(t.disk_c_percent || 0) }}%</td>
+                      <td class="px-3 py-1.5 font-mono text-slate-500">{{ t.ip_internal }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SOFTWARE -->
+          <div v-if="detailTab==='software'">
+            <div v-if="detailSoftware.length === 0" class="text-center text-slate-500 py-12">
+              Noch keine Software erfasst.
+            </div>
+            <div v-else>
+              <input v-model="softwareFilter" placeholder="Suche…" class="w-full mb-4 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+              <div class="border border-slate-200 rounded-lg max-h-96 overflow-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-slate-50 sticky top-0">
+                    <tr>
+                      <th class="px-3 py-2 text-left">Name</th>
+                      <th class="px-3 py-2 text-left">Version</th>
+                      <th class="px-3 py-2 text-left">Hersteller</th>
+                      <th class="px-3 py-2 text-left">Installiert</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in filteredSoftware" :key="s.name+s.version" class="border-t border-slate-100 hover:bg-slate-50">
+                      <td class="px-3 py-1.5 font-medium text-slate-900">{{ s.name }}</td>
+                      <td class="px-3 py-1.5 text-slate-600">{{ s.version || '—' }}</td>
+                      <td class="px-3 py-1.5 text-slate-600 text-xs">{{ s.publisher || '—' }}</td>
+                      <td class="px-3 py-1.5 text-slate-500 text-xs">{{ s.install_date || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="text-xs text-slate-500 mt-2">{{ filteredSoftware.length }} von {{ detailSoftware.length }} angezeigt</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== DEVICE MODAL ==================== -->
     <div v-if="modal === 'device'" class="modal-backdrop" @click.self="closeModal">
@@ -865,6 +1114,7 @@ createApp({
       stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0, agent_online:0, agent_offline:0 },
       devices: [], licenses: [], users: [], audit: [],
       agents: [], enrollResult: null, enrolling: false,
+      detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
       csvPreview: [],
       importing: false,
       saving: false,
@@ -887,6 +1137,14 @@ createApp({
         audit: 'Aktion-Historie (DSGVO)',
         import: 'Bulk-Import via CSV-Datei'
       }[this.page];
+    },
+    filteredSoftware() {
+      if (!this.softwareFilter) return this.detailSoftware;
+      const q = this.softwareFilter.toLowerCase();
+      return this.detailSoftware.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.publisher || '').toLowerCase().includes(q)
+      );
     }
   },
   mounted() {
@@ -929,6 +1187,54 @@ createApp({
       if (!agent.last_seen) return false;
       const ageSec = (Date.now() - new Date(agent.last_seen + 'Z').getTime()) / 1000;
       return ageSec < 1800; // 30 min
+    },
+    shortCpu(cpu) {
+      if (!cpu) return '';
+      return cpu.replace(/Intel\(R\) /,'').replace(/\(TM\)/,'').replace(/CPU /,'').replace(/@ \d+\.\d+GHz/,'').trim();
+    },
+    shortOs(os) {
+      if (!os) return '';
+      return os.replace('Microsoft Windows', 'Win').replace(/10\.0\.\d+/,'').trim();
+    },
+    scoreColor(s) {
+      if (s == null) return 'bg-slate-300';
+      if (s >= 80) return 'bg-emerald-500';
+      if (s >= 60) return 'bg-amber-500';
+      return 'bg-rose-500';
+    },
+    scoreTextColor(s) {
+      if (s == null) return 'text-slate-400';
+      if (s >= 80) return 'text-emerald-600';
+      if (s >= 60) return 'text-amber-600';
+      return 'text-rose-600';
+    },
+    scoreStrokeColor(s) {
+      if (s == null) return '#cbd5e1';
+      if (s >= 80) return '#10b981';
+      if (s >= 60) return '#f59e0b';
+      return '#f43f5e';
+    },
+    async openDeviceDetail(d) {
+      this.detailDevice = d;
+      this.detailTab = 'hardware';
+      this.detailSecurity = null;
+      this.detailTelemetry = [];
+      this.detailSoftware = [];
+      this.softwareFilter = '';
+      this.modal = 'detail';
+      // Async load: security, telemetry, software
+      try {
+        const [sec, tel, sw] = await Promise.all([
+          this.api(`/api/devices/${d.id}/security`),
+          this.api(`/api/devices/${d.id}/telemetry`),
+          this.api(`/api/devices/${d.id}/software`)
+        ]);
+        this.detailSecurity = sec;
+        this.detailTelemetry = tel.items || [];
+        this.detailSoftware = sw.items || [];
+      } catch(e) {
+        this.toast('Fehler beim Laden der Details: ' + e.message, 'error');
+      }
     },
     copyToClipboard(text) {
       navigator.clipboard.writeText(text).then(
@@ -996,16 +1302,18 @@ createApp({
     },
     async loadAll() {
       try {
-        const [stats, devices, licenses, users] = await Promise.all([
+        const [stats, devices, licenses, users, agents] = await Promise.all([
           this.api('/api/stats'),
           this.api('/api/devices'),
           this.api('/api/licenses'),
-          this.api('/api/users')
+          this.api('/api/users'),
+          this.api('/api/agents')
         ]);
         this.stats = stats;
         this.devices = devices.items || [];
         this.licenses = licenses.items || [];
         this.users = users.items || [];
+        this.agents = agents.items || [];
       } catch(e) { this.toast(e.message, 'error'); }
     },
     async loadAudit() {

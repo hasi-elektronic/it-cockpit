@@ -623,72 +623,169 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
 
 // ============== INSTALL SCRIPT (public) ==============
 function generateWindowsInstallScript(enrollToken: string, apiUrl: string): string {
-  return `# Hasi IT-Cockpit Agent — Windows Installer
+  return `# Hasi IT-Cockpit Agent - Windows Installer
 # Token: ${enrollToken.slice(0, 12)}...
+# Erfordert: Administrator-PowerShell
+
 $ErrorActionPreference = 'Stop'
+
 Write-Host ""
 Write-Host "================================================"
-Write-Host "  Hasi IT-Cockpit Agent — Installer"
+Write-Host "  Hasi IT-Cockpit Agent - Installer"
 Write-Host "================================================"
 Write-Host ""
 
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrators')
-if (-not $isAdmin) {
-    Write-Host "FEHLER: Bitte als Administrator ausfuehren." -ForegroundColor Red
-    Write-Host "  Rechtsklick auf PowerShell -> Als Administrator ausfuehren"
-    exit 1
+# ---------- 1) Admin-Check (robust, mehrere Methoden) ----------
+function Test-IsAdmin {
+    try {
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $p  = New-Object Security.Principal.WindowsPrincipal($id)
+        if ($p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
+    } catch {}
+    # Fallback: whoami /groups
+    try {
+        $g = whoami /groups 2>&1
+        if ($g -match 'S-1-16-12288' -or $g -match 'BUILTIN\\\\Administratoren' -or $g -match 'BUILTIN\\\\Administrators') {
+            return $true
+        }
+    } catch {}
+    # Fallback: schreibversuch in Programme
+    try {
+        $t = "$env:ProgramFiles\\\\.hasi_admin_test"
+        New-Item -ItemType File -Force -Path $t -ErrorAction Stop | Out-Null
+        Remove-Item $t -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch {}
+    return $false
 }
 
-$installDir = "$env:ProgramFiles\\HasiCockpit"
-$null = New-Item -ItemType Directory -Force -Path $installDir
+$isAdmin = Test-IsAdmin
+if (-not $isAdmin) {
+    Write-Host "WARNUNG: Adminrechte konnten nicht eindeutig verifiziert werden." -ForegroundColor Yellow
+    Write-Host "         Installation wird fortgesetzt - bei Fehlern bitte als Admin starten." -ForegroundColor Yellow
+    Write-Host ""
+}
 
-$config = @{
-    enroll_token = "${enrollToken}"
-    api_url = "${apiUrl}"
+# ---------- 2) Verzeichnis vorbereiten ----------
+$installDir = "$env:ProgramFiles\\\\HasiCockpit"
+$null = New-Item -ItemType Directory -Force -Path $installDir
+Write-Host "[OK] Verzeichnis: $installDir" -ForegroundColor Green
+
+# ---------- 3) Konfiguration schreiben - BOM-frei! ----------
+$config = [ordered]@{
+    enroll_token      = "${enrollToken}"
+    api_url           = "${apiUrl}"
     heartbeat_seconds = 900
 } | ConvertTo-Json
-$config | Set-Content "$installDir\\config.json" -Encoding UTF8
 
-Write-Host "[OK] Konfiguration gespeichert: $installDir\\config.json" -ForegroundColor Green
+$configPath = "$installDir\\\\config.json"
+$utf8NoBom  = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($configPath, $config, $utf8NoBom)
+Write-Host "[OK] Konfiguration: $configPath" -ForegroundColor Green
 
-$agentUrl = "${apiUrl.replace('/api', '')}/agent-binary/hasi-agent-windows-amd64.exe"
-$agentPath = "$installDir\\hasi-agent.exe"
+# ---------- 4) Agent-Binary herunterladen ----------
+$agentUrl  = "${apiUrl.replace('/api', '')}/agent-binary/hasi-agent-windows-amd64.exe"
+$agentPath = "$installDir\\\\hasi-agent.exe"
 
 Write-Host "-> Lade Agent herunter..."
 try {
     Invoke-WebRequest -Uri $agentUrl -OutFile $agentPath -UseBasicParsing -ErrorAction Stop
-    Write-Host "[OK] Agent installiert: $agentPath" -ForegroundColor Green
+    $size = [math]::Round((Get-Item $agentPath).Length / 1MB, 1)
+    Write-Host "[OK] Agent installiert: $agentPath ($size MB)" -ForegroundColor Green
 } catch {
-    Write-Host ""
-    Write-Host "HINWEIS: Agent-Binary noch nicht verfuegbar." -ForegroundColor Yellow
-    Write-Host "  Token + Konfiguration sind gespeichert."
-    Write-Host "  Der Agent kommt mit dem naechsten Release."
-    Write-Host ""
-    Write-Host "  Aktueller Konfigurationspfad:"
-    Write-Host "  $installDir\\config.json"
-    exit 0
+    Write-Host "FEHLER beim Download: $_" -ForegroundColor Red
+    Write-Host "  URL: $agentUrl"
+    exit 1
 }
 
+# ---------- 5) Erster Heartbeat - sofortige Registrierung ----------
+Write-Host "-> Erster Heartbeat (Geraet registrieren)..."
+try {
+    $output = & $agentPath --once 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Geraet erfolgreich registriert" -ForegroundColor Green
+    } else {
+        Write-Host "WARNUNG: Erster Heartbeat fehlgeschlagen:" -ForegroundColor Yellow
+        $output | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkYellow }
+    }
+} catch {
+    Write-Host "FEHLER: $_" -ForegroundColor Red
+}
+
+# ---------- 6) Autostart einrichten ----------
 $serviceName = "HasiCockpitAgent"
-$existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-if ($existing) {
-    Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
-    sc.exe delete $serviceName | Out-Null
-    Start-Sleep -Seconds 2
+$autostartOk = $false
+
+# Versuch A: Windows Service (benoetigt echte Adminrechte)
+Write-Host "-> Versuche Windows Service..."
+try {
+    $existing = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if ($existing) {
+        Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
+        sc.exe delete $serviceName | Out-Null
+        Start-Sleep -Seconds 2
+    }
+    $binPathArg = '"' + $agentPath + '" --service'
+    $createResult = sc.exe create $serviceName binPath= $binPathArg start= auto DisplayName= "Hasi IT-Cockpit Agent" 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        sc.exe description $serviceName "Hasi IT-Cockpit - Endpoint Inventory Agent" | Out-Null
+        Start-Service -Name $serviceName -ErrorAction Stop
+        Write-Host "[OK] Service aktiv: $serviceName" -ForegroundColor Green
+        $autostartOk = $true
+    } else {
+        Write-Host "  Service-Erstellung fehlgeschlagen (Adminrechte fehlen)." -ForegroundColor DarkYellow
+    }
+} catch {
+    Write-Host "  Service-Erstellung uebersprungen." -ForegroundColor DarkYellow
 }
 
-$binPathArg = '"' + $agentPath + '" --service'
-sc.exe create $serviceName binPath= $binPathArg start= auto DisplayName= "Hasi IT-Cockpit Agent" | Out-Null
-sc.exe description $serviceName "Hasi IT-Cockpit - Endpoint Inventory Agent" | Out-Null
-Start-Service -Name $serviceName
+# Versuch B: Task Scheduler (Fallback - funktioniert auch ohne Service-Rechte)
+if (-not $autostartOk) {
+    Write-Host "-> Fallback: Task Scheduler..."
+    try {
+        $taskName = "HasiCockpitAgent"
+        # Alten Task entfernen
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
+        $action    = New-ScheduledTaskAction -Execute $agentPath
+        $triggers  = @(
+            New-ScheduledTaskTrigger -AtStartup
+            New-ScheduledTaskTrigger -AtLogOn
+        )
+        $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 365) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $settings -Principal $principal -Description "Hasi IT-Cockpit - Endpoint Inventory Agent" -Force | Out-Null
+        Start-ScheduledTask -TaskName $taskName
+        Write-Host "[OK] Task Scheduler aktiv: $taskName (Start bei Boot + Login)" -ForegroundColor Green
+        $autostartOk = $true
+    } catch {
+        Write-Host "  Task Scheduler fehlgeschlagen: $_" -ForegroundColor DarkYellow
+    }
+}
+
+# Versuch C: Letzter Fallback - Run-Key in Registry (User-Login)
+if (-not $autostartOk) {
+    try {
+        $runKey = 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run'
+        Set-ItemProperty -Path $runKey -Name "HasiCockpitAgent" -Value $agentPath -Force
+        Write-Host "[OK] Autostart via Registry (HKCU Run)" -ForegroundColor Green
+        $autostartOk = $true
+    } catch {
+        Write-Host "WARNUNG: Kein Autostart eingerichtet - Agent muss manuell gestartet werden." -ForegroundColor Yellow
+    }
+}
+
+# ---------- 7) Abschluss ----------
 Write-Host ""
+Write-Host "================================================"
 Write-Host "[OK] Installation abgeschlossen!" -ForegroundColor Green
-Write-Host "  Service:  $serviceName"
-Write-Host "  Heartbeat: alle 15 Minuten"
+Write-Host "================================================"
+Write-Host "  Konfiguration: $configPath"
+Write-Host "  Agent:         $agentPath"
+Write-Host "  Heartbeat:     alle 15 Minuten"
 Write-Host ""
-Write-Host "  Dieses Geraet erscheint in Kuerze im Cockpit:"
-Write-Host "  https://it-cockpit.pages.dev"
+Write-Host "  Cockpit:       https://it-cockpit.pages.dev"
 Write-Host ""
 `;
 }
@@ -699,7 +796,9 @@ async function handleInstallScript(token: string, req: Request, env: Env): Promi
   if (agent.status === 'revoked') return textResponse('# Token revoked\nWrite-Host "FEHLER: Token gesperrt" -ForegroundColor Red\nexit 1', 403);
   const url = new URL(req.url);
   const apiUrl = `${url.origin}/api`;
-  return textResponse(generateWindowsInstallScript(token, apiUrl), 200, 'text/plain');
+  // Convert LF -> CRLF for Windows PowerShell compatibility
+  const script = generateWindowsInstallScript(token, apiUrl).replace(/\r?\n/g, '\r\n');
+  return textResponse(script, 200, 'text/plain');
 }
 
 // ============== AGENT BINARY (public, R2-served) ==============
