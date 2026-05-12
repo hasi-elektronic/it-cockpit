@@ -16,6 +16,7 @@ export interface Env {
 interface Session {
   token: string; tenant_id: number; tenant_slug: string; tenant_name: string;
   plan: string; user_id: number; user_email: string; role: string;
+  home_tenant_id: number; home_tenant_slug: string; home_tenant_name: string;
 }
 
 const CORS_HEADERS = {
@@ -110,7 +111,8 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
 
   const session: Session = {
     token: '', tenant_id: t.id, tenant_slug: t.slug, tenant_name: t.name, plan: t.plan,
-    user_id: u.id, user_email: u.email, role: u.role
+    user_id: u.id, user_email: u.email, role: u.role,
+    home_tenant_id: t.id, home_tenant_slug: t.slug, home_tenant_name: t.name
   };
   const tokenPayload = { ...session, exp: Date.now() + 8 * 3600 * 1000 };
   session.token = await makeToken(env.TOKEN_SECRET, tokenPayload);
@@ -1270,6 +1272,115 @@ async function handleAgentCommandResult(id: number, req: Request, env: Env): Pro
   return json({ ok: true });
 }
 
+// ============== TENANT MANAGEMENT (super_admin only) ==============
+
+function requireSuperAdmin(sess: Session): Response | null {
+  if (sess.role !== 'super_admin') return jsonError('Nur Super-Admins koennen Mandanten verwalten', 403);
+  return null;
+}
+
+async function handleTenantsList(req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+  const tenants = await env.DB.prepare(`
+    SELECT t.*,
+      (SELECT COUNT(*) FROM devices WHERE tenant_id = t.id) AS device_count,
+      (SELECT COUNT(*) FROM agents WHERE tenant_id = t.id AND status='active') AS agent_count,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) AS user_count,
+      (SELECT COUNT(*) FROM alerts WHERE tenant_id = t.id AND status IN ('open','acknowledged') AND severity='critical') AS critical_alerts,
+      (SELECT COUNT(*) FROM alerts WHERE tenant_id = t.id AND status IN ('open','acknowledged') AND severity='warning') AS warning_alerts,
+      (SELECT ROUND(AVG(s.security_score), 0)
+        FROM security_status s JOIN devices d ON d.id = s.device_id
+        WHERE d.tenant_id = t.id) AS avg_security_score
+    FROM tenants t
+    ORDER BY t.id ASC
+  `).all();
+  return json({ items: tenants.results });
+}
+
+async function handleTenantCreate(req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+  const body = await req.json<any>();
+  const slug = String(body.slug || '').toLowerCase().trim();
+  const name = String(body.name || '').trim();
+  if (!slug || !name) return jsonError('slug und name erforderlich', 400);
+  if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(slug)) return jsonError('slug: nur Kleinbuchstaben, Zahlen, Bindestrich (2-40 Zeichen)', 400);
+
+  // Check duplicate
+  const dup = await env.DB.prepare('SELECT id FROM tenants WHERE slug = ?').bind(slug).first();
+  if (dup) return jsonError('Slug bereits vergeben', 400);
+
+  const r = await env.DB.prepare(`
+    INSERT INTO tenants (slug, name, plan, device_quota, status, contact_name, contact_email, contact_phone, address, city, industry, monthly_fee, notes, updated_at, created_at)
+    VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).bind(
+    slug, name,
+    body.plan || 'starter',
+    body.device_quota || 50,
+    body.contact_name || null,
+    body.contact_email || null,
+    body.contact_phone || null,
+    body.address || null,
+    body.city || null,
+    body.industry || null,
+    Number(body.monthly_fee) || 0,
+    body.notes || null
+  ).run();
+
+  // Auto-seed alert settings for new tenant
+  await env.DB.prepare('INSERT OR IGNORE INTO alert_settings (tenant_id) VALUES (?)').bind(r.meta.last_row_id).run();
+
+  await logAudit(env, sess, 'create', 'tenant', r.meta.last_row_id, { slug, name }, req.headers.get('CF-Connecting-IP'));
+  return json({ ok: true, id: r.meta.last_row_id });
+}
+
+async function handleTenantUpdate(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+  const body = await req.json<any>();
+  const allowed = ['name','plan','device_quota','status','contact_name','contact_email','contact_phone','address','city','industry','monthly_fee','notes'];
+  const setParts: string[] = []; const values: any[] = [];
+  for (const k of allowed) if (k in body) { setParts.push(`${k} = ?`); values.push(body[k]); }
+  if (setParts.length === 0) return jsonError('Keine Aenderungen', 400);
+  setParts.push(`updated_at = datetime('now')`);
+  values.push(id);
+  await env.DB.prepare(`UPDATE tenants SET ${setParts.join(', ')} WHERE id = ?`).bind(...values).run();
+  await logAudit(env, sess, 'update', 'tenant', id, body, req.headers.get('CF-Connecting-IP'));
+  return json({ ok: true });
+}
+
+async function handleTenantDelete(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+  if (id === sess.home_tenant_id) return jsonError('Eigener Mandant kann nicht geloescht werden', 400);
+  // Cascading delete via FK ON DELETE CASCADE
+  const r = await env.DB.prepare('DELETE FROM tenants WHERE id = ?').bind(id).run();
+  if (r.meta.changes === 0) return jsonError('Mandant nicht gefunden', 404);
+  await logAudit(env, sess, 'delete', 'tenant', id, {}, req.headers.get('CF-Connecting-IP'));
+  return json({ ok: true });
+}
+
+// Switch active tenant (impersonation for super_admin)
+async function handleTenantSwitch(req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+  const body = await req.json<any>();
+  const targetSlug = String(body.tenant_slug || '');
+  if (!targetSlug) return jsonError('tenant_slug erforderlich', 400);
+
+  const t = await env.DB.prepare('SELECT id, slug, name, plan FROM tenants WHERE slug = ? AND status = "active"').bind(targetSlug).first<any>();
+  if (!t) return jsonError('Mandant nicht gefunden', 404);
+
+  // Issue new token with switched tenant context
+  const newSess: Session = {
+    ...sess,
+    tenant_id: t.id, tenant_slug: t.slug, tenant_name: t.name, plan: t.plan,
+    token: ''
+  };
+  const tokenPayload = { ...newSess, exp: Date.now() + 8 * 3600 * 1000 };
+  const newToken = await signToken(env.TOKEN_SECRET, tokenPayload);
+  newSess.token = newToken;
+
+  await logAudit(env, sess, 'switch', 'tenant', t.id, { from: sess.tenant_slug, to: t.slug }, req.headers.get('CF-Connecting-IP'));
+  return json(newSess);
+}
+
 // ============== ROUTER ==============
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -1350,6 +1461,14 @@ export default {
       if (path === '/api/commands' && m === 'POST') return handleCommandDispatch(req, env, sess);
       mt = path.match(/^\/api\/commands\/(\d+)\/cancel$/);
       if (mt && m === 'POST') return handleCommandCancel(Number(mt[1]), req, env, sess);
+
+      // Tenant management (super_admin)
+      if (path === '/api/tenants' && m === 'GET') return handleTenantsList(req, env, sess);
+      if (path === '/api/tenants' && m === 'POST') return handleTenantCreate(req, env, sess);
+      if (path === '/api/tenants/switch' && m === 'POST') return handleTenantSwitch(req, env, sess);
+      mt = path.match(/^\/api\/tenants\/(\d+)$/);
+      if (mt && m === 'PUT') return handleTenantUpdate(Number(mt[1]), req, env, sess);
+      if (mt && m === 'DELETE') return handleTenantDelete(Number(mt[1]), req, env, sess);
 
       return jsonError('Not Found', 404);
     } catch(e: any) {

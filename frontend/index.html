@@ -271,7 +271,7 @@ tailwind.config = {
         <h2 class="font-serif text-2xl font-bold text-slate-900 mb-1">Willkommen zurück</h2>
         <p class="text-slate-500 text-sm mb-6">Logge Dich in Deinen Tenant ein.</p>
         <form @submit.prevent="doLogin" class="space-y-4">
-          <div><label class="form-label">Tenant (Firma)</label><input v-model="loginForm.tenant" type="text" required placeholder="sickinger" class="form-input" /></div>
+          <div><label class="form-label">Tenant (Firma)</label><input v-model="loginForm.tenant" type="text" required placeholder="hasi" class="form-input" /></div>
           <div><label class="form-label">E-Mail</label><input v-model="loginForm.email" type="email" required placeholder="du@firma.de" class="form-input" /></div>
           <div><label class="form-label">Passwort</label><input v-model="loginForm.password" type="password" required class="form-input" /></div>
           <div v-if="loginError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{{ loginError }}</div>
@@ -300,6 +300,28 @@ tailwind.config = {
       </div>
 
       <nav class="px-3 py-4 space-y-1 flex-1">
+        <!-- Super-Admin section -->
+        <div v-if="session.role === 'super_admin'" class="px-2 pt-1 pb-1">
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Super-Admin</div>
+        </div>
+        <div v-if="session.role === 'super_admin'" @click="goto('tenants')" :class="['sidebar-link', page==='tenants'&&'active']">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          Mandanten <span class="ml-auto text-xs opacity-60">{{ tenants.length }}</span>
+        </div>
+
+        <!-- Impersonation banner -->
+        <div v-if="session.role === 'super_admin' && session.tenant_id !== session.home_tenant_id" class="my-2 px-3 py-2 rounded bg-amber-500/10 border border-amber-400/30">
+          <div class="text-amber-300 font-semibold text-xs">👁 Eingeloggt als Kunde:</div>
+          <div class="text-white font-bold text-sm truncate">{{ session.tenant_name }}</div>
+          <button @click="switchTenant(session.home_tenant_slug)" class="text-amber-200 hover:text-white underline mt-1 text-xs">← Zurück zu Hauptkonto</button>
+        </div>
+
+        <!-- Tenant divider for super_admin -->
+        <div v-if="session.role === 'super_admin'" class="border-t border-white/10 my-2"></div>
+        <div v-if="session.role === 'super_admin'" class="px-2 pt-1 pb-1">
+          <div class="text-xs uppercase tracking-wider text-slate-500 font-semibold">{{ session.tenant_name }}</div>
+        </div>
+
         <div @click="goto('overview')" :class="['sidebar-link', page==='overview'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           Übersicht
@@ -366,6 +388,86 @@ tailwind.config = {
       <div class="p-8">
 
         <!-- Overview -->
+        <!-- ============== MANDANTEN (Super-Admin) ============== -->
+        <div v-if="page==='tenants'">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <div class="text-sm text-slate-500">{{ tenants.length }} Mandant{{ tenants.length === 1 ? '' : 'en' }} · {{ activeTenantCount }} aktiv</div>
+            </div>
+            <button @click="openTenantModal()" class="btn-primary">+ Neuer Mandant</button>
+          </div>
+
+          <!-- Tenant cards grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="t in tenants" :key="t.id" class="bg-white rounded-xl border border-slate-200 hover:border-cyan-300 hover:shadow-md transition overflow-hidden flex flex-col">
+              <!-- Header -->
+              <div class="p-5 border-b border-slate-100">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-slate-900 truncate">{{ t.name }}</h3>
+                    <div class="text-xs text-slate-500 mt-0.5">{{ t.industry || 'Keine Branche' }} · {{ t.city || '—' }}</div>
+                  </div>
+                  <span :class="['px-2 py-0.5 rounded text-xs font-medium flex-shrink-0',
+                                 t.status==='active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600']">
+                    {{ t.status }}
+                  </span>
+                </div>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                  <span class="px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 font-medium">{{ t.plan }}</span>
+                  <span v-if="t.id === session.home_tenant_id" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium">Eigener Account</span>
+                  <span v-if="t.monthly_fee > 0" class="text-slate-500">€{{ t.monthly_fee }}/Monat</span>
+                </div>
+              </div>
+
+              <!-- Stats grid -->
+              <div class="px-5 py-3 grid grid-cols-4 gap-2 text-center border-b border-slate-100">
+                <div>
+                  <div class="text-lg font-bold text-slate-900">{{ t.device_count }}</div>
+                  <div class="text-xs text-slate-500">Geräte</div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold" :class="t.agent_count > 0 ? 'text-emerald-600' : 'text-slate-400'">{{ t.agent_count }}</div>
+                  <div class="text-xs text-slate-500">Agents</div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold" :class="t.critical_alerts > 0 ? 'text-rose-600' : 'text-slate-400'">{{ t.critical_alerts || 0 }}</div>
+                  <div class="text-xs text-slate-500">🔴</div>
+                </div>
+                <div>
+                  <div class="text-lg font-bold" :class="t.avg_security_score >= 80 ? 'text-emerald-600' : (t.avg_security_score >= 60 ? 'text-amber-600' : 'text-rose-600')">{{ t.avg_security_score || '—' }}</div>
+                  <div class="text-xs text-slate-500">Score</div>
+                </div>
+              </div>
+
+              <!-- Contact -->
+              <div v-if="t.contact_name || t.contact_email || t.contact_phone" class="px-5 py-3 text-xs text-slate-600 space-y-0.5 border-b border-slate-100 flex-1">
+                <div v-if="t.contact_name">👤 {{ t.contact_name }}</div>
+                <div v-if="t.contact_email" class="truncate">✉ {{ t.contact_email }}</div>
+                <div v-if="t.contact_phone">☎ {{ t.contact_phone }}</div>
+              </div>
+              <div v-else class="px-5 py-3 text-xs text-slate-400 italic border-b border-slate-100 flex-1">
+                Keine Kontaktdaten
+              </div>
+
+              <!-- Actions -->
+              <div class="px-5 py-3 flex gap-2">
+                <button @click="switchTenant(t.slug)" class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded font-medium">
+                  Öffnen →
+                </button>
+                <button @click="openTenantModal(t)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded">✎</button>
+                <button v-if="t.id !== session.home_tenant_id" @click="deleteTenant(t)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm rounded">🗑</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div v-if="tenants.length === 0" class="text-center py-20 text-slate-500">
+            <div class="text-5xl mb-3">🏢</div>
+            <div>Noch keine Mandanten erfasst. Lege deinen ersten Kunden an.</div>
+          </div>
+        </div>
+
+        <!-- ============== OVERVIEW ============== -->
         <div v-if="page==='overview'">
           <!-- Top stats strip -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -1568,6 +1670,86 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- ==================== TENANT MODAL ==================== -->
+    <div v-if="modal === 'tenant'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel max-w-2xl">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">{{ tenantForm.id ? 'Mandant bearbeiten' : 'Neuer Mandant' }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Firmenname *</label>
+            <input v-model="tenantForm.name" class="form-input" placeholder="z.B. Mustermann GmbH" />
+          </div>
+          <div>
+            <label class="form-label">Slug * <span class="text-xs text-slate-400">(URL-Kuerzel, nicht aenderbar nach Anlage)</span></label>
+            <input v-model="tenantForm.slug" :disabled="!!tenantForm.id" class="form-input font-mono" :class="tenantForm.id ? 'bg-slate-50' : ''" placeholder="z.B. mustermann" />
+          </div>
+          <div>
+            <label class="form-label">Plan</label>
+            <select v-model="tenantForm.plan" class="form-input">
+              <option value="pilot">Pilot (kostenlos)</option>
+              <option value="starter">Starter (€15/Geraet)</option>
+              <option value="pro">Pro (€25/Geraet)</option>
+              <option value="enterprise">Enterprise (individuell)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select v-model="tenantForm.status" class="form-input">
+              <option value="active">Aktiv</option>
+              <option value="trial">Trial</option>
+              <option value="suspended">Pausiert</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Geraete-Quota</label>
+            <input v-model.number="tenantForm.device_quota" type="number" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Monatlicher Beitrag (€)</label>
+            <input v-model.number="tenantForm.monthly_fee" type="number" step="0.01" class="form-input" />
+          </div>
+          <div class="md:col-span-2 border-t border-slate-200 pt-3 mt-1">
+            <div class="text-sm font-semibold text-slate-700 mb-2">Kontakt & Standort</div>
+          </div>
+          <div>
+            <label class="form-label">Ansprechpartner</label>
+            <input v-model="tenantForm.contact_name" class="form-input" placeholder="z.B. Manfred Sickinger" />
+          </div>
+          <div>
+            <label class="form-label">E-Mail</label>
+            <input v-model="tenantForm.contact_email" type="email" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Telefon</label>
+            <input v-model="tenantForm.contact_phone" class="form-input" placeholder="z.B. +49 7042 ..." />
+          </div>
+          <div>
+            <label class="form-label">Branche</label>
+            <input v-model="tenantForm.industry" class="form-input" placeholder="z.B. Maschinenbau" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="form-label">Adresse</label>
+            <input v-model="tenantForm.address" class="form-input" placeholder="z.B. Industriestr. 5" />
+          </div>
+          <div>
+            <label class="form-label">Stadt</label>
+            <input v-model="tenantForm.city" class="form-input" placeholder="z.B. Vaihingen/Enz" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="form-label">Notizen</label>
+            <textarea v-model="tenantForm.notes" rows="2" class="form-input" placeholder="Interne Notizen — nicht beim Kunden sichtbar"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="saveTenant" :disabled="tenantSaving" class="btn-primary">{{ tenantSaving ? 'Speichere…' : (tenantForm.id ? 'Aktualisieren' : 'Anlegen') }}</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -1595,7 +1777,7 @@ createApp({
       page: 'overview',
       modal: null,           // null | 'device' | 'license' | 'user' | 'confirm'
       session: { token:'', tenant_id:0, tenant_slug:'', tenant_name:'', user_email:'', role:'', plan:'', user_id:0 },
-      loginForm: { tenant:'sickinger', email:'', password:'' },
+      loginForm: { tenant:'hasi', email:'', password:'' },
       loginLoading: false,
       loginError: '',
       stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0, agent_online:0, agent_offline:0 },
@@ -1613,6 +1795,9 @@ createApp({
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
+      tenants: [],
+      tenantForm: { id: null, slug: '', name: '', plan: 'starter', status: 'active', device_quota: 50, monthly_fee: 0, contact_name: '', contact_email: '', contact_phone: '', address: '', city: '', industry: '', notes: '' },
+      tenantSaving: false,
       psTemplates: [
         { label: 'Disk-Auslastung', script: "Get-WmiObject -Class Win32_LogicalDisk | Where-Object DriveType -eq 3 | Select-Object DeviceID, @{N='Size(GB)';E={[math]::Round($_.Size/1GB,1)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpace/1GB,1)}}, @{N='Free%';E={[math]::Round($_.FreeSpace/$_.Size*100,1)}} | Format-Table" },
         { label: 'Top 10 Prozesse', script: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, CPU, WS, Id | Format-Table' },
@@ -1653,7 +1838,7 @@ createApp({
     }
   },
   computed: {
-    pageTitle() { return { overview:'Übersicht', devices:'Geräte', agents:'Agents', alerts:'Alerts', alertSettings:'Alert-Einstellungen', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import' }[this.page]; },
+    pageTitle() { return { overview:'Übersicht', devices:'Geräte', agents:'Agents', alerts:'Alerts', alertSettings:'Alert-Einstellungen', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import', tenants:'Mandanten' }[this.page]; },
     pageSubtitle() {
       return {
         overview: 'Dein IT-Bestand auf einen Blick',
@@ -1664,8 +1849,12 @@ createApp({
         licenses: `${this.licenses.length} Lizenzen verwaltet`,
         users: `${this.users.length} Mitarbeiter im Tenant`,
         audit: 'Aktion-Historie (DSGVO)',
-        import: 'Bulk-Import via CSV-Datei'
+        import: 'Bulk-Import via CSV-Datei',
+        tenants: 'Alle Kunden auf einen Blick'
       }[this.page];
+    },
+    activeTenantCount() {
+      return this.tenants.filter(t => t.status === 'active').length;
     },
     filteredSoftware() {
       if (!this.softwareFilter) return this.detailSoftware;
@@ -1956,6 +2145,78 @@ createApp({
         this.toast('Fehler: ' + e.message, 'error');
       }
     },
+    // ---------- Tenant management (super_admin) ----------
+    async loadTenants() {
+      if (this.session.role !== 'super_admin') return;
+      try {
+        const r = await this.api('/api/tenants');
+        this.tenants = r.items || [];
+      } catch(e) { this.toast('Fehler: ' + e.message, 'error'); }
+    },
+    openTenantModal(t) {
+      if (t) {
+        this.tenantForm = {
+          id: t.id, slug: t.slug, name: t.name, plan: t.plan, status: t.status,
+          device_quota: t.device_quota, monthly_fee: t.monthly_fee || 0,
+          contact_name: t.contact_name || '', contact_email: t.contact_email || '',
+          contact_phone: t.contact_phone || '', address: t.address || '',
+          city: t.city || '', industry: t.industry || '', notes: t.notes || ''
+        };
+      } else {
+        this.tenantForm = { id: null, slug: '', name: '', plan: 'starter', status: 'active',
+          device_quota: 50, monthly_fee: 0, contact_name: '', contact_email: '',
+          contact_phone: '', address: '', city: '', industry: '', notes: '' };
+      }
+      this.modal = 'tenant';
+    },
+    async saveTenant() {
+      if (!this.tenantForm.name) return this.toast('Firmenname erforderlich', 'error');
+      if (!this.tenantForm.id && !this.tenantForm.slug) return this.toast('Slug erforderlich', 'error');
+      this.tenantSaving = true;
+      try {
+        if (this.tenantForm.id) {
+          // update
+          const { id, slug, ...body } = this.tenantForm;
+          await this.api('/api/tenants/' + id, { method: 'PUT', body: JSON.stringify(body) });
+          this.toast('Mandant aktualisiert', 'success');
+        } else {
+          await this.api('/api/tenants', { method: 'POST', body: JSON.stringify(this.tenantForm) });
+          this.toast('Mandant angelegt', 'success');
+        }
+        this.modal = null;
+        await this.loadTenants();
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
+      } finally {
+        this.tenantSaving = false;
+      }
+    },
+    async deleteTenant(t) {
+      if (!confirm(`Mandant "${t.name}" wirklich loeschen?\n\nAlle ${t.device_count} Geraete, ${t.agent_count} Agents, Lizenzen und Daten werden mitgeloescht. Diese Aktion kann NICHT rueckgaengig gemacht werden.\n\nGib zur Bestaetigung "${t.slug}" ein:`)) return;
+      const confirmSlug = prompt(`Tippe "${t.slug}" zur Bestaetigung:`);
+      if (confirmSlug !== t.slug) return this.toast('Abgebrochen', 'info');
+      try {
+        await this.api('/api/tenants/' + t.id, { method: 'DELETE' });
+        this.toast('Mandant geloescht', 'success');
+        await this.loadTenants();
+      } catch(e) { this.toast('Fehler: ' + e.message, 'error'); }
+    },
+    async switchTenant(slug) {
+      try {
+        const newSess = await this.api('/api/tenants/switch', { method: 'POST', body: JSON.stringify({ tenant_slug: slug }) });
+        // Save new token
+        this.session = newSess;
+        localStorage.setItem('it-cockpit-token', newSess.token);
+        localStorage.setItem('it-cockpit-session', JSON.stringify(newSess));
+        this.toast(`Eingeloggt als ${newSess.tenant_name}`, 'success');
+        // Reload everything in new tenant context
+        this.page = 'overview';
+        await this.loadAll();
+        await this.loadDashboard();
+      } catch(e) {
+        this.toast('Fehler beim Wechseln: ' + e.message, 'error');
+      }
+    },
     async saveSettings() {
       this.settingsSaving = true;
       try {
@@ -2033,6 +2294,7 @@ createApp({
       if (p === 'agents') this.loadAgents();
       if (p === 'alerts') { this.alertTab = 'open'; this.loadAlerts(); this.loadAlertCount(); }
       if (p === 'alertSettings') this.loadAlertSettings();
+      if (p === 'tenants') this.loadTenants();
     },
     async doLogin() {
       this.loginLoading = true; this.loginError = '';
@@ -2073,6 +2335,10 @@ createApp({
         this.agents = agents.items || [];
         this.alertCount = alertCount;
         this.dashboard = dashboard;
+        // Super-admin: also load tenants
+        if (this.session.role === 'super_admin') {
+          await this.loadTenants();
+        }
       } catch(e) { this.toast(e.message, 'error'); }
     },
     async loadAudit() {
