@@ -1774,6 +1774,70 @@ tailwind.config = {
               </div>
             </div>
 
+            <!-- v0.7.6: Reparatur & Diagnose section -->
+            <div class="mb-6">
+              <h4 class="font-semibold text-slate-900 mb-3">🛠️ Reparatur & Diagnose</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button @click="runFix('spooler')" class="action-card border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50">
+                  <div class="text-2xl">🖨️</div>
+                  <div class="font-semibold text-sm">Druck-Spooler</div>
+                  <div class="text-xs text-slate-500">Dienst neu starten</div>
+                </button>
+                <button @click="runFix('network_reset')" class="action-card border-blue-200 hover:border-blue-400 hover:bg-blue-50">
+                  <div class="text-2xl">🌐</div>
+                  <div class="font-semibold text-sm">Netzwerk reset</div>
+                  <div class="text-xs text-slate-500">release / renew / flush</div>
+                </button>
+                <button @click="runFix('explorer_restart')" class="action-card border-violet-200 hover:border-violet-400 hover:bg-violet-50">
+                  <div class="text-2xl">🔁</div>
+                  <div class="font-semibold text-sm">Explorer neu</div>
+                  <div class="text-xs text-slate-500">Taskleiste / Icons</div>
+                </button>
+                <button @click="runFix('temp_cleanup')" class="action-card border-yellow-200 hover:border-yellow-400 hover:bg-yellow-50">
+                  <div class="text-2xl">🧹</div>
+                  <div class="font-semibold text-sm">Temp aufraeumen</div>
+                  <div class="text-xs text-slate-500">Cache, %TEMP%</div>
+                </button>
+
+                <button @click="runFix('top_ram')" class="action-card border-rose-200 hover:border-rose-400 hover:bg-rose-50">
+                  <div class="text-2xl">📊</div>
+                  <div class="font-semibold text-sm">Top RAM-Verbraucher</div>
+                  <div class="text-xs text-slate-500">8 groesste Prozesse</div>
+                </button>
+                <button @click="runFix('gpo_update')" class="action-card border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50">
+                  <div class="text-2xl">📁</div>
+                  <div class="font-semibold text-sm">GPO erzwingen</div>
+                  <div class="text-xs text-slate-500">gpupdate /force</div>
+                </button>
+                <button @click="runFix('password_expiry')" class="action-card border-orange-200 hover:border-orange-400 hover:bg-orange-50">
+                  <div class="text-2xl">🔐</div>
+                  <div class="font-semibold text-sm">Passwort-Ablauf</div>
+                  <div class="text-xs text-slate-500">Aktiver Nutzer</div>
+                </button>
+                <button @click="runFix('internet_test')" class="action-card border-sky-200 hover:border-sky-400 hover:bg-sky-50">
+                  <div class="text-2xl">📡</div>
+                  <div class="font-semibold text-sm">Internet-Test</div>
+                  <div class="text-xs text-slate-500">DNS + HTTPS check</div>
+                </button>
+
+                <button @click="runFix('anydesk_status')" class="action-card border-teal-200 hover:border-teal-400 hover:bg-teal-50">
+                  <div class="text-2xl">🆔</div>
+                  <div class="font-semibold text-sm">AnyDesk-Status</div>
+                  <div class="text-xs text-slate-500">Dienst + ID</div>
+                </button>
+                <button @click="runFix('backup_services')" class="action-card border-fuchsia-200 hover:border-fuchsia-400 hover:bg-fuchsia-50">
+                  <div class="text-2xl">💾</div>
+                  <div class="font-semibold text-sm">Backup-Dienste</div>
+                  <div class="text-xs text-slate-500">Veeam / Acronis / etc.</div>
+                </button>
+                <button @click="runFix('event_errors')" class="action-card border-red-200 hover:border-red-400 hover:bg-red-50 col-span-2">
+                  <div class="text-2xl">📜</div>
+                  <div class="font-semibold text-sm">Letzte 10 System-Fehler</div>
+                  <div class="text-xs text-slate-500">Event-Log Errors (24h relevant)</div>
+                </button>
+              </div>
+            </div>
+
             <!-- Command history -->
             <div>
               <div class="flex items-center justify-between mb-3">
@@ -2813,12 +2877,69 @@ createApp({
       this.dispatchCommand('cmd', { command: cmd });
     },
     confirmLockInteractive() {
-      // SYSTEM service can't lock user session directly via rundll32.
-      // Workaround: schtasks creates an INTERACTIVE one-shot task that runs as
-      // the currently logged-in user, which actually locks their screen.
-      if (!confirm('Bildschirm des aktiven Nutzers sperren?')) return;
-      const script = "$tn='HasiLock_' + (Get-Random); schtasks /create /tn $tn /tr 'rundll32.exe user32.dll,LockWorkStation' /sc once /st 23:59 /ru 'INTERACTIVE' /f | Out-Null; schtasks /run /tn $tn | Out-Null; Start-Sleep -Seconds 2; schtasks /delete /tn $tn /f | Out-Null; Write-Output 'Bildschirm gesperrt fuer aktiven Nutzer'";
+      // SYSTEM service can't lock user session via rundll32 (locks SYSTEM's
+      // own session). schtasks /ru 'INTERACTIVE' fails on non-English Windows.
+      // Solution: use tsdiscon (Terminal Services Disconnect) — disconnects
+      // active user session, forcing password re-entry on next access.
+      // Effectively identical UX to lock + locale-independent.
+      if (!confirm('Aktiven Nutzer abmelden (entspricht Sperrung)?')) return;
+      const script = "$s = quser 2>$null; if ($s) { $active = $s | Where-Object {$_ -match '^>'} | Select-Object -First 1; if (-not $active) { $active = $s | Select-Object -Skip 1 -First 1 }; if ($active) { $id = ($active -split '\\s+' | Where-Object {$_ -match '^\\d+$'} | Select-Object -First 1); if ($id) { tsdiscon $id 2>&1; Write-Output ('Session ' + $id + ' getrennt') } else { Write-Output 'Konnte Session-ID nicht ermitteln' } } else { Write-Output 'Keine aktive Session gefunden' } } else { Write-Output 'quser nicht verfuegbar' }";
       this.dispatchCommand('ps', { script: script });
+    },
+
+    // v0.7.6: Repair & Diagnose action dispatcher
+    runFix(action) {
+      const needsConfirm = ['explorer_restart', 'temp_cleanup'];
+      const confirmText = {
+        explorer_restart: 'Explorer beim aktiven Nutzer neu starten? (Fenster werden kurz verschwinden)',
+        temp_cleanup: 'Temp-Dateien und Caches loeschen? (geoeffnete Dateien werden uebersprungen)',
+      };
+      if (needsConfirm.includes(action) && !confirm(confirmText[action])) return;
+
+      const fixes = {
+        spooler:          { type: 'ps',  args: { script: "try { Restart-Service Spooler -Force -EA Stop; Write-Output 'Druck-Spooler-Dienst neu gestartet' } catch { Write-Output ('Fehler: ' + $_.Exception.Message) }" }},
+        network_reset:    { type: 'cmd', args: { command: 'ipconfig /release & ipconfig /renew & ipconfig /flushdns' }},
+        explorer_restart: { type: 'cmd', args: { command: 'taskkill /f /im explorer.exe & timeout /t 1 /nobreak >nul & start explorer.exe' }},
+        temp_cleanup:     { type: 'ps',  args: { script: this.getCleanupScript() }},
+        top_ram:          { type: 'ps',  args: { script: this.getTopRamScript() }},
+        gpo_update:       { type: 'cmd', args: { command: 'gpupdate /force' }},
+        password_expiry:  { type: 'ps',  args: { script: this.getPasswordExpiryScript() }},
+        internet_test:    { type: 'ps',  args: { script: this.getInternetTestScript() }},
+        anydesk_status:   { type: 'ps',  args: { script: this.getAnyDeskStatusScript() }},
+        backup_services:  { type: 'ps',  args: { script: this.getBackupServicesScript() }},
+        event_errors:     { type: 'ps',  args: { script: this.getEventErrorsScript() }},
+      };
+      const f = fixes[action];
+      if (!f) { this.toast('Unbekannte Aktion: ' + action, 'error'); return; }
+      this.dispatchCommand(f.type, f.args);
+    },
+
+    getCleanupScript() {
+      return "$total=0; $cleaned=0; $paths = @($env:TEMP, 'C:\\Windows\\Temp'); $userProfile = (Get-CimInstance Win32_ComputerSystem).UserName; if ($userProfile -match '\\\\') { $userName = $userProfile.Split('\\\\')[-1]; $userTemp = 'C:\\Users\\' + $userName + '\\AppData\\Local\\Temp'; if (Test-Path $userTemp) { $paths += $userTemp } }; foreach ($p in $paths) { if (Test-Path $p) { try { $size = [math]::Round(((Get-ChildItem $p -Recurse -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum / 1MB), 1); Get-ChildItem $p -Recurse -Force -EA SilentlyContinue | Remove-Item -Recurse -Force -EA SilentlyContinue; Write-Output ('Bereinigt: ' + $p + ' (' + $size + ' MB)'); $total += $size; $cleaned += 1 } catch { Write-Output ('Fehler bei ' + $p + ': ' + $_.Exception.Message) } } }; Write-Output ''; Write-Output ('Gesamt freigegeben: ' + [math]::Round($total,1) + ' MB aus ' + $cleaned + ' Pfaden')";
+    },
+
+    getTopRamScript() {
+      return "Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 ProcessName, Id, @{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB,1)}}, @{N='CPU_s';E={if ($_.CPU) {[math]::Round($_.CPU,1)} else {0}}}, @{N='Threads';E={$_.Threads.Count}} | Format-Table -AutoSize";
+    },
+
+    getPasswordExpiryScript() {
+      return "$u = (Get-CimInstance Win32_ComputerSystem).UserName; if ($u -match '\\\\') { $u = $u.Split('\\\\')[-1] }; Write-Output ('Aktiver Nutzer: ' + $u); Write-Output ''; $info = net user $u 2>$null; if ($LASTEXITCODE -eq 0) { $info | Select-String -Pattern 'Kennwort|Password|abgelaufen|expires|gesperrt|locked' } else { Get-LocalUser $u -EA SilentlyContinue | Select-Object Name, Enabled, PasswordExpires, PasswordLastSet, LastLogon | Format-List }";
+    },
+
+    getInternetTestScript() {
+      return "Write-Output '--- Test 1: Google DNS (8.8.8.8) ---'; Test-NetConnection 8.8.8.8 -InformationLevel Detailed -WarningAction SilentlyContinue | Format-List ComputerName, RemoteAddress, PingSucceeded; Write-Output ''; Write-Output '--- Test 2: google.com HTTPS (443) ---'; Test-NetConnection google.com -Port 443 -InformationLevel Detailed -WarningAction SilentlyContinue | Format-List ComputerName, RemoteAddress, TcpTestSucceeded, PingSucceeded";
+    },
+
+    getAnyDeskStatusScript() {
+      return "$svc = Get-Service | Where-Object {$_.Name -match 'AnyDesk'}; if ($svc) { $svc | Format-Table Name, Status, StartType, DisplayName -AutoSize } else { Write-Output 'Kein AnyDesk-Dienst gefunden' }; Write-Output ''; $cfg = 'C:\\ProgramData\\AnyDesk\\service.conf'; if (Test-Path $cfg) { $content = Get-Content $cfg -Raw -EA SilentlyContinue; if ($content -match 'ad\\.anynet\\.id=([0-9]+)') { Write-Output ('AnyDesk-ID: ' + $matches[1]) }; if ($content -match 'ad\\.anynet\\.alias=([^\\s]+)') { Write-Output ('AnyDesk-Alias: ' + $matches[1]) } } else { Write-Output 'service.conf nicht gefunden' }";
+    },
+
+    getBackupServicesScript() {
+      return "$found = Get-Service | Where-Object {$_.Name -match 'veeam|acronis|backup|cobian|macrium|nakivo|altaro'} | Select-Object Name, Status, StartType, DisplayName; if ($found) { $found | Format-Table -AutoSize } else { Write-Output 'Keine bekannten Backup-Dienste gefunden' }; Write-Output ''; Write-Output '--- Geplante Backup-Tasks ---'; Get-ScheduledTask | Where-Object {$_.TaskName -match 'backup|veeam|acronis'} | Select-Object TaskName, State, @{N='LastRun';E={(Get-ScheduledTaskInfo $_).LastRunTime}} | Format-Table -AutoSize";
+    },
+
+    getEventErrorsScript() {
+      return "Get-WinEvent -FilterHashtable @{LogName='System';Level=1,2} -MaxEvents 10 -EA SilentlyContinue | Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, @{N='Msg';E={$_.Message.Substring(0, [math]::Min(180, $_.Message.Length))}} | Format-List";
     },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
@@ -2830,11 +2951,12 @@ createApp({
         const args = {};
         let t = this.commandForm.type;
 
-        // SYSTEM service workaround: msg can't reach user session via msg.exe
-        // when run as service, so route through schtasks INTERACTIVE PowerShell.
+        // SYSTEM service workaround: msg.exe * sends to SYSTEM's own session,
+        // never reaches the user. Solution: target the active user's session
+        // ID explicitly via 'msg <sessionId>'.
         if (t === 'msg') {
-          const safe = this.commandForm.message.replace(/'/g, "''");
-          args.script = "$tn='HasiMsg_' + (Get-Random); $arg = '-NoProfile -WindowStyle Hidden -Command \"[System.Reflection.Assembly]::LoadWithPartialName(\\\"System.Windows.Forms\\\") | Out-Null; [System.Windows.Forms.MessageBox]::Show(\\\"" + safe + "\\\", \\\"Hasi IT-Cockpit\\\", \\\"OK\\\", \\\"Information\\\") | Out-Null\"'; schtasks /create /tn $tn /tr \"powershell.exe $arg\" /sc once /st 23:59 /ru 'INTERACTIVE' /f | Out-Null; schtasks /run /tn $tn | Out-Null; Start-Sleep -Seconds 3; schtasks /delete /tn $tn /f | Out-Null; Write-Output ('Mitteilung gesendet: ' + '" + safe + "')";
+          const safe = this.commandForm.message.replace(/"/g, '\\"');
+          args.script = "$s = quser 2>$null; if ($s) { $active = $s | Where-Object {$_ -match '^>'} | Select-Object -First 1; if (-not $active) { $active = $s | Select-Object -Skip 1 -First 1 }; if ($active) { $id = ($active -split '\\s+' | Where-Object {$_ -match '^\\d+$'} | Select-Object -First 1); if ($id) { & msg $id /TIME:60 \"" + safe + "\"; Write-Output ('Nachricht an Session ' + $id + ' gesendet') } else { Write-Output 'Session-ID nicht gefunden' } } else { Write-Output 'Keine aktive Session' } } else { Write-Output 'quser nicht verfuegbar' }";
           t = 'ps';  // route as PowerShell
         } else if (t === 'reboot') {
           args.delay_seconds = this.commandForm.delay_seconds || 60;
