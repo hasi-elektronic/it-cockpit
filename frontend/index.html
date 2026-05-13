@@ -461,6 +461,7 @@ tailwind.config = {
                 <button @click="switchTenant(t.slug)" class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded font-medium">
                   Öffnen →
                 </button>
+                <button @click="showInstallModal(t)" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm rounded" title="Agent-Installation">⬇️</button>
                 <button @click="openTenantModal(t)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded">✎</button>
                 <button v-if="t.id !== session.home_tenant_id" @click="deleteTenant(t)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm rounded">🗑</button>
               </div>
@@ -1998,6 +1999,71 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- =================== INSTALL MODAL =================== -->
+    <div v-if="installModalOpen" @click.self="installModalOpen=false" class="modal-overlay">
+      <div class="modal-content max-w-2xl">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">Agent-Installation: {{ installTenant?.name }}</h3>
+          <button @click="installModalOpen=false" class="text-slate-400 hover:text-slate-600 text-xl">×</button>
+        </div>
+        <div class="modal-body space-y-4">
+
+          <div class="bg-cyan-50 border border-cyan-200 rounded-lg p-3 text-sm text-cyan-900">
+            <p class="font-medium mb-1">Auf jedem PC vor Ort:</p>
+            <p>1. Eine der unten stehenden Methoden waehlen<br/>2. Mit Admin-Rechten ausfuehren<br/>3. Agent meldet sich automatisch im Cockpit an (Hostname-basiert)</p>
+          </div>
+
+          <!-- Method 1: .bat -->
+          <div class="border rounded-lg overflow-hidden">
+            <div class="bg-emerald-50 px-4 py-2 flex items-center justify-between">
+              <div>
+                <div class="font-medium text-emerald-900">⭐ Empfohlen: .bat (Doppelklick)</div>
+                <div class="text-xs text-emerald-700">Download, Rechtsklick → "Als Administrator ausführen"</div>
+              </div>
+              <a :href="installUrl(installTenant?.slug, 'bat')" :download="'hasi-install-' + installTenant?.slug + '.bat'"
+                 class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded font-medium">⬇ Download</a>
+            </div>
+            <div class="px-4 py-2 bg-slate-50 text-xs font-mono text-slate-600 break-all">{{ installUrl(installTenant?.slug, 'bat') }}</div>
+          </div>
+
+          <!-- Method 2: PowerShell one-liner -->
+          <div class="border rounded-lg overflow-hidden">
+            <div class="bg-cyan-50 px-4 py-2">
+              <div class="font-medium text-cyan-900">PowerShell-Einzeiler</div>
+              <div class="text-xs text-cyan-700">PowerShell als Admin oeffnen → einfuegen → Enter</div>
+            </div>
+            <div class="px-4 py-3 bg-slate-50 flex gap-2 items-start">
+              <code class="text-xs font-mono text-slate-700 flex-1 break-all">irm {{ apiBase }}/install/{{ installTenant?.slug }} | iex</code>
+              <button @click="copyToClipboard('irm ' + apiBase + '/install/' + installTenant?.slug + ' | iex')"
+                      class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs rounded font-medium whitespace-nowrap">📋 Kopieren</button>
+            </div>
+          </div>
+
+          <!-- Method 3: .ps1 -->
+          <div class="border rounded-lg overflow-hidden">
+            <div class="bg-slate-50 px-4 py-2 flex items-center justify-between">
+              <div>
+                <div class="font-medium text-slate-900">.ps1 Script</div>
+                <div class="text-xs text-slate-600">Rechtsklick → "Mit PowerShell ausführen"</div>
+              </div>
+              <a :href="installUrl(installTenant?.slug, 'ps1')" :download="'hasi-install-' + installTenant?.slug + '.ps1'"
+                 class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded font-medium">⬇ Download</a>
+            </div>
+            <div class="px-4 py-2 bg-slate-50 text-xs font-mono text-slate-600 break-all">{{ installUrl(installTenant?.slug, 'ps1') }}</div>
+          </div>
+
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+            <p class="font-medium mb-1">Hinweis:</p>
+            <p>Beim 1. Heartbeat (alle 15 Min) erscheint das Geraet automatisch im Geraete-Listing. Hostname-Konflikte werden case-insensitive aufgeloest (HGUENCAVDI = hguencavdi).</p>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button @click="installModalOpen=false" class="btn-secondary">Schliessen</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -2053,6 +2119,8 @@ createApp({
       tenants: [],
       tenantForm: { id: null, slug: '', name: '', plan: 'starter', status: 'active', device_quota: 50, monthly_fee: 0, contact_name: '', contact_email: '', contact_phone: '', address: '', city: '', industry: '', notes: '' },
       tenantSaving: false,
+      installModalOpen: false,
+      installTenant: null,
       generatingReport: false,
       psTemplates: [
         { label: 'Disk-Auslastung', script: "Get-WmiObject -Class Win32_LogicalDisk | Where-Object DriveType -eq 3 | Select-Object DeviceID, @{N='Size(GB)';E={[math]::Round($_.Size/1GB,1)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpace/1GB,1)}}, @{N='Free%';E={[math]::Round($_.FreeSpace/$_.Size*100,1)}} | Format-Table" },
@@ -2109,6 +2177,7 @@ createApp({
     }
   },
   computed: {
+    apiBase() { return API_BASE; },
     pageTitle() { return { overview:'Übersicht', devices:'Geräte', agents:'Agents', alerts:'Alerts', alertSettings:'Alert-Einstellungen', licenses:'Lizenzen', users:'Mitarbeiter', audit:'Audit-Log', import:'CSV Import', tenants:'Mandanten' }[this.page]; },
     pageSubtitle() {
       return {
@@ -2576,6 +2645,30 @@ createApp({
         await this.loadTenants();
       } catch(e) { this.toast('Fehler: ' + e.message, 'error'); }
     },
+    showInstallModal(t) {
+      this.installTenant = t;
+      this.installModalOpen = true;
+    },
+    installUrl(slug, ext) {
+      if (!slug) return '';
+      const suffix = ext ? '.' + ext : '';
+      return API_BASE + '/api/install/' + slug + suffix;
+    },
+    async copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        this.toast('In die Zwischenablage kopiert', 'success');
+      } catch (e) {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        this.toast('Kopiert', 'success');
+      }
+    },
     async switchTenant(slug) {
       try {
         const newSess = await this.api('/api/tenants/switch', { method: 'POST', body: JSON.stringify({ tenant_slug: slug }) });
@@ -2824,3 +2917,4 @@ createApp({
 </script>
 </body>
 </html>
+<!-- v0.5.8 install modal 1778659551 -->

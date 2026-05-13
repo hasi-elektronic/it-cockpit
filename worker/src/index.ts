@@ -1322,9 +1322,30 @@ OK "Task '$taskName' eingerichtet (15-Min-Intervall)"
 
 # First heartbeat
 Write-Host ""
-Write-Host "  Sende ersten Heartbeat..." -ForegroundColor Cyan
-$hb = & $exePath --once 2>&1
-Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+Write-Host "  Sende ersten Heartbeat (kann 30-60 Sekunden dauern)..." -ForegroundColor Cyan
+try {
+    $hbOutput = & $exePath --once 2>&1 | Out-String
+    if ($hbOutput -match "Initial heartbeat OK") {
+        Write-Host "        ✓ Heartbeat erfolgreich gesendet" -ForegroundColor Green
+    } elseif ($hbOutput -match "heartbeat") {
+        Write-Host "        ⚠ Heartbeat-Antwort:" -ForegroundColor Yellow
+        Write-Host $hbOutput -ForegroundColor Gray
+    } else {
+        Write-Host "        ⚠ Unbekannte Antwort:" -ForegroundColor Yellow
+        Write-Host $hbOutput -ForegroundColor Gray
+    }
+} catch {
+    Write-Host "        ⚠ Erster Heartbeat fehlgeschlagen: $_" -ForegroundColor Yellow
+    Write-Host "        Wird im naechsten 15-Min-Cron versucht" -ForegroundColor Gray
+}
+
+# Start the scheduled task immediately for the first SYSTEM-context run
+try {
+    Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+    Write-Host "        ✓ Scheduled Task gestartet (SYSTEM-Kontext)" -ForegroundColor Green
+} catch {
+    Write-Host "        ⚠ Task konnte nicht manuell gestartet werden, laeuft trotzdem in 15 Min" -ForegroundColor Gray
+}
 
 # Success
 Write-Host ""
