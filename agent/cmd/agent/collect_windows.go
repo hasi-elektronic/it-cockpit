@@ -14,7 +14,9 @@ import (
 
 // runPS runs a PowerShell snippet and returns stdout (trimmed).
 func runPS(script string) string {
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	// Encoding'i UTF-8'e zorla — Umlautlar ve özel karakterler için kritik
+	wrapped := "$OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + script
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", wrapped)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err != nil {

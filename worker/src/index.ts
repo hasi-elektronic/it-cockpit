@@ -753,7 +753,16 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
        ip_address=COALESCE(?,ip_address), updated_at=datetime('now') WHERE id=?`
   ).bind(body.ip_internal || null, agent.device_id).run();
 
-  await env.DB.prepare(`UPDATE agents SET last_seen=datetime('now'), last_ip=? WHERE id=?`).bind(ip, agent.id).run();
+  // v0.5.3: parse agent version from User-Agent header (HasiCockpitAgent/X.Y.Z)
+  const uaHeader = req.headers.get('User-Agent') || '';
+  const versionMatch = uaHeader.match(/HasiCockpitAgent\/(\S+)/);
+  const agentVersion = versionMatch ? versionMatch[1] : null;
+  if (agentVersion) {
+    await env.DB.prepare(`UPDATE agents SET last_seen=datetime('now'), last_ip=?, agent_version=? WHERE id=?`)
+      .bind(ip, agentVersion, agent.id).run();
+  } else {
+    await env.DB.prepare(`UPDATE agents SET last_seen=datetime('now'), last_ip=? WHERE id=?`).bind(ip, agent.id).run();
+  }
 
   if (body.security) {
     const s = body.security;
@@ -1566,7 +1575,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.3', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.4', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
