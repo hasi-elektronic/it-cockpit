@@ -1752,7 +1752,7 @@ tailwind.config = {
                   <div class="font-semibold text-sm">System File Check</div>
                   <div class="text-xs text-slate-500">sfc /scannow · ~15 Min</div>
                 </button>
-                <button @click="confirmDispatchScript('shutdown', 'cmd', {command:'shutdown /s /t 60 /c \"Hasi IT-Cockpit: Herunterfahren in 60s\"'}, 'Geraet in 60s herunterfahren? Nutzer wird benachrichtigt.')" class="action-card border-pink-200 hover:border-pink-400 hover:bg-pink-50">
+                <button @click="confirmShutdown()" class="action-card border-pink-200 hover:border-pink-400 hover:bg-pink-50">
                   <div class="text-2xl">⏻</div>
                   <div class="font-semibold text-sm">Herunterfahren</div>
                   <div class="text-xs text-slate-500">60s Vorlauf · Benachrichtigt</div>
@@ -2806,6 +2806,11 @@ createApp({
     getAnyDeskCommand() {
       // Try both common install locations
       return 'if exist "C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe" (start "" "C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe") else (start "" "C:\\ProgramData\\AnyDesk\\AnyDesk.exe")';
+    },
+    confirmShutdown() {
+      if (!confirm('Geraet in 60s herunterfahren? Nutzer wird benachrichtigt.')) return;
+      const cmd = 'shutdown /s /t 60 /c "Hasi IT-Cockpit: Herunterfahren in 60s"';
+      this.dispatchCommand('cmd', { command: cmd });
     },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
