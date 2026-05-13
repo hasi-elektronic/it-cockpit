@@ -1104,7 +1104,21 @@ tailwind.config = {
             <span v-else-if="detailDevice.agent_status==='offline'" class="ml-3 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">○ offline</span>
             <span v-else class="ml-3 text-slate-400 text-xs">kein Agent</span>
           </div>
-          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+          <div class="flex items-center gap-2">
+            <button v-if="detailDevice.anydesk_id"
+                    @click="openAnyDesk(detailDevice.anydesk_id)"
+                    :title="'AnyDesk: ' + detailDevice.anydesk_id"
+                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow">
+              🖥 AnyDesk verbinden
+              <span class="text-xs opacity-75 font-mono">{{ detailDevice.anydesk_id }}</span>
+            </button>
+            <button v-else
+                    @click="closeModal(); $nextTick(() => openDeviceModal(detailDevice))"
+                    class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm">
+              + AnyDesk-ID
+            </button>
+            <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-2xl ml-2">&times;</button>
+          </div>
         </div>
 
         <!-- Tabs -->
@@ -1135,6 +1149,20 @@ tailwind.config = {
               <div><div class="text-xs text-slate-500 uppercase">OS</div><div class="text-sm text-slate-900">{{ detailDevice.os || '—' }}</div></div>
               <div><div class="text-xs text-slate-500 uppercase">MAC</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.mac_address || '—' }}</div></div>
               <div><div class="text-xs text-slate-500 uppercase">IP</div><div class="font-mono text-xs text-slate-900">{{ detailDevice.ip_address || '—' }}</div></div>
+              <div class="col-span-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3 -mx-1">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs text-emerald-700 uppercase font-medium">🖥 AnyDesk-ID (Remote-Support)</div>
+                    <div class="font-mono text-base font-bold text-emerald-900 mt-1">
+                      <span v-if="detailDevice.anydesk_id">{{ detailDevice.anydesk_id }}</span>
+                      <span v-else class="text-slate-400 text-sm italic font-normal">Noch nicht erfasst — Agent liest automatisch oder manuell setzen</span>
+                    </div>
+                    <div v-if="detailDevice.anydesk_id_locked" class="text-xs text-amber-600 mt-1">🔒 Manuell gesetzt (Agent ueberschreibt nicht)</div>
+                  </div>
+                  <button v-if="detailDevice.anydesk_id" @click="openAnyDesk(detailDevice.anydesk_id)"
+                          class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium whitespace-nowrap">🖥 Verbinden</button>
+                </div>
+              </div>
               <div><div class="text-xs text-slate-500 uppercase">Zugewiesen an</div>
                 <div class="text-sm text-slate-900">
                   <span v-if="detailDevice.assigned_email">{{ detailDevice.assigned_name || detailDevice.assigned_email }}</span>
@@ -2963,3 +2991,4 @@ createApp({
 <!-- v0.5.8 install modal 1778659551 -->
 <!-- v0.5.10 exe installer 1778660496 -->
 <!-- v0.5.12 anydesk 1778661873 -->
+<!-- v0.5.12.1 anydesk detail 1778662276 -->
