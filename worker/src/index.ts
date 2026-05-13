@@ -766,9 +766,9 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
          security_score,
          defender_tamper_on, uac_enabled, rdp_enabled, auto_login_enabled,
          pending_reboot, pending_reboot_reason, failed_logons_24h, local_admin_count,
-         open_ports_count, open_ports_list,
+         open_ports_count, open_ports_list, open_ports_detail, local_admins_list,
          updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
        ON CONFLICT(device_id) DO UPDATE SET
          bitlocker_enabled=excluded.bitlocker_enabled,
          bitlocker_status_text=excluded.bitlocker_status_text,
@@ -785,6 +785,7 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
          pending_reboot=excluded.pending_reboot, pending_reboot_reason=excluded.pending_reboot_reason,
          failed_logons_24h=excluded.failed_logons_24h, local_admin_count=excluded.local_admin_count,
          open_ports_count=excluded.open_ports_count, open_ports_list=excluded.open_ports_list,
+         open_ports_detail=excluded.open_ports_detail, local_admins_list=excluded.local_admins_list,
          updated_at=datetime('now')`
     ).bind(
       agent.device_id, agent.tenant_id,
@@ -804,7 +805,9 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
       s.failed_logons_24h != null ? s.failed_logons_24h : null,
       s.local_admin_count != null ? s.local_admin_count : null,
       s.open_ports_count != null ? s.open_ports_count : null,
-      s.open_ports_list || null
+      s.open_ports_list || null,
+      s.open_ports_detail || null,
+      s.local_admins_list || null
     ).run();
   }
 
@@ -1563,7 +1566,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.2', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.3', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints

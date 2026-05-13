@@ -1293,16 +1293,26 @@ tailwind.config = {
                 <div v-if="detailAntivirus && detailAntivirus.length > 1" class="col-span-2 py-2 border-b border-slate-100 bg-slate-50 -mx-2 px-3 rounded">
                   <div class="text-xs text-slate-600 mb-1.5 font-medium">📋 Alle erkannten AV-Produkte ({{ detailAntivirus.length }})</div>
                   <div class="space-y-1.5">
-                    <div v-for="av in detailAntivirus" :key="av.name" class="flex items-center justify-between gap-2">
-                      <span class="text-xs text-slate-700">{{ av.name }}</span>
-                      <span class="flex gap-1 text-xs">
-                        <span :class="av.enabled ? 'px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700' : 'px-1.5 py-0.5 rounded bg-slate-200 text-slate-600'">
-                          {{ av.enabled ? '✓ aktiv' : 'inaktiv' }}
+                    <div v-for="av in detailAntivirus" :key="av.name">
+                      <div class="flex items-center justify-between gap-2 cursor-pointer hover:bg-white -mx-1 px-1 py-0.5 rounded"
+                           @click="expandedAv = expandedAv===av.name ? null : av.name">
+                        <span class="text-xs text-slate-700">{{ av.name }} <span class="text-slate-400">{{ expandedAv===av.name ? '▾' : '▸' }}</span></span>
+                        <span class="flex gap-1 text-xs">
+                          <span :class="av.enabled ? 'px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700' : 'px-1.5 py-0.5 rounded bg-slate-200 text-slate-600'">
+                            {{ av.enabled ? '✓ aktiv' : 'inaktiv' }}
+                          </span>
+                          <span :class="av.up_to_date ? 'px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700' : 'px-1.5 py-0.5 rounded bg-amber-100 text-amber-700'">
+                            {{ av.up_to_date ? '✓ aktuell' : '⚠ veraltet' }}
+                          </span>
                         </span>
-                        <span :class="av.up_to_date ? 'px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700' : 'px-1.5 py-0.5 rounded bg-amber-100 text-amber-700'">
-                          {{ av.up_to_date ? '✓ aktuell' : '⚠ veraltet' }}
-                        </span>
-                      </span>
+                      </div>
+                      <div v-if="expandedAv===av.name" class="mt-1 ml-3 px-2 py-1.5 bg-white border-l-2 border-cyan-400 text-xs space-y-0.5">
+                        <div><span class="text-slate-500">productState:</span> <span class="font-mono">0x{{ (av.product_state || 0).toString(16).toUpperCase().padStart(6,'0') }}</span> ({{ av.product_state }})</div>
+                        <div><span class="text-slate-500">Real-time Schutz:</span> <span :class="av.enabled ? 'text-emerald-700' : 'text-rose-700'">{{ av.enabled ? 'AKTIV' : 'AUS' }}</span></div>
+                        <div><span class="text-slate-500">Signaturen:</span> <span :class="av.up_to_date ? 'text-emerald-700' : 'text-amber-700'">{{ av.up_to_date ? 'aktuell' : 'veraltet (Update faellig)' }}</span></div>
+                        <div><span class="text-slate-500">Microsoft Defender:</span> {{ av.is_defender ? 'Ja' : 'Nein (3rd-Party)' }}</div>
+                        <div v-if="av.last_seen" class="text-slate-400 mt-1">Erkannt: {{ formatRelative(av.last_seen) }}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1354,10 +1364,29 @@ tailwind.config = {
                   <span v-if="detailSecurity.defender_tamper_on" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ aktiv</span>
                   <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ aus</span>
                 </div>
-                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                <div class="flex items-center justify-between py-2 border-b border-slate-100"
+                     :class="detailSecurity.pending_reboot ? 'cursor-pointer hover:bg-slate-50 -mx-2 px-2 rounded' : ''"
+                     @click="if (detailSecurity.pending_reboot) expandedDetail = expandedDetail==='reboot' ? null : 'reboot'">
                   <span class="text-sm text-slate-700">🔁 Neustart ausstehend</span>
                   <span v-if="!detailSecurity.pending_reboot" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ nein</span>
-                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium" :title="detailSecurity.pending_reboot_reason || ''">⚠ ja ({{ detailSecurity.pending_reboot_reason }})</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ ja ({{ detailSecurity.pending_reboot_reason }}) <span class="text-amber-500">{{ expandedDetail==='reboot' ? '▾' : '▸' }}</span></span>
+                </div>
+                <div v-if="expandedDetail==='reboot' && detailSecurity.pending_reboot" class="col-span-2 -mx-2 px-3 py-3 bg-amber-50 rounded mb-2 border-l-4 border-amber-500">
+                  <div class="text-xs font-semibold text-amber-800 mb-2">Warum ist ein Neustart fällig?</div>
+                  <div class="space-y-1.5 text-xs">
+                    <div v-for="r in pendingRebootReasons" :key="r.key" class="flex items-start gap-2">
+                      <span class="text-amber-600">{{ r.active ? '⚠' : '·' }}</span>
+                      <div>
+                        <span class="font-semibold" :class="r.active ? 'text-amber-900' : 'text-slate-500'">{{ r.label }}</span>
+                        <span class="text-slate-600"> — {{ r.desc }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button v-if="detailDevice.agent_status==='online'"
+                          @click="quickReboot()"
+                          class="mt-3 px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium">
+                    🔄 PC jetzt neu starten (60s Vorwarnung)
+                  </button>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-100">
                   <span class="text-sm text-slate-700">🛡 UAC</span>
@@ -1381,19 +1410,61 @@ tailwind.config = {
                   </span>
                   <span v-else class="text-slate-400 text-xs">—</span>
                 </div>
-                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                <div class="flex items-center justify-between py-2 border-b border-slate-100 cursor-pointer hover:bg-slate-50 -mx-2 px-2 rounded transition"
+                     @click="expandedDetail = expandedDetail==='admins' ? null : 'admins'">
                   <span class="text-sm text-slate-700">👥 Lokale Admins</span>
                   <span v-if="detailSecurity.local_admin_count != null" :class="['px-2 py-0.5 rounded text-xs font-medium', detailSecurity.local_admin_count > 3 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700']">
-                    {{ detailSecurity.local_admin_count }}
+                    {{ detailSecurity.local_admin_count }} <span class="text-slate-400">{{ expandedDetail==='admins' ? '▾' : '▸' }}</span>
                   </span>
                   <span v-else class="text-slate-400 text-xs">—</span>
                 </div>
-                <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                <div v-if="expandedDetail==='admins' && detailSecurity.local_admins_list" class="col-span-2 -mx-2 px-3 py-3 bg-slate-50 rounded mb-2 border-l-4 border-cyan-500">
+                  <div class="text-xs font-semibold text-slate-600 mb-2">Lokale Administrator-Gruppe Mitglieder</div>
+                  <table class="w-full text-xs">
+                    <thead><tr class="text-slate-500"><th class="text-left pb-1">Name</th><th class="text-left pb-1">Typ</th><th class="text-left pb-1">Quelle</th></tr></thead>
+                    <tbody>
+                      <tr v-for="(a, idx) in parsedLocalAdmins" :key="idx" class="border-t border-slate-200">
+                        <td class="py-1 font-mono">{{ a.name }}</td>
+                        <td class="py-1 text-slate-600">{{ a.type || '—' }}</td>
+                        <td class="py-1"><span class="px-1.5 py-0.5 rounded text-xs" :class="a.source==='Local' ? 'bg-slate-200 text-slate-700' : 'bg-blue-100 text-blue-700'">{{ a.source || '—' }}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div v-if="detailSecurity.local_admin_count > 3" class="text-xs text-amber-700 mt-2">💡 Mehr als 3 lokale Admins — pruefen ob alle wirklich gebraucht werden.</div>
+                </div>
+
+                <div class="flex items-center justify-between py-2 border-b border-slate-100 cursor-pointer hover:bg-slate-50 -mx-2 px-2 rounded transition"
+                     @click="expandedDetail = expandedDetail==='ports' ? null : 'ports'">
                   <span class="text-sm text-slate-700">🔌 Offene Ports</span>
-                  <span v-if="detailSecurity.open_ports_count != null" class="text-xs text-slate-600" :title="detailSecurity.open_ports_list || ''">
-                    {{ detailSecurity.open_ports_count }} Listening
+                  <span v-if="detailSecurity.open_ports_count != null" class="text-xs text-slate-600">
+                    {{ detailSecurity.open_ports_count }} Listening <span class="text-slate-400">{{ expandedDetail==='ports' ? '▾' : '▸' }}</span>
                   </span>
                   <span v-else class="text-slate-400 text-xs">—</span>
+                </div>
+                <div v-if="expandedDetail==='ports' && (detailSecurity.open_ports_detail || detailSecurity.open_ports_list)" class="col-span-2 -mx-2 px-3 py-3 bg-slate-50 rounded mb-2 border-l-4 border-cyan-500">
+                  <div class="text-xs font-semibold text-slate-600 mb-2">Listening Ports ({{ parsedOpenPorts.length || detailSecurity.open_ports_count }})</div>
+                  <div v-if="parsedOpenPorts.length > 0">
+                    <input v-model="portFilter" placeholder="Filter (Port, Prozess, Protokoll)…" class="w-full mb-2 px-2 py-1 text-xs border border-slate-300 rounded">
+                    <table class="w-full text-xs">
+                      <thead><tr class="text-slate-500">
+                        <th class="text-left pb-1">Port</th>
+                        <th class="text-left pb-1">Proto</th>
+                        <th class="text-left pb-1">Prozess</th>
+                        <th class="text-left pb-1">PID</th>
+                        <th class="text-left pb-1">Hinweis</th>
+                      </tr></thead>
+                      <tbody>
+                        <tr v-for="(p, idx) in filteredOpenPorts" :key="idx" class="border-t border-slate-200">
+                          <td class="py-1 font-mono font-semibold" :class="wellKnownPortClass(p.port)">{{ p.port }}</td>
+                          <td class="py-1 text-slate-600">{{ p.proto }}</td>
+                          <td class="py-1 font-mono">{{ p.proc }}</td>
+                          <td class="py-1 text-slate-500">{{ p.pid }}</td>
+                          <td class="py-1 text-slate-700 text-xs">{{ wellKnownPort(p.port) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div v-else class="text-xs text-slate-500">{{ detailSecurity.open_ports_list }}</div>
                 </div>
               </div>
             </div>
@@ -1976,6 +2047,7 @@ createApp({
       agents: [], enrollResult: null, enrolling: false,
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
       detailDisks: [], detailProcesses: [], detailBrowsers: [], detailAntivirus: [],
+      expandedDetail: null, expandedAv: null, portFilter: '',
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
       tenants: [],
@@ -2075,6 +2147,36 @@ createApp({
         return [...base, 'actions'];
       }
       return base;
+    },
+    parsedLocalAdmins() {
+      if (!this.detailSecurity || !this.detailSecurity.local_admins_list) return [];
+      try { return JSON.parse(this.detailSecurity.local_admins_list); } catch(e) { return []; }
+    },
+    parsedOpenPorts() {
+      if (!this.detailSecurity || !this.detailSecurity.open_ports_detail) return [];
+      try {
+        const j = JSON.parse(this.detailSecurity.open_ports_detail);
+        return Array.isArray(j) ? j : [j];
+      } catch(e) { return []; }
+    },
+    filteredOpenPorts() {
+      const f = (this.portFilter || '').toLowerCase().trim();
+      if (!f) return this.parsedOpenPorts;
+      return this.parsedOpenPorts.filter(p =>
+        String(p.port).includes(f) ||
+        (p.proto || '').toLowerCase().includes(f) ||
+        (p.proc || '').toLowerCase().includes(f)
+      );
+    },
+    pendingRebootReasons() {
+      const raw = (this.detailSecurity && this.detailSecurity.pending_reboot_reason) || '';
+      const active = new Set(raw.split(',').map(s => s.trim()));
+      return [
+        { key: 'CBS', label: 'Component Based Servicing', desc: 'Windows-Komponenten-Installation wartet auf Neustart', active: active.has('CBS') },
+        { key: 'WindowsUpdate', label: 'Windows Update', desc: 'Update wurde installiert, Neustart erforderlich', active: active.has('WindowsUpdate') },
+        { key: 'FileRename', label: 'Pending File Rename', desc: 'Datei-Umbenennungen warten — meist Software-Installer', active: active.has('FileRename') },
+        { key: 'SCCM', label: 'SCCM Client', desc: 'System Center Configuration Manager hat Neustart angefragt', active: active.has('SCCM') },
+      ];
     }
   },
   mounted() {
@@ -2180,6 +2282,9 @@ createApp({
       this.detailProcesses = [];
       this.detailBrowsers = [];
       this.detailAntivirus = [];
+      this.expandedDetail = null;
+      this.expandedAv = null;
+      this.portFilter = '';
       this.softwareFilter = '';
       this.modal = 'detail';
       // Async load: security, telemetry, software + v0.5 new (disks, processes, browsers, antivirus)
@@ -2221,6 +2326,52 @@ createApp({
         this.toast('Fehler: ' + e.message, 'error');
       } finally {
         this.generatingReport = false;
+      }
+    },
+    wellKnownPort(port) {
+      const map = {
+        22: 'SSH', 23: 'Telnet (unsicher!)', 25: 'SMTP', 53: 'DNS', 67: 'DHCP', 68: 'DHCP',
+        80: 'HTTP', 88: 'Kerberos', 110: 'POP3', 111: 'RPC', 123: 'NTP', 135: 'RPC',
+        137: 'NetBIOS', 138: 'NetBIOS', 139: 'NetBIOS-SSN', 143: 'IMAP', 161: 'SNMP',
+        389: 'LDAP', 443: 'HTTPS', 445: 'SMB', 464: 'Kerberos pw', 500: 'IPSec', 514: 'Syslog',
+        587: 'SMTP-Submission', 636: 'LDAPS', 853: 'DNS-over-TLS', 902: 'VMware',
+        993: 'IMAPS', 995: 'POP3S', 1080: 'SOCKS', 1433: 'MSSQL', 1521: 'Oracle',
+        1701: 'L2TP', 1723: 'PPTP', 1900: 'UPnP', 2049: 'NFS', 3000: 'Dev-Server',
+        3268: 'AD Global Catalog', 3306: 'MySQL', 3389: 'RDP (Risiko wenn offen!)',
+        3702: 'WS-Discovery', 5040: 'Windows Connect', 5060: 'SIP', 5353: 'mDNS',
+        5355: 'LLMNR', 5357: 'WSDAPI', 5432: 'PostgreSQL', 5800: 'VNC', 5900: 'VNC',
+        5985: 'WinRM', 5986: 'WinRM HTTPS', 6379: 'Redis', 8000: 'Dev/HTTP-alt',
+        8080: 'HTTP-alt/Proxy', 8443: 'HTTPS-alt', 8888: 'Tornado/Jupyter',
+        9100: 'Drucker (JetDirect)', 11211: 'Memcached', 27017: 'MongoDB',
+        49664: 'RPC dynamisch', 49665: 'RPC dynamisch', 49666: 'RPC dynamisch',
+        49667: 'RPC dynamisch', 49668: 'RPC dynamisch', 49669: 'RPC dynamisch',
+        49670: 'RPC dynamisch',
+      };
+      return map[port] || '';
+    },
+    wellKnownPortClass(port) {
+      // Risikoreiche Ports rot
+      const risky = [21, 23, 135, 137, 138, 139, 445, 1433, 3306, 3389, 5432, 5985, 5986];
+      if (risky.includes(port)) return 'text-rose-700';
+      if (port < 1024) return 'text-amber-700';
+      return 'text-slate-900';
+    },
+    async quickReboot() {
+      if (!confirm('PC jetzt neu starten?\n\nDer Benutzer bekommt 60 Sekunden Vorwarnung.')) return;
+      try {
+        await this.api('/api/commands', {
+          method: 'POST',
+          body: JSON.stringify({
+            device_id: this.detailDevice.id,
+            command_type: 'reboot',
+            args: { delay_seconds: 60, message: 'Neustart wegen ausstehender Updates' },
+            notes: 'Pending Reboot aus Cockpit ausgeloest'
+          })
+        });
+        this.toast('Reboot-Befehl an Agent gesendet', 'success');
+        this.expandedDetail = null;
+      } catch(e) {
+        this.toast('Fehler: ' + e.message, 'error');
       }
     },
     async loadAgents() {

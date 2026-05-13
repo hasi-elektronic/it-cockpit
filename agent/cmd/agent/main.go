@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.5.2"
+const AgentVersion = "0.5.3"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -181,7 +181,9 @@ type SecurityStatus struct {
 	FailedLogons24h     int    `json:"failed_logons_24h"`
 	LocalAdminCount     int    `json:"local_admin_count"`
 	OpenPortsCount      int    `json:"open_ports_count"`
-	OpenPortsList       string `json:"open_ports_list,omitempty"` // comma-separated
+	OpenPortsList       string `json:"open_ports_list,omitempty"` // comma-separated (legacy)
+	OpenPortsDetail     string `json:"open_ports_detail,omitempty"` // JSON array: [{port,proto,proc,pid}]
+	LocalAdminsList     string `json:"local_admins_list,omitempty"` // JSON array of names
 }
 
 type DiskInfo struct {

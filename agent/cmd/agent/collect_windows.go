@@ -601,7 +601,7 @@ $reasons -join ','`)
 }`)
 	sec.LocalAdminCount = parseInt(localAdmins)
 
-	// Open listening ports
+	// Open listening ports (legacy: csv) + detail JSON
 	openPorts := runPS(`try {
   $tcp = Get-NetTCPConnection -State Listen -ErrorAction Stop | Select-Object -ExpandProperty LocalPort | Sort-Object -Unique
   $tcp -join ','
@@ -609,6 +609,49 @@ $reasons -join ','`)
 	sec.OpenPortsList = openPorts
 	if openPorts != "" {
 		sec.OpenPortsCount = len(strings.Split(openPorts, ","))
+	}
+
+	// Detail: port + proto + process for each listener
+	portDetail := runPS(`try {
+  $items = Get-NetTCPConnection -State Listen -ErrorAction Stop | ForEach-Object {
+    $proc = $null
+    try { $proc = Get-Process -Id $_.OwningProcess -ErrorAction Stop } catch {}
+    $procName = if ($proc) { $proc.Name } else { 'unknown' }
+    [PSCustomObject]@{ port = $_.LocalPort; proto = 'TCP'; proc = $procName; pid = $_.OwningProcess; addr = $_.LocalAddress }
+  }
+  # Optional UDP listeners
+  try {
+    $udp = Get-NetUDPEndpoint -ErrorAction Stop | Select-Object -First 50 | ForEach-Object {
+      $proc = $null
+      try { $proc = Get-Process -Id $_.OwningProcess -ErrorAction Stop } catch {}
+      $procName = if ($proc) { $proc.Name } else { 'unknown' }
+      [PSCustomObject]@{ port = $_.LocalPort; proto = 'UDP'; proc = $procName; pid = $_.OwningProcess; addr = $_.LocalAddress }
+    }
+    $items = $items + $udp
+  } catch {}
+  $items | Sort-Object port,proto -Unique | ConvertTo-Json -Compress -Depth 3
+} catch { '[]' }`)
+	if portDetail != "" && portDetail != "null" {
+		sec.OpenPortsDetail = portDetail
+	}
+
+	// Local administrators (count + list)
+	localAdminsDetail := runPS(`try {
+  $g = Get-LocalGroupMember -Group 'Administratoren' -ErrorAction SilentlyContinue
+  if (-not $g) { $g = Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue }
+  if ($g) {
+    $g | ForEach-Object { [PSCustomObject]@{ name = $_.Name; type = $_.ObjectClass; source = $_.PrincipalSource.ToString() } } | ConvertTo-Json -Compress -Depth 3
+  } else { '[]' }
+} catch { '[]' }`)
+	if localAdminsDetail != "" && localAdminsDetail != "null" {
+		sec.LocalAdminsList = localAdminsDetail
+		// count derive
+		if sec.LocalAdminCount == 0 {
+			c := strings.Count(localAdminsDetail, "\"name\":")
+			if c > 0 {
+				sec.LocalAdminCount = c
+			}
+		}
 	}
 
 	return sec
