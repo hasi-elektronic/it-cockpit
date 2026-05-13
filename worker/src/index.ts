@@ -229,6 +229,18 @@ async function handleAdminOverview(req: Request, env: Env, sess: Session): Promi
         )
     `).bind(t.id).first<any>();
 
+    // Last 24h alerts (open or recently triggered)
+    const alerts24h = await env.DB.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN severity='critical' THEN 1 ELSE 0 END) AS critical,
+        SUM(CASE WHEN severity='warning' THEN 1 ELSE 0 END) AS warning,
+        SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open
+      FROM alerts
+      WHERE tenant_id = ?
+        AND first_seen > datetime('now', '-24 hours')
+    `).bind(t.id).first<any>();
+
     // Outdated agent count
     const outdated = latestVersion ? await env.DB.prepare(`
       SELECT COUNT(*) AS cnt
@@ -319,6 +331,9 @@ async function handleAdminOverview(req: Request, env: Env, sess: Session): Promi
         never_seen: stats?.never_seen || 0,
         outdated_agents: outdated?.cnt || 0,
         low_disk: telemStats?.low_disk || 0,
+        alerts_24h: alerts24h?.total || 0,
+        alerts_24h_critical: alerts24h?.critical || 0,
+        alerts_24h_open: alerts24h?.open || 0,
       },
       problems: problems.slice(0, 6),  // top 6 worst
       status: statusLabel,

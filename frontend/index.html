@@ -517,7 +517,7 @@ tailwind.config = {
                 </div>
 
                 <!-- Metric grid -->
-                <div class="grid grid-cols-4 gap-2 mb-3">
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
                   <div class="bg-slate-50 rounded p-2">
                     <div class="text-[10px] text-slate-500 uppercase">Total</div>
                     <div class="text-xl font-bold text-slate-900">{{ m.stats.total }}</div>
@@ -526,13 +526,21 @@ tailwind.config = {
                     <div class="text-[10px] text-emerald-700 uppercase">Online</div>
                     <div class="text-xl font-bold text-emerald-700">{{ m.stats.online }}</div>
                   </div>
+                  <div class="bg-rose-50 rounded p-2" :class="(m.stats.offline + m.stats.never_seen) > 0 ? '' : 'opacity-50'">
+                    <div class="text-[10px] text-rose-700 uppercase">Offline</div>
+                    <div class="text-xl font-bold text-rose-700">{{ m.stats.offline + m.stats.never_seen }}</div>
+                  </div>
                   <div class="bg-amber-50 rounded p-2" :class="m.stats.outdated_agents > 0 ? '' : 'opacity-50'">
                     <div class="text-[10px] text-amber-700 uppercase">Update</div>
                     <div class="text-xl font-bold text-amber-700">{{ m.stats.outdated_agents }}</div>
                   </div>
-                  <div class="bg-rose-50 rounded p-2" :class="(m.stats.offline + m.stats.never_seen) > 0 ? '' : 'opacity-50'">
-                    <div class="text-[10px] text-rose-700 uppercase">Offline</div>
-                    <div class="text-xl font-bold text-rose-700">{{ m.stats.offline + m.stats.never_seen }}</div>
+                  <div class="bg-orange-50 rounded p-2" :class="m.stats.alerts_24h > 0 ? '' : 'opacity-50'">
+                    <div class="text-[10px] text-orange-700 uppercase" title="Alerts in den letzten 24h">Alerts 24h</div>
+                    <div class="text-xl font-bold text-orange-700">{{ m.stats.alerts_24h || 0 }}</div>
+                  </div>
+                  <div class="bg-purple-50 rounded p-2" :class="m.stats.low_disk > 0 ? '' : 'opacity-50'">
+                    <div class="text-[10px] text-purple-700 uppercase" title="PCs mit weniger als 10 GB freiem Speicher">Disk &lt;10</div>
+                    <div class="text-xl font-bold text-purple-700">{{ m.stats.low_disk || 0 }}</div>
                   </div>
                 </div>
 
