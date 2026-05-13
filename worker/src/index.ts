@@ -40,10 +40,39 @@ interface Session {
   home_tenant_id: number; home_tenant_slug: string; home_tenant_name: string;
 }
 
+// Allowed origins for browser-based requests (frontend).
+// Agent native HTTP requests don't send Origin header, so they bypass.
+const ALLOWED_ORIGINS = [
+  'https://it-cockpit.pages.dev',
+  'https://it-cockpit.hasi-elektronic.de',  // future custom domain
+  'http://localhost:8788',                   // wrangler pages dev
+  'http://localhost:5173',                   // vite dev
+];
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  // If no Origin header (agent HTTP, curl, server-to-server), use *
+  // If Origin present and in allowlist, echo it back
+  // If Origin present and NOT in allowlist, omit -> browser blocks the response
+  const allowOrigin = !origin ? '*'
+    : ALLOWED_ORIGINS.includes(origin) ? origin
+    : '';   // disallowed — browser blocks
+
+  return {
+    ...(allowOrigin ? { 'Access-Control-Allow-Origin': allowOrigin } : {}),
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Token, X-Admin-Secret',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+  };
+}
+
+// Backwards-compat constant (kept for OPTIONS preflight + non-request contexts).
+// Returns permissive headers — only safe for places that don't have access to req.
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Token',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Agent-Token, X-Admin-Secret',
   'Access-Control-Max-Age': '86400',
 };
 const SECURITY_HEADERS = {
@@ -52,14 +81,16 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
 
-function json(body: any, status = 200) {
+function json(body: any, status = 200, req?: Request) {
+  const cors = req ? corsHeaders(req) : CORS_HEADERS;
   return new Response(JSON.stringify(body), {
-    status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS, ...SECURITY_HEADERS }
+    status, headers: { 'Content-Type': 'application/json', ...cors, ...SECURITY_HEADERS }
   });
 }
-function jsonError(message: string, status = 400) { return json({ error: message }, status); }
-function textResponse(body: string, status = 200, ct = 'text/plain') {
-  return new Response(body, { status, headers: { 'Content-Type': ct + '; charset=utf-8', ...CORS_HEADERS } });
+function jsonError(message: string, status = 400, req?: Request) { return json({ error: message }, status, req); }
+function textResponse(body: string, status = 200, ct = 'text/plain', req?: Request) {
+  const cors = req ? corsHeaders(req) : CORS_HEADERS;
+  return new Response(body, { status, headers: { 'Content-Type': ct + '; charset=utf-8', ...cors } });
 }
 
 async function hashPassword(password: string, salt: string): Promise<string> {
@@ -2309,14 +2340,14 @@ async function handleTenantSwitch(req: Request, env: Env, sess: Session): Promis
 // ============== ROUTER ==============
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS_HEADERS });
+    if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(req) });
 
     const url = new URL(req.url);
     const path = url.pathname;
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.7', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.8', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
