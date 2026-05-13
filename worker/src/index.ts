@@ -1134,6 +1134,226 @@ Write-Host ""
 `;
 }
 
+// ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
+async function handleBulkInstall(slug: string, req: Request, env: Env): Promise<Response> {
+  // Tenant'ı bul + install enabled mi
+  const t = await env.DB.prepare(
+    `SELECT id, slug, name, install_token, install_enabled, status FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+
+  if (!t) return textResponse(`# Tenant nicht gefunden\nWrite-Host "FEHLER: Tenant '${slug}' nicht gefunden" -ForegroundColor Red\nexit 1`, 404);
+  if (t.status !== 'active') return textResponse(`# Tenant inaktiv\nWrite-Host "FEHLER: Tenant '${slug}' ist inaktiv" -ForegroundColor Red\nexit 1`, 403);
+  if (!t.install_enabled) return textResponse(`# Bulk install deaktiviert\nWrite-Host "FEHLER: Bulk install ist fuer diesen Mandanten deaktiviert" -ForegroundColor Red\nexit 1`, 403);
+  if (!t.install_token) return textResponse(`# Kein Install-Token\nWrite-Host "FEHLER: Kein Install-Token konfiguriert" -ForegroundColor Red\nexit 1`, 500);
+
+  const url = new URL(req.url);
+  const apiUrl = `${url.origin}/api`;
+  const script = generateBulkInstallScript(t.install_token, apiUrl, t.name, t.slug).replace(/\r?\n/g, '\r\n');
+  return textResponse(script, 200, 'text/plain');
+}
+
+function generateBulkInstallScript(bulkToken: string, apiUrl: string, tenantName: string, tenantSlug: string): string {
+  const origin = apiUrl.replace('/api', '');
+  return `# ===================================================================
+# Hasi IT-Cockpit - Bulk Install Script
+# Mandant: ${tenantName}
+# ===================================================================
+# Usage: irm ${apiUrl.replace('/api', '')}/api/install/${tenantSlug} | iex
+#
+# Self-elevating: relaunches as Admin if not already
+
+# Self-elevate to Administrator
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+    Write-Host "🔐 Administrator-Rechte erforderlich. Starte neu..." -ForegroundColor Yellow
+    $script = "irm ${apiUrl}/install/${tenantSlug} | iex"
+    Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -Command \\"$script\\""
+    exit
+}
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║  HASI IT-COCKPIT - Bulk Install                              ║" -ForegroundColor Cyan
+Write-Host "║  Mandant: ${tenantName.padEnd(52)}║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
+
+$hostname = $env:COMPUTERNAME
+$apiUrl   = "${apiUrl}"
+$bulkToken = "${bulkToken}"
+$installDir = "C:\\Program Files\\HasiCockpit"
+$exePath   = "$installDir\\hasi-agent.exe"
+$configPath = "$installDir\\config.json"
+$statePath = "$installDir\\state.json"
+$taskName  = "HasiCockpitAgent"
+
+# Step 1: Stop existing agent (if any)
+Write-Host "[1/6] Pruefe bestehenden Agent..." -ForegroundColor White
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($existingTask) {
+    try { Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue } catch {}
+    Write-Host "      Bestehender Task gestoppt" -ForegroundColor Gray
+}
+Get-Process hasi-agent -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+# Step 2: Create install directory
+Write-Host "[2/6] Erstelle Installations-Verzeichnis..." -ForegroundColor White
+if (-not (Test-Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+}
+
+# Step 3: Download latest agent binary
+Write-Host "[3/6] Lade Agent v(latest) herunter..." -ForegroundColor White
+$binaryUrl = "${origin}/agent-binary/hasi-agent-windows-amd64.exe"
+try {
+    Invoke-WebRequest -Uri $binaryUrl -OutFile $exePath -UseBasicParsing
+    $size = (Get-Item $exePath).Length / 1MB
+    Write-Host "      Heruntergeladen: $([math]::Round($size,1)) MB" -ForegroundColor Gray
+} catch {
+    Write-Host "FEHLER: Download fehlgeschlagen: $_" -ForegroundColor Red
+    exit 1
+}
+
+# Step 4: Bulk enroll (hostname-based)
+Write-Host "[4/6] Registriere Geraet '$hostname'..." -ForegroundColor White
+$enrollBody = @{
+    bulk_token = $bulkToken
+    hostname   = $hostname
+    os_platform = "windows"
+    mac_address = ((Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | Select-Object -First 1).MacAddress)
+    manufacturer = (Get-CimInstance Win32_ComputerSystem).Manufacturer
+    model       = (Get-CimInstance Win32_ComputerSystem).Model
+} | ConvertTo-Json
+try {
+    $enrollResp = Invoke-RestMethod -Uri "$apiUrl/agent/bulk-enroll" -Method POST -Body $enrollBody -ContentType "application/json"
+    Write-Host "      Geraet registriert (ID: $($enrollResp.device_id), Status: $($enrollResp.action))" -ForegroundColor Gray
+} catch {
+    Write-Host "FEHLER: Enrollment fehlgeschlagen: $_" -ForegroundColor Red
+    exit 1
+}
+
+# Step 5: Save config + agent token
+Write-Host "[5/6] Schreibe Konfiguration..." -ForegroundColor White
+$config = @{
+    api_url = $apiUrl
+    agent_token = $enrollResp.agent_token
+    heartbeat_interval_seconds = 900
+} | ConvertTo-Json
+Set-Content -Path $configPath -Value $config -Encoding UTF8
+
+$state = @{ device_id = $enrollResp.device_id } | ConvertTo-Json
+Set-Content -Path $statePath -Value $state -Encoding UTF8
+
+# Step 6: Register Task Scheduler (auto-start every 15 min + at boot)
+Write-Host "[6/6] Erstelle Task Scheduler-Eintrag..." -ForegroundColor White
+if ($existingTask) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+
+$action = New-ScheduledTaskAction -Execute $exePath
+$trigger1 = New-ScheduledTaskTrigger -AtStartup
+$trigger2 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet \`
+    -AllowStartIfOnBatteries \`
+    -DontStopIfGoingOnBatteries \`
+    -StartWhenAvailable \`
+    -RunOnlyIfNetworkAvailable \`
+    -ExecutionTimeLimit (New-TimeSpan -Hours 1) \`
+    -MultipleInstances IgnoreNew
+
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1,$trigger2) \`
+    -Settings $settings -Principal $principal \`
+    -Description "Hasi IT-Cockpit - Endpoint Inventory Agent" -Force | Out-Null
+
+# First heartbeat
+Write-Host ""
+Write-Host "Erste Heartbeat..." -ForegroundColor White
+& $exePath --once
+Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+
+# Done
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+Write-Host "║  ✓ FERTIG                                                    ║" -ForegroundColor Green
+Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Hostname:    $hostname" -ForegroundColor White
+Write-Host "  Device ID:   $($enrollResp.device_id)" -ForegroundColor White
+Write-Host "  Status:      $($enrollResp.action)" -ForegroundColor White
+Write-Host "  Naechster Heartbeat: in 15 Minuten (automatisch)" -ForegroundColor White
+Write-Host ""
+Write-Host "  Im Cockpit anzeigen: ${origin.replace('-api.hguencavdi.workers.dev', '.pages.dev')}" -ForegroundColor Cyan
+Write-Host ""
+`;
+}
+
+async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
+  const body = await req.json<any>();
+  const bulkToken = String(body.bulk_token || '');
+  const hostname = String(body.hostname || '').trim();
+  if (!bulkToken || !hostname) return jsonError('bulk_token + hostname erforderlich', 400);
+
+  // Token'a uyan tenant'ı bul
+  const t = await env.DB.prepare(
+    `SELECT id, slug FROM tenants WHERE install_token = ? AND install_enabled = 1 AND status = 'active'`
+  ).bind(bulkToken).first<any>();
+  if (!t) return jsonError('Ungueltiges Bulk-Token oder Tenant deaktiviert', 401);
+
+  // Var olan cihaz mı (hostname match)
+  let device = await env.DB.prepare(
+    `SELECT id FROM devices WHERE tenant_id = ? AND hostname = ?`
+  ).bind(t.id, hostname).first<any>();
+
+  let deviceId: number;
+  let action: string;
+  if (device) {
+    deviceId = device.id;
+    action = 're-enrolled';
+    // Update meta fields
+    await env.DB.prepare(`
+      UPDATE devices SET
+        manufacturer = COALESCE(?, manufacturer),
+        model = COALESCE(?, model),
+        mac_address = COALESCE(?, mac_address),
+        agent_status = 'pending',
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(body.manufacturer || null, body.model || null, body.mac_address || null, deviceId).run();
+  } else {
+    // Create new device
+    const r = await env.DB.prepare(`
+      INSERT INTO devices (tenant_id, hostname, manufacturer, model, mac_address, os, auto_discovered, bulk_enrolled, agent_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, 1, 'pending', datetime('now'), datetime('now'))
+    `).bind(t.id, hostname, body.manufacturer || null, body.model || null, body.mac_address || null, body.os_platform || 'windows').run();
+    deviceId = Number(r.meta.last_row_id);
+    action = 'new';
+  }
+
+  // Revoke old agents for this device
+  await env.DB.prepare(
+    `UPDATE agents SET status = 'revoked', revoked_at = datetime('now') WHERE device_id = ? AND status = 'active'`
+  ).bind(deviceId).run();
+
+  // Create new agent + token
+  const agentToken = 'AGT-' + crypto.randomUUID().replace(/-/g, '');
+  await env.DB.prepare(`
+    INSERT INTO agents (tenant_id, device_id, enroll_token, agent_token, agent_version, os_platform, hostname_reported, status, created_at)
+    VALUES (?, ?, ?, ?, '0.5.4', ?, ?, 'active', datetime('now'))
+  `).bind(t.id, deviceId, 'BULK-USED', agentToken, body.os_platform || 'windows', hostname).run();
+
+  return json({
+    ok: true,
+    device_id: deviceId,
+    agent_token: agentToken,
+    tenant_slug: t.slug,
+    action,
+  });
+}
+
 async function handleInstallScript(token: string, req: Request, env: Env): Promise<Response> {
   const agent = await env.DB.prepare(`SELECT id, status FROM agents WHERE enroll_token = ?`).bind(token).first<any>();
   if (!agent) return textResponse('# Invalid enroll token\nWrite-Host "FEHLER: Token ungueltig" -ForegroundColor Red\nexit 1', 401);
@@ -1575,17 +1795,21 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.4', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.5', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
       if (path === '/api/agent/register' && m === 'POST') return handleAgentRegister(req, env);
+      if (path === '/api/agent/bulk-enroll' && m === 'POST') return handleBulkEnroll(req, env);
       if (path === '/api/agent/heartbeat' && m === 'POST') return handleAgentHeartbeat(req, env);
       if (path === '/api/agent/commands' && m === 'GET') return handleAgentCommandsFetch(req, env);
       const cmdResMatch = path.match(/^\/api\/agent\/commands\/(\d+)\/result$/);
       if (cmdResMatch && m === 'POST') return handleAgentCommandResult(Number(cmdResMatch[1]), req, env);
       const isMatch = path.match(/^\/api\/install-script\/(.+)$/);
       if (isMatch && m === 'GET') return handleInstallScript(isMatch[1], req, env);
+      // v0.5.5: Bulk install per tenant — sadece slug ile
+      const bulkMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)$/);
+      if (bulkMatch && m === 'GET') return handleBulkInstall(bulkMatch[1], req, env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
