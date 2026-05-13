@@ -1838,6 +1838,97 @@ tailwind.config = {
               </div>
             </div>
 
+            <!-- v0.7.7: Sicherheit & Notfall -->
+            <div class="mb-6">
+              <h4 class="font-semibold text-slate-900 mb-3">🚨 Sicherheit & Notfall</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button @click="runFix('browser_reset')" class="action-card border-red-200 hover:border-red-400 hover:bg-red-50">
+                  <div class="text-2xl">🚨</div>
+                  <div class="font-semibold text-sm">Browser-Notfall</div>
+                  <div class="text-xs text-slate-500">Alle Browser killen + Cache</div>
+                </button>
+                <button @click="runFix('defender_fullscan')" class="action-card border-rose-200 hover:border-rose-400 hover:bg-rose-50">
+                  <div class="text-2xl">🛡️</div>
+                  <div class="font-semibold text-sm">Defender VOLL-Scan</div>
+                  <div class="text-xs text-slate-500">Komplette Festplatte · 1-4h</div>
+                </button>
+                <button @click="runFix('hosts_check')" class="action-card border-orange-200 hover:border-orange-400 hover:bg-orange-50">
+                  <div class="text-2xl">🌐</div>
+                  <div class="font-semibold text-sm">Hosts-Datei pruefen</div>
+                  <div class="text-xs text-slate-500">Hijack-Umleitungen finden</div>
+                </button>
+                <button @click="runFix('autostart_check')" class="action-card border-amber-200 hover:border-amber-400 hover:bg-amber-50">
+                  <div class="text-2xl">🔍</div>
+                  <div class="font-semibold text-sm">Autostart pruefen</div>
+                  <div class="text-xs text-slate-500">Was startet mit Windows?</div>
+                </button>
+
+                <button @click="runFix('network_sessions')" class="action-card border-fuchsia-200 hover:border-fuchsia-400 hover:bg-fuchsia-50">
+                  <div class="text-2xl">📋</div>
+                  <div class="font-semibold text-sm">Aktive Verbindungen</div>
+                  <div class="text-xs text-slate-500">RDP + offene Sockets</div>
+                </button>
+                <button @click="runFix('internet_block')" class="action-card border-red-300 hover:border-red-500 hover:bg-red-100">
+                  <div class="text-2xl">⛔</div>
+                  <div class="font-semibold text-sm">Internet SPERREN</div>
+                  <div class="text-xs text-slate-500">Ransomware-Quarantaene</div>
+                </button>
+                <button @click="runFix('internet_unblock')" class="action-card border-green-200 hover:border-green-400 hover:bg-green-50 col-span-2">
+                  <div class="text-2xl">✅</div>
+                  <div class="font-semibold text-sm">Internet wieder freigeben</div>
+                  <div class="text-xs text-slate-500">Notfall-Sperre aufheben</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- v0.7.7: System-Info (most-used CMD/PS for diagnostics) -->
+            <div class="mb-6">
+              <h4 class="font-semibold text-slate-900 mb-3">💻 System-Info & Diagnose</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button @click="runFix('systeminfo')" class="action-card border-slate-200 hover:border-slate-400 hover:bg-slate-50">
+                  <div class="text-2xl">📋</div>
+                  <div class="font-semibold text-sm">System-Info</div>
+                  <div class="text-xs text-slate-500">OS, Patches, Uptime</div>
+                </button>
+                <button @click="runFix('ipconfig_all')" class="action-card border-blue-200 hover:border-blue-400 hover:bg-blue-50">
+                  <div class="text-2xl">🌐</div>
+                  <div class="font-semibold text-sm">ipconfig /all</div>
+                  <div class="text-xs text-slate-500">Komplette Netzkonfig</div>
+                </button>
+                <button @click="runFix('tasklist_top')" class="action-card border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50">
+                  <div class="text-2xl">⚙️</div>
+                  <div class="font-semibold text-sm">Prozessliste</div>
+                  <div class="text-xs text-slate-500">tasklist Top 15</div>
+                </button>
+                <button @click="runFix('netstat_active')" class="action-card border-purple-200 hover:border-purple-400 hover:bg-purple-50">
+                  <div class="text-2xl">🔌</div>
+                  <div class="font-semibold text-sm">Offene Ports</div>
+                  <div class="text-xs text-slate-500">netstat aktiv (TCP)</div>
+                </button>
+
+                <button @click="runFix('whoami_full')" class="action-card border-teal-200 hover:border-teal-400 hover:bg-teal-50">
+                  <div class="text-2xl">👤</div>
+                  <div class="font-semibold text-sm">whoami /all</div>
+                  <div class="text-xs text-slate-500">User, Gruppen, Rechte</div>
+                </button>
+                <button @click="runFix('route_arp')" class="action-card border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50">
+                  <div class="text-2xl">📡</div>
+                  <div class="font-semibold text-sm">Routing + ARP</div>
+                  <div class="text-xs text-slate-500">Wege + MAC-Tabelle</div>
+                </button>
+                <button @click="runFix('usb_devices')" class="action-card border-yellow-200 hover:border-yellow-400 hover:bg-yellow-50">
+                  <div class="text-2xl">🔌</div>
+                  <div class="font-semibold text-sm">USB-Geraete</div>
+                  <div class="text-xs text-slate-500">Eingesteckte Hardware</div>
+                </button>
+                <button @click="runFix('bitlocker_status')" class="action-card border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50">
+                  <div class="text-2xl">🔐</div>
+                  <div class="font-semibold text-sm">BitLocker Status</div>
+                  <div class="text-xs text-slate-500">Verschluesselung pro Laufwerk</div>
+                </button>
+              </div>
+            </div>
+
             <!-- Command history -->
             <div>
               <div class="flex items-center justify-between mb-3">
@@ -2889,14 +2980,19 @@ createApp({
 
     // v0.7.6: Repair & Diagnose action dispatcher
     runFix(action) {
-      const needsConfirm = ['explorer_restart', 'temp_cleanup'];
+      const needsConfirm = ['explorer_restart', 'temp_cleanup', 'browser_reset', 'defender_fullscan', 'internet_block', 'internet_unblock'];
       const confirmText = {
         explorer_restart: 'Explorer beim aktiven Nutzer neu starten? (Fenster werden kurz verschwinden)',
         temp_cleanup: 'Temp-Dateien und Caches loeschen? (geoeffnete Dateien werden uebersprungen)',
+        browser_reset: 'NOTFALL: Alle Browser (Chrome, Edge, Firefox, IE) hart beenden + Cache loeschen?\\n\\nOffene Tabs gehen verloren!',
+        defender_fullscan: 'Defender VOLL-Scan starten? Laeuft 1-4 Stunden im Hintergrund.',
+        internet_block: 'NOTFALL: Internet komplett sperren?\\n\\nNur fuer Ransomware-Verdacht. Mit "Internet wieder freigeben" rueckgaengig.',
+        internet_unblock: 'Internet-Sperre wieder aufheben?',
       };
       if (needsConfirm.includes(action) && !confirm(confirmText[action])) return;
 
       const fixes = {
+        // Reparatur (v0.7.6)
         spooler:          { type: 'ps',  args: { script: "try { Restart-Service Spooler -Force -EA Stop; Write-Output 'Druck-Spooler-Dienst neu gestartet' } catch { Write-Output ('Fehler: ' + $_.Exception.Message) }" }},
         network_reset:    { type: 'cmd', args: { command: 'ipconfig /release & ipconfig /renew & ipconfig /flushdns' }},
         explorer_restart: { type: 'cmd', args: { command: 'taskkill /f /im explorer.exe & timeout /t 1 /nobreak >nul & start explorer.exe' }},
@@ -2908,11 +3004,32 @@ createApp({
         anydesk_status:   { type: 'ps',  args: { script: this.getAnyDeskStatusScript() }},
         backup_services:  { type: 'ps',  args: { script: this.getBackupServicesScript() }},
         event_errors:     { type: 'ps',  args: { script: this.getEventErrorsScript() }},
+
+        // Sicherheit & Notfall (v0.7.7)
+        browser_reset:     { type: 'ps',  args: { script: this.getBrowserResetScript() }},
+        defender_fullscan: { type: 'ps',  args: { script: "Write-Output 'Defender Voll-Scan gestartet (laeuft im Hintergrund)...'; Start-MpScan -ScanType FullScan -AsJob | Out-Null; Write-Output 'Scan-Job gestartet. Fortschritt: Get-MpComputerStatus | Select FullScanStartTime, FullScanEndTime'" }},
+        hosts_check:       { type: 'ps',  args: { script: this.getHostsCheckScript() }},
+        autostart_check:   { type: 'ps',  args: { script: this.getAutostartScript() }},
+        network_sessions:  { type: 'ps',  args: { script: this.getNetworkSessionsScript() }},
+        internet_block:    { type: 'cmd', args: { command: 'netsh advfirewall firewall add rule name="HasiEmergencyBlock_Out" dir=out action=block enable=yes & netsh advfirewall firewall add rule name="HasiEmergencyBlock_In" dir=in action=block enable=yes & echo Internet SPERRE aktiviert (Hasi-Notfall-Quarantaene)' }},
+        internet_unblock:  { type: 'cmd', args: { command: 'netsh advfirewall firewall delete rule name="HasiEmergencyBlock_Out" & netsh advfirewall firewall delete rule name="HasiEmergencyBlock_In" & echo Internet-Sperre aufgehoben' }},
+
+        // System-Info (v0.7.7)
+        systeminfo:        { type: 'cmd', args: { command: 'systeminfo' }},
+        ipconfig_all:      { type: 'cmd', args: { command: 'ipconfig /all' }},
+        tasklist_top:      { type: 'ps',  args: { script: "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 ProcessName, Id, @{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB,1)}}, @{N='CPU';E={if ($_.CPU) {[math]::Round($_.CPU,1)} else {0}}}, Path | Format-Table -AutoSize" }},
+        netstat_active:    { type: 'cmd', args: { command: 'netstat -ano -p tcp | findstr ESTABLISHED' }},
+        whoami_full:       { type: 'cmd', args: { command: 'whoami /all' }},
+        route_arp:         { type: 'ps',  args: { script: "Write-Output '--- Routing-Tabelle ---'; route print -4 | Select-String -NotMatch '^=+$'; Write-Output ''; Write-Output '--- ARP-Tabelle (MAC-Adressen) ---'; arp -a" }},
+        usb_devices:       { type: 'ps',  args: { script: "Get-PnpDevice -PresentOnly -EA SilentlyContinue | Where-Object {$_.Class -in 'USB','DiskDrive','Mouse','Keyboard','HIDClass','Camera','Printer'} | Select-Object Class, FriendlyName, Status | Sort-Object Class | Format-Table -AutoSize" }},
+        bitlocker_status:  { type: 'ps',  args: { script: "try { Get-BitLockerVolume -EA Stop | Select-Object MountPoint, VolumeStatus, ProtectionStatus, EncryptionPercentage, EncryptionMethod | Format-Table -AutoSize } catch { Write-Output ('BitLocker nicht verfuegbar: ' + $_.Exception.Message); Write-Output ''; Write-Output 'Fallback via manage-bde:'; manage-bde -status }" }},
       };
       const f = fixes[action];
       if (!f) { this.toast('Unbekannte Aktion: ' + action, 'error'); return; }
       this.dispatchCommand(f.type, f.args);
     },
+
+    // ---------- Helper scripts ----------
 
     getCleanupScript() {
       return "$total=0; $cleaned=0; $paths = @($env:TEMP, 'C:\\Windows\\Temp'); $userProfile = (Get-CimInstance Win32_ComputerSystem).UserName; if ($userProfile -match '\\\\') { $userName = $userProfile.Split('\\\\')[-1]; $userTemp = 'C:\\Users\\' + $userName + '\\AppData\\Local\\Temp'; if (Test-Path $userTemp) { $paths += $userTemp } }; foreach ($p in $paths) { if (Test-Path $p) { try { $size = [math]::Round(((Get-ChildItem $p -Recurse -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum / 1MB), 1); Get-ChildItem $p -Recurse -Force -EA SilentlyContinue | Remove-Item -Recurse -Force -EA SilentlyContinue; Write-Output ('Bereinigt: ' + $p + ' (' + $size + ' MB)'); $total += $size; $cleaned += 1 } catch { Write-Output ('Fehler bei ' + $p + ': ' + $_.Exception.Message) } } }; Write-Output ''; Write-Output ('Gesamt freigegeben: ' + [math]::Round($total,1) + ' MB aus ' + $cleaned + ' Pfaden')";
@@ -2940,6 +3057,32 @@ createApp({
 
     getEventErrorsScript() {
       return "Get-WinEvent -FilterHashtable @{LogName='System';Level=1,2} -MaxEvents 10 -EA SilentlyContinue | Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, @{N='Msg';E={$_.Message.Substring(0, [math]::Min(180, $_.Message.Length))}} | Format-List";
+    },
+
+    // ---- v0.7.7: Sicherheit & Notfall helpers ----
+
+    // Kill all browsers, clear their caches. Used after tech-support-scam
+    // popups, fake virus warnings, browser hijacks.
+    getBrowserResetScript() {
+      return "$killed = @(); foreach ($p in @('chrome','msedge','firefox','iexplore','opera','brave')) { $procs = Get-Process -Name $p -EA SilentlyContinue; if ($procs) { $procs | Stop-Process -Force -EA SilentlyContinue; $killed += ($p + ' (' + $procs.Count + ' Prozesse)') } }; if ($killed) { Write-Output ('Beendet: ' + ($killed -join ', ')) } else { Write-Output 'Keine Browser-Prozesse aktiv' }; Write-Output ''; $userProfile = (Get-CimInstance Win32_ComputerSystem).UserName; if ($userProfile -match '\\\\') { $u = $userProfile.Split('\\\\')[-1]; $cacheDirs = @('C:\\Users\\' + $u + '\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache', 'C:\\Users\\' + $u + '\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Cache', 'C:\\Users\\' + $u + '\\AppData\\Local\\Mozilla\\Firefox\\Profiles'); $total = 0; foreach ($d in $cacheDirs) { if (Test-Path $d) { try { $size = [math]::Round(((Get-ChildItem $d -Recurse -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum / 1MB), 1); Get-ChildItem $d -Recurse -Force -EA SilentlyContinue | Remove-Item -Recurse -Force -EA SilentlyContinue; Write-Output ('Cache geloescht: ' + $d + ' (' + $size + ' MB)'); $total += $size } catch {} } }; Write-Output ('Gesamt Cache befreit: ' + $total + ' MB') }";
+    },
+
+    // Read hosts file, show only non-comment, non-empty lines.
+    // Hijackers add malicious entries like '0.0.0.0 google.com' or
+    // redirect to scam sites.
+    getHostsCheckScript() {
+      return "$hosts = 'C:\\Windows\\System32\\drivers\\etc\\hosts'; if (Test-Path $hosts) { $lines = Get-Content $hosts | Where-Object {$_.Trim() -ne '' -and $_ -notmatch '^\\s*#'}; if ($lines) { Write-Output 'AKTIVE Eintraege in hosts:'; $lines | ForEach-Object { Write-Output ('  ' + $_) } } else { Write-Output 'Hosts-Datei sauber (nur Kommentare).' } } else { Write-Output 'Hosts-Datei nicht gefunden!' }";
+    },
+
+    // Show all autostart entries (Run, RunOnce, Startup folders, scheduled tasks)
+    // Common malware persistence locations.
+    getAutostartScript() {
+      return "Write-Output '--- Registry: HKLM Run ---'; Get-ItemProperty 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue | Select-Object * -ExcludeProperty PS* | Format-List; Write-Output '--- Registry: HKCU Run ---'; Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue | Select-Object * -ExcludeProperty PS* | Format-List; Write-Output '--- Startup-Ordner ---'; Get-ChildItem \"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\" -EA SilentlyContinue | Select-Object Name, LastWriteTime | Format-Table; Write-Output '--- Auto-Tasks (verdaechtige) ---'; Get-ScheduledTask | Where-Object {$_.State -eq 'Ready' -and $_.TaskPath -notmatch '^\\\\Microsoft'} | Select-Object TaskName, TaskPath, State | Format-Table -AutoSize";
+    },
+
+    // Show active RDP sessions + established TCP connections (suspicious remote IPs)
+    getNetworkSessionsScript() {
+      return "Write-Output '--- Aktive RDP/Console Sessions ---'; qwinsta 2>$null; Write-Output ''; Write-Output '--- Aktive Netzwerk-Verbindungen (ESTABLISHED) ---'; Get-NetTCPConnection -State Established -EA SilentlyContinue | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess, @{N='Process';E={(Get-Process -Id $_.OwningProcess -EA SilentlyContinue).ProcessName}} | Where-Object {$_.RemoteAddress -ne '127.0.0.1' -and $_.RemoteAddress -ne '::1'} | Format-Table -AutoSize";
     },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
