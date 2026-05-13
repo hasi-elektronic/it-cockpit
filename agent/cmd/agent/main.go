@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.5.4"
+const AgentVersion = "0.5.5"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -240,6 +240,8 @@ type HeartbeatPayload struct {
 	BatteryHealth  string          `json:"battery_health,omitempty"`
 	BootTimeSec    int             `json:"boot_time_sec,omitempty"`
 	OutdatedSwCount int            `json:"outdated_sw_count,omitempty"`
+	// v0.5.12: AnyDesk ID for remote support
+	AnyDeskID      string          `json:"anydesk_id,omitempty"`
 }
 
 // ==================== HTTP ====================

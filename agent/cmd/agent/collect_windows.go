@@ -4,7 +4,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -164,6 +166,9 @@ func collectHeartbeat() *HeartbeatPayload {
 
 	// Security
 	hb.Security = collectWindowsSecurity()
+
+	// v0.5.12: AnyDesk ID (remote support tool)
+	hb.AnyDeskID = collectAnyDeskID()
 
 	// Software inventory
 	hb.Software = collectWindowsSoftware()
@@ -713,6 +718,97 @@ $items | Sort-Object DisplayName -Unique | ForEach-Object {
 		result = result[:200]
 	}
 	return result
+}
+
+// ==================== v0.5.12: AnyDesk ID ====================
+
+// collectAnyDeskID liest die AnyDesk-ID aus mehreren moeglichen Quellen.
+// Reihenfolge:
+//   1. AnyDesk service via Get-Service + .exe --get-id (offiziell)
+//   2. service.conf in C:\ProgramData\AnyDesk\ (ad.anynet.id=)
+//   3. user.conf in %APPDATA%\AnyDesk\ (Portable mode)
+//
+// Gibt leeren String zurueck wenn AnyDesk nicht installiert oder ID nicht lesbar.
+func collectAnyDeskID() string {
+	// Method 1: AnyDesk binary --get-id (most reliable, works for service install)
+	anydeskPaths := []string{
+		`C:\Program Files (x86)\AnyDesk\AnyDesk.exe`,
+		`C:\Program Files\AnyDesk\AnyDesk.exe`,
+		`C:\ProgramData\AnyDesk\AnyDesk.exe`,
+	}
+	for _, p := range anydeskPaths {
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		// AnyDesk.exe --get-id prints ID on stdout
+		out := runCmd(p, "--get-id")
+		id := strings.TrimSpace(out)
+		if isValidAnyDeskID(id) {
+			return id
+		}
+	}
+
+	// Method 2: service.conf (system-wide install)
+	confPaths := []string{
+		`C:\ProgramData\AnyDesk\service.conf`,
+		`C:\ProgramData\AnyDesk\system.conf`,
+	}
+	for _, p := range confPaths {
+		if id := readAnyDeskConfID(p); id != "" {
+			return id
+		}
+	}
+
+	// Method 3: user.conf (portable / per-user install)
+	appdata := os.Getenv("APPDATA")
+	if appdata != "" {
+		userConf := filepath.Join(appdata, "AnyDesk", "user.conf")
+		if id := readAnyDeskConfID(userConf); id != "" {
+			return id
+		}
+	}
+
+	return ""
+}
+
+func readAnyDeskConfID(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	// Look for "ad.anynet.id=NNNNNNNNNN"
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ad.anynet.id=") {
+			id := strings.TrimPrefix(line, "ad.anynet.id=")
+			id = strings.TrimSpace(id)
+			if isValidAnyDeskID(id) {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
+// AnyDesk IDs are typically 9-10 digit numbers
+func isValidAnyDeskID(id string) bool {
+	if len(id) < 8 || len(id) > 12 {
+		return false
+	}
+	for _, r := range id {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// runCmd executes a command and returns trimmed stdout
+func runCmd(name string, args ...string) string {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, _ := cmd.Output()
+	return strings.TrimSpace(string(out))
 }
 
 // Ensure runtime is referenced (avoid unused import on cross-compile)

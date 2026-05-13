@@ -739,6 +739,9 @@ tailwind.config = {
                     <span v-else class="text-xs">{{ d.warranty_until }}</span>
                   </td>
                   <td class="text-right" @click.stop>
+                    <button v-if="d.anydesk_id" @click="openAnyDesk(d.anydesk_id)"
+                            :title="'AnyDesk: ' + d.anydesk_id"
+                            class="text-emerald-600 hover:text-emerald-800 text-xs font-medium mr-3">🖥 AnyDesk</button>
                     <button @click="openDeviceModal(d)" class="text-cyan-600 hover:text-cyan-800 text-xs font-medium mr-3">Edit</button>
                     <button @click="askDelete('Gerät', d.hostname, () => deleteDevice(d.id))" class="text-red-500 hover:text-red-700 text-xs font-medium">Löschen</button>
                   </td>
@@ -1731,6 +1734,24 @@ tailwind.config = {
             <label class="form-label">Notizen</label>
             <textarea v-model="deviceForm.notes" rows="2" class="form-input"></textarea>
           </div>
+          <div class="col-span-2 border-t border-slate-200 pt-3 mt-2">
+            <label class="form-label flex items-center gap-2">
+              🖥 AnyDesk-ID
+              <span class="text-xs font-normal text-slate-400">(fuer Remote-Support)</span>
+            </label>
+            <div class="flex gap-2 items-start">
+              <input v-model="deviceForm.anydesk_id" class="form-input flex-1" placeholder="123456789" pattern="[0-9]{8,12}" inputmode="numeric" />
+              <button v-if="deviceForm.anydesk_id" @click="openAnyDesk(deviceForm.anydesk_id)" type="button"
+                      class="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-sm font-medium whitespace-nowrap">🖥 Test</button>
+            </div>
+            <label class="flex items-center gap-2 mt-2 text-sm text-slate-600 cursor-pointer">
+              <input type="checkbox" v-model="deviceForm.anydesk_id_locked" class="rounded">
+              ID manuell setzen (Agent darf nicht ueberschreiben)
+            </label>
+            <p class="text-xs text-slate-400 mt-1">
+              Der Agent erkennt die ID automatisch aus der AnyDesk-Installation. Manuelle Eingabe nur noetig wenn der Agent sie nicht finden kann.
+            </p>
+          </div>
         </div>
         <div class="modal-footer">
           <button @click="closeModal" class="btn-secondary">Abbrechen</button>
@@ -2091,7 +2112,7 @@ const API_BASE = location.hostname === 'localhost'
   : 'https://it-cockpit-api.hguencavdi.workers.dev';
 
 function emptyDeviceForm() {
-  return { id: null, hostname: '', device_type: 'desktop', manufacturer: '', model: '', serial_number: '', os: '', cpu: '', ram_gb: null, storage_gb: null, location: '', assigned_to: null, purchase_date: '', warranty_until: '', status: 'active', notes: '' };
+  return { id: null, hostname: '', device_type: 'desktop', manufacturer: '', model: '', serial_number: '', os: '', cpu: '', ram_gb: null, storage_gb: null, location: '', assigned_to: null, purchase_date: '', warranty_until: '', status: 'active', notes: '', anydesk_id: '', anydesk_id_locked: false };
 }
 function emptyLicenseForm() {
   return { id: null, software_name: '', vendor: '', license_type: 'subscription', license_key: '', seats_total: 1, cost_per_year: null, purchase_date: '', expires_at: '', renewal_auto: false, notes: '' };
@@ -2833,9 +2854,15 @@ createApp({
 
     // Device
     openDeviceModal(d) {
-      if (d) { this.deviceForm = { ...emptyDeviceForm(), ...d, ram_gb: d.ram_gb || null, storage_gb: d.storage_gb || null, assigned_to: d.assigned_to || null, purchase_date: d.purchase_date || '', warranty_until: d.warranty_until || '' }; }
+      if (d) { this.deviceForm = { ...emptyDeviceForm(), ...d, ram_gb: d.ram_gb || null, storage_gb: d.storage_gb || null, assigned_to: d.assigned_to || null, purchase_date: d.purchase_date || '', warranty_until: d.warranty_until || '', anydesk_id: d.anydesk_id || '', anydesk_id_locked: !!d.anydesk_id_locked }; }
       else { this.deviceForm = emptyDeviceForm(); }
       this.modal = 'device';
+    },
+    openAnyDesk(id) {
+      if (!id) return;
+      const cleanId = String(id).replace(/\s+/g, '').trim();
+      // anydesk:// URL scheme launches the installed AnyDesk client directly
+      window.location.href = 'anydesk:' + cleanId;
     },
     async saveDevice() {
       this.saving = true;
@@ -2935,3 +2962,4 @@ createApp({
 </html>
 <!-- v0.5.8 install modal 1778659551 -->
 <!-- v0.5.10 exe installer 1778660496 -->
+<!-- v0.5.12 anydesk 1778661873 -->

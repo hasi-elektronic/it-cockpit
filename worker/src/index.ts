@@ -318,7 +318,7 @@ async function handleDeviceUpdate(id: number, req: Request, env: Env, sess: Sess
   await env.DB.prepare(
     `UPDATE devices SET hostname=?, device_type=?, manufacturer=?, model=?, serial_number=?, os=?, cpu=?,
        ram_gb=?, storage_gb=?, location=?, assigned_to=?, purchase_date=?, warranty_until=?,
-       status=?, notes=?, updated_at=datetime('now')
+       status=?, notes=?, anydesk_id=?, anydesk_id_locked=?, updated_at=datetime('now')
      WHERE id=? AND tenant_id=?`
   ).bind(
     body.hostname?.trim(), body.device_type || 'desktop',
@@ -328,6 +328,8 @@ async function handleDeviceUpdate(id: number, req: Request, env: Env, sess: Sess
     body.location || null, body.assigned_to || null,
     body.purchase_date || null, body.warranty_until || null,
     body.status || 'active', body.notes || null,
+    (body.anydesk_id || '').toString().trim() || null,
+    body.anydesk_id_locked ? 1 : 0,
     id, sess.tenant_id
   ).run();
   await logAudit(env, sess, 'update', 'device', id, body, req.headers.get('CF-Connecting-IP'));
@@ -752,6 +754,13 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
     `UPDATE devices SET agent_status='online', agent_last_seen=datetime('now'),
        ip_address=COALESCE(?,ip_address), updated_at=datetime('now') WHERE id=?`
   ).bind(body.ip_internal || null, agent.device_id).run();
+
+  // v0.5.12: AnyDesk ID — only update if not manually locked by admin
+  if (body.anydesk_id && typeof body.anydesk_id === 'string' && body.anydesk_id.trim()) {
+    await env.DB.prepare(
+      `UPDATE devices SET anydesk_id = ? WHERE id = ? AND COALESCE(anydesk_id_locked, 0) = 0`
+    ).bind(body.anydesk_id.trim(), agent.device_id).run();
+  }
 
   // v0.5.3: parse agent version from User-Agent header (HasiCockpitAgent/X.Y.Z)
   const uaHeader = req.headers.get('User-Agent') || '';
@@ -2183,7 +2192,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.11', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.12', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
