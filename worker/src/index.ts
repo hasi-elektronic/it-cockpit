@@ -1135,6 +1135,228 @@ Write-Host ""
 }
 
 // ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
+async function handleBulkInstallPs1(slug: string, req: Request, env: Env): Promise<Response> {
+  const t = await env.DB.prepare(
+    `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+
+  if (!t || t.status !== 'active' || !t.install_enabled) {
+    return new Response(
+      `Write-Host "FEHLER: Tenant '${slug}' nicht verfuegbar" -ForegroundColor Red\r\nRead-Host "Druecken Sie Enter zum Schliessen"\r\n`,
+      { status: 200, headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="hasi-install-${slug}.ps1"` } }
+    );
+  }
+
+  const url = new URL(req.url);
+  const apiUrl = `${url.origin}/api`;
+  const cockpitUrl = url.origin.replace('-api.hguencavdi.workers.dev', '.pages.dev');
+
+  // Self-contained .ps1 — fancy output, self-elevate, full install
+  const ps1 = `# ============================================================
+# Hasi IT-Cockpit Installer
+# Mandant: ${t.name}
+# Datei: hasi-install-${slug}.ps1
+# Rechtsklick -> "Mit PowerShell ausfuehren"  ODER  Doppelklick
+# ============================================================
+
+# Self-elevate if not already Admin
+$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host ""
+    Write-Host "  Administrator-Rechte werden angefordert..." -ForegroundColor Yellow
+    Write-Host ""
+    $scriptPath = $MyInvocation.MyCommand.Path
+    if ($scriptPath) {
+        Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File \\"$scriptPath\\""
+    } else {
+        # Wenn ueber Web ausgefuehrt (irm | iex), re-fetch und re-execute as Admin
+        Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command \\"irm '${apiUrl}/install/${slug}.ps1' | iex\\""
+    }
+    exit
+}
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+
+# Fenster-Titel + Farben
+$Host.UI.RawUI.WindowTitle = "Hasi IT-Cockpit Installer — ${t.name}"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+function Write-Banner {
+    Write-Host ""
+    Write-Host "  ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "  ║" -NoNewline -ForegroundColor Cyan
+    Write-Host "  HASI IT-COCKPIT                                            " -NoNewline -ForegroundColor White
+    Write-Host "║" -ForegroundColor Cyan
+    Write-Host "  ║" -NoNewline -ForegroundColor Cyan
+    Write-Host "  Mandant: ${t.name.padEnd(54)}" -NoNewline -ForegroundColor Gray
+    Write-Host "║" -ForegroundColor Cyan
+    Write-Host "  ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Step($num, $total, $msg) {
+    $padded = "[$num/$total]"
+    Write-Host "  $padded " -NoNewline -ForegroundColor Cyan
+    Write-Host $msg -ForegroundColor White
+}
+
+function OK($msg) {
+    Write-Host "        ✓ " -NoNewline -ForegroundColor Green
+    Write-Host $msg -ForegroundColor Gray
+}
+
+function Fail($msg) {
+    Write-Host ""
+    Write-Host "  ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Red
+    Write-Host "  ║  ✗ INSTALLATION FEHLGESCHLAGEN                               ║" -ForegroundColor Red
+    Write-Host "  ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Fehler: $msg" -ForegroundColor Yellow
+    Write-Host ""
+    Read-Host "  Druecken Sie Enter zum Schliessen"
+    exit 1
+}
+
+Clear-Host
+Write-Banner
+
+$hostname   = $env:COMPUTERNAME
+$apiUrl     = "${apiUrl}"
+$bulkToken  = "${t.install_token || ''}"
+$installDir = "C:\\Program Files\\HasiCockpit"
+$exePath    = "$installDir\\hasi-agent.exe"
+$configPath = "$installDir\\config.json"
+$statePath  = "$installDir\\state.json"
+$taskName   = "HasiCockpitAgent"
+
+Write-Host "  Hostname:  " -NoNewline -ForegroundColor Gray
+Write-Host $hostname -ForegroundColor White
+Write-Host "  Benutzer:  " -NoNewline -ForegroundColor Gray
+Write-Host $env:USERNAME -ForegroundColor White
+Write-Host ""
+
+# Step 1: Stop existing agent
+Step 1 6 "Pruefe bestehenden Agent..."
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($existingTask) {
+    try { Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue } catch {}
+    OK "Vorhandener Task gestoppt"
+}
+$procs = Get-Process hasi-agent -ErrorAction SilentlyContinue
+if ($procs) {
+    $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+    OK "Laufende Prozesse beendet"
+}
+Start-Sleep -Seconds 2
+
+# Step 2: Create install directory
+Step 2 6 "Erstelle Installations-Verzeichnis..."
+if (-not (Test-Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+}
+OK $installDir
+
+# Step 3: Download latest agent
+Step 3 6 "Lade neueste Agent-Version herunter..."
+$binaryUrl = "${url.origin}/agent-binary/hasi-agent-windows-amd64.exe"
+try {
+    Invoke-WebRequest -Uri $binaryUrl -OutFile $exePath -UseBasicParsing
+    $size = [math]::Round(((Get-Item $exePath).Length / 1MB), 1)
+    OK "$size MB heruntergeladen"
+} catch {
+    Fail "Download fehlgeschlagen: $_"
+}
+
+# Step 4: Bulk enroll
+Step 4 6 "Registriere Geraet '$hostname'..."
+try {
+    $mac = $null
+    try { $mac = (Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | Select-Object -First 1).MacAddress } catch {}
+    $mfg = (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer
+    $model = (Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Model
+    $body = @{
+        bulk_token = $bulkToken
+        hostname = $hostname
+        os_platform = "windows"
+        mac_address = $mac
+        manufacturer = $mfg
+        model = $model
+    } | ConvertTo-Json
+    $enrollResp = Invoke-RestMethod -Uri "$apiUrl/agent/bulk-enroll" -Method POST -Body $body -ContentType "application/json"
+    OK "Device ID: $($enrollResp.device_id) ($($enrollResp.action))"
+} catch {
+    Fail "Enrollment fehlgeschlagen: $_"
+}
+
+# Step 5: Write config
+Step 5 6 "Schreibe Konfiguration..."
+$config = @{
+    api_url = $apiUrl
+    agent_token = $enrollResp.agent_token
+    heartbeat_interval_seconds = 900
+} | ConvertTo-Json -Compress
+Set-Content -Path $configPath -Value $config -Encoding UTF8
+$state = @{ device_id = $enrollResp.device_id } | ConvertTo-Json -Compress
+Set-Content -Path $statePath -Value $state -Encoding UTF8
+OK "config.json + state.json geschrieben"
+
+# Step 6: Task Scheduler
+Step 6 6 "Konfiguriere Task Scheduler..."
+if ($existingTask) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+$action = New-ScheduledTaskAction -Execute $exePath
+$trigger1 = New-ScheduledTaskTrigger -AtStartup
+$trigger2 = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes 15)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet \`
+    -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries \`
+    -StartWhenAvailable -RunOnlyIfNetworkAvailable \`
+    -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1, $trigger2) \`
+    -Settings $settings -Principal $principal \`
+    -Description "Hasi IT-Cockpit Agent — alle 15 Min + bei Boot" -Force | Out-Null
+OK "Task '$taskName' eingerichtet (15-Min-Intervall)"
+
+# First heartbeat
+Write-Host ""
+Write-Host "  Sende ersten Heartbeat..." -ForegroundColor Cyan
+$hb = & $exePath --once 2>&1
+Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+
+# Success
+Write-Host ""
+Write-Host "  ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+Write-Host "  ║  ✓ INSTALLATION ABGESCHLOSSEN                                ║" -ForegroundColor Green
+Write-Host "  ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Hostname:    " -NoNewline -ForegroundColor Gray
+Write-Host $hostname -ForegroundColor White
+Write-Host "  Device ID:   " -NoNewline -ForegroundColor Gray
+Write-Host $enrollResp.device_id -ForegroundColor White
+Write-Host "  Status:      " -NoNewline -ForegroundColor Gray
+Write-Host $enrollResp.action -ForegroundColor White
+Write-Host "  Naechster:   " -NoNewline -ForegroundColor Gray
+Write-Host "automatisch in 15 Minuten" -ForegroundColor White
+Write-Host ""
+Write-Host "  Cockpit:     " -NoNewline -ForegroundColor Gray
+Write-Host "${cockpitUrl}" -ForegroundColor Cyan
+Write-Host ""
+Read-Host "  Druecken Sie Enter zum Schliessen"
+`;
+
+  return new Response(ps1.replace(/\r?\n/g, '\r\n'), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="hasi-install-${slug}.ps1"`,
+      'Cache-Control': 'no-cache',
+    }
+  });
+}
+
 async function handleBulkInstallBat(slug: string, req: Request, env: Env): Promise<Response> {
   // Tenant kontrolü
   const t = await env.DB.prepare(
@@ -1888,7 +2110,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.6', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.7', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -1906,6 +2128,9 @@ export default {
       // v0.5.6: .bat installer (double-click → Als Admin ausführen)
       const batMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\.bat$/);
       if (batMatch && m === 'GET') return handleBulkInstallBat(batMatch[1], req, env);
+      // v0.5.7: .ps1 installer (fancier — rechtsklick → "Mit PowerShell ausführen")
+      const ps1Match = path.match(/^\/api\/install\/([a-z0-9_-]+)\.ps1$/);
+      if (ps1Match && m === 'GET') return handleBulkInstallPs1(ps1Match[1], req, env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
