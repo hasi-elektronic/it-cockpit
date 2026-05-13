@@ -2215,6 +2215,49 @@ async function handleTenantCreate(req: Request, env: Env, sess: Session): Promis
   return json({ ok: true, id: r.meta.last_row_id });
 }
 
+// Layer 5: Token rotation for install_token (super-admin only)
+async function handleTenantRotateInstallToken(slug: string, req: Request, env: Env, sess: Session): Promise<Response> {
+  const err = requireSuperAdmin(sess); if (err) return err;
+
+  const tenant = await env.DB.prepare(
+    `SELECT id, slug, name, install_token, install_token_rotation_count FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+  if (!tenant) return jsonError('Tenant not found', 404);
+
+  // Generate new token + hash
+  const newToken = 'BULK-' + crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  const newHash = await sha256Hex(newToken);
+  const rotationCount = (tenant.install_token_rotation_count || 0) + 1;
+
+  await env.DB.prepare(`
+    UPDATE tenants
+    SET install_token = ?, install_token_hash = ?, install_token_hashed_at = datetime('now'),
+        install_token_rotated_at = datetime('now'), install_token_rotated_by = ?,
+        install_token_rotation_count = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).bind(newToken, newHash, sess.user_email, rotationCount, tenant.id).run();
+
+  // Invalidate cached .exe installer in R2 (force re-build on next download)
+  try {
+    await env.AGENTS.delete(`installers/hasi-install-${slug}.exe`);
+  } catch (e) {
+    console.warn('R2 installer delete failed:', e);
+  }
+
+  // Audit log
+  await logAudit(env, sess, 'rotate_install_token', 'tenant', tenant.id,
+    { slug, rotation_count: rotationCount }, req.headers.get('CF-Connecting-IP'));
+
+  return json({
+    ok: true,
+    tenant_slug: slug,
+    new_token: newToken,
+    rotation_count: rotationCount,
+    rotated_at: new Date().toISOString(),
+    warning: 'Old installer files (.exe, .bat, .ps1) on customer PCs will no longer work. Re-distribute the new installer.',
+  });
+}
+
 async function handleTenantUpdate(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
   const err = requireSuperAdmin(sess); if (err) return err;
   const body = await req.json<any>();
@@ -2273,7 +2316,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.6', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.7', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2314,6 +2357,29 @@ export default {
         }
         const r = await runDailyBackup(env.DB, env.AGENTS);
         return json(r);
+      }
+
+      // v0.6.7: Bootstrap password reset (secret-protected — for ops recovery)
+      // Allows resetting any user's password without knowing current credentials.
+      // Protected by BACKUP_SECRET (same secret as backup trigger).
+      if (path === '/api/admin/bootstrap/reset-password' && m === 'POST') {
+        const url = new URL(req.url);
+        const secret = url.searchParams.get('secret') || req.headers.get('X-Admin-Secret');
+        if (!secret || !env.BACKUP_SECRET || secret !== env.BACKUP_SECRET) {
+          return jsonError('Bootstrap secret invalid', 403);
+        }
+        const body = await req.json<any>().catch(() => null);
+        if (!body || !body.tenant || !body.email || !body.password) {
+          return jsonError('tenant + email + password required', 400);
+        }
+        const t = await env.DB.prepare(`SELECT id FROM tenants WHERE slug = ?`).bind(body.tenant).first<any>();
+        if (!t) return jsonError('Tenant not found', 404);
+        const u = await env.DB.prepare(`SELECT id, pw_salt FROM users WHERE tenant_id = ? AND email = ?`).bind(t.id, body.email).first<any>();
+        if (!u) return jsonError('User not found', 404);
+        const salt = u.pw_salt || env.PW_SALT;
+        const hash = await hashPassword(String(body.password), salt);
+        await env.DB.prepare(`UPDATE users SET pw_hash = ?, active = 1 WHERE id = ?`).bind(hash, u.id).run();
+        return json({ ok: true, user_id: u.id });
       }
 
       const sess = await authenticate(req, env);
@@ -2401,6 +2467,9 @@ export default {
       if (path === '/api/tenants' && m === 'GET') return handleTenantsList(req, env, sess);
       if (path === '/api/tenants' && m === 'POST') return handleTenantCreate(req, env, sess);
       if (path === '/api/tenants/switch' && m === 'POST') return handleTenantSwitch(req, env, sess);
+      // v0.6.7: Token rotation (super-admin)
+      const rotMatch = path.match(/^\/api\/tenants\/([a-z0-9-]+)\/rotate-install-token$/);
+      if (rotMatch && m === 'POST') return handleTenantRotateInstallToken(rotMatch[1], req, env, sess);
       mt = path.match(/^\/api\/tenants\/(\d+)$/);
       if (mt && m === 'PUT') return handleTenantUpdate(Number(mt[1]), req, env, sess);
       if (mt && m === 'DELETE') return handleTenantDelete(Number(mt[1]), req, env, sess);

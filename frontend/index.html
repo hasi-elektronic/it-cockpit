@@ -2122,6 +2122,30 @@ tailwind.config = {
             <p>Beim 1. Heartbeat (alle 15 Min) erscheint das Geraet automatisch im Geraete-Listing. Hostname-Konflikte werden case-insensitive aufgeloest (HGUENCAVDI = hguencavdi).</p>
           </div>
 
+          <div v-if="session.role === 'super_admin'" class="mt-4 border border-red-200 bg-red-50 rounded-lg overflow-hidden">
+            <div class="px-4 py-2 bg-red-100 border-b border-red-200">
+              <h4 class="font-medium text-red-900">Sicherheit: Token rotieren</h4>
+            </div>
+            <div class="p-4 space-y-3 text-sm text-red-900">
+              <p>
+                Bei Verdacht auf Token-Leak (verlorene USB, kompromittiertes Geraet, Mitarbeiter-Wechsel) hier ein neues Token generieren.
+                <strong>Alle vorhandenen Installer (.exe, .bat, .ps1) werden ungueltig.</strong>
+              </p>
+              <div v-if="rotateResult" class="bg-emerald-50 border border-emerald-200 rounded p-3 space-y-2">
+                <p class="text-emerald-900 font-medium">Token rotiert (Rotation #{{ rotateResult.rotation_count }})</p>
+                <div class="flex items-center gap-2">
+                  <code class="flex-1 text-xs font-mono text-slate-700 break-all">{{ rotateResult.new_token }}</code>
+                  <button @click="copyToClipboard(rotateResult.new_token)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded">Kopieren</button>
+                </div>
+                <p class="text-xs text-emerald-800">Neuer Installer ist sofort unter /api/install/{{ installTenant?.slug }}.exe verfuegbar.</p>
+              </div>
+              <button @click="rotateInstallToken" :disabled="rotating"
+                class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-medium rounded">
+                {{ rotating ? 'Rotiere...' : 'Install-Token jetzt rotieren' }}
+              </button>
+            </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button @click="installModalOpen=false" class="btn-secondary">Schliessen</button>
@@ -2186,6 +2210,8 @@ createApp({
       tenantSaving: false,
       installModalOpen: false,
       installTenant: null,
+      rotating: false,
+      rotateResult: null,
       generatingReport: false,
       psTemplates: [
         { label: 'Disk-Auslastung', script: "Get-WmiObject -Class Win32_LogicalDisk | Where-Object DriveType -eq 3 | Select-Object DeviceID, @{N='Size(GB)';E={[math]::Round($_.Size/1GB,1)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpace/1GB,1)}}, @{N='Free%';E={[math]::Round($_.FreeSpace/$_.Size*100,1)}} | Format-Table" },
@@ -2712,7 +2738,24 @@ createApp({
     },
     showInstallModal(t) {
       this.installTenant = t;
+      this.rotateResult = null;
       this.installModalOpen = true;
+    },
+    async rotateInstallToken() {
+      if (!this.installTenant) return;
+      const tenantName = this.installTenant.name || this.installTenant.slug;
+      if (!confirm(`WIRKLICH den Install-Token fuer "${tenantName}" rotieren?\n\nAlle bestehenden .exe/.bat/.ps1 Installer werden ungueltig.\nKunden muessen den neuen Installer erneut herunterladen.`)) return;
+      this.rotating = true;
+      this.rotateResult = null;
+      try {
+        const r = await this.api(`/api/tenants/${this.installTenant.slug}/rotate-install-token`, { method: 'POST' });
+        this.rotateResult = r;
+        this.toast(`Token rotiert (Rotation #${r.rotation_count}). Neuer Installer ist live.`, 'success');
+      } catch (e) {
+        this.toast('Rotation fehlgeschlagen: ' + (e.message || e), 'error');
+      } finally {
+        this.rotating = false;
+      }
     },
     installUrl(slug, ext) {
       if (!slug) return '';
