@@ -8,6 +8,7 @@ import { generateMonthlyReports } from './monthly_report';
 import { rlCheck, kvCheck, rateLimitResponse, getClientIp, RateLimitBinding } from './ratelimit';
 import { sha256Hex, findAgentByToken, findTenantByInstallToken, findAgentByEnrollToken } from './tokens';
 import { runDailyBackup } from './backup';
+import { logError } from './error_logger';
 import {
   LoginSchema,
   AgentRegisterSchema,
@@ -32,6 +33,8 @@ export interface Env {
   BROWSER_RENDERING_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   BACKUP_SECRET?: string;
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
 }
 
 interface Session {
@@ -2347,7 +2350,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.8', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.9', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2432,6 +2435,49 @@ export default {
         } while (cursor);
         items.sort((a, b) => b.key.localeCompare(a.key));
         return json({ backups: items });
+      }
+
+      // v0.6.9 — Layer 7: Error log access (super-admin)
+      if (path === '/api/admin/errors' && m === 'GET') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const url = new URL(req.url);
+        const level = url.searchParams.get('level');  // optional filter
+        const limit = Math.min(Number(url.searchParams.get('limit') || 100), 500);
+        const sql = level
+          ? `SELECT id, created_at, level, source, message, path, method, status_code, request_id, ip
+             FROM error_log WHERE level = ? ORDER BY id DESC LIMIT ?`
+          : `SELECT id, created_at, level, source, message, path, method, status_code, request_id, ip
+             FROM error_log ORDER BY id DESC LIMIT ?`;
+        const q = level
+          ? env.DB.prepare(sql).bind(level, limit)
+          : env.DB.prepare(sql).bind(limit);
+        const r = await q.all<any>();
+        return json({ errors: r.results || [], count: (r.results || []).length });
+      }
+
+      // Error log self-test (super-admin only)
+      if (path === '/api/admin/errors/_test' && m === 'POST') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const url = new URL(req.url);
+        const level = (url.searchParams.get('level') || 'error') as any;
+        await logError(env, 'admin._test', new Error('Simulated test error (no real failure)'), {
+          request: req,
+          level,
+          statusCode: 200,
+          extra: { simulated: true, triggered_by: sess.user_email },
+        });
+        return json({ ok: true, message: 'Error logged with level=' + level });
+      }
+
+      // Single error detail (super-admin)
+      const errMatch = path.match(/^\/api\/admin\/errors\/(\d+)$/);
+      if (errMatch && m === 'GET') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const row = await env.DB.prepare(
+          `SELECT * FROM error_log WHERE id = ?`
+        ).bind(Number(errMatch[1])).first<any>();
+        if (!row) return jsonError('Not Found', 404);
+        return json(row);
       }
 
       if (path === '/api/stats') return handleStats(req, env, sess);
@@ -2522,6 +2568,14 @@ export default {
       return jsonError('Not Found', 404);
     } catch(e: any) {
       console.error(e);
+      // Layer 7: structured error logging to D1 + Telegram alert for 500s
+      try {
+        await logError(env, 'worker.fetch', e, {
+          request: req,
+          level: 'critical',
+          statusCode: 500,
+        });
+      } catch {}
       return jsonError(e.message || 'Internal error', 500);
     }
   },
@@ -2550,6 +2604,9 @@ export default {
       }
     } catch (e: any) {
       console.error(`[cron] error:`, e.message || e);
+      try {
+        await logError(env, `cron.${event.cron}`, e, { level: 'critical' });
+      } catch {}
     }
   }
 };
