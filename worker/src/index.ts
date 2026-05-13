@@ -5,13 +5,18 @@
 
 import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
 import { generateMonthlyReports } from './monthly_report';
-import { checkRateLimit, rateLimitResponse, getClientIp } from './ratelimit';
+import { rlCheck, rateLimitResponse, getClientIp, RateLimitBinding } from './ratelimit';
 import { sha256Hex, findAgentByToken, findTenantByInstallToken, findAgentByEnrollToken } from './tokens';
+import { runDailyBackup } from './backup';
 
 export interface Env {
   DB: D1Database;
   AGENTS: R2Bucket;
-  RATELIMIT: KVNamespace;
+  RL_LOGIN: RateLimitBinding;
+  RL_REGISTER: RateLimitBinding;
+  RL_BULK_ENROLL: RateLimitBinding;
+  RL_INSTALL: RateLimitBinding;
+  RL_HEARTBEAT: RateLimitBinding;
   PW_SALT: string;
   TOKEN_SECRET: string;
   RESEND_API_KEY?: string;
@@ -101,10 +106,9 @@ async function logAudit(env: Env, sess: Session, action: string, entity: string,
 
 // ============== AUTH ==============
 async function handleLogin(req: Request, env: Env): Promise<Response> {
-  // Brute force protection — 10 / 10 min per IP
+  // Brute force protection — 10 / min per IP (per CF location)
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'login', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_LOGIN, ip))) return rateLimitResponse();
 
   const { tenant, email, password } = await req.json<any>();
   if (!tenant || !email || !password) return jsonError('tenant, email, password erforderlich');
@@ -618,8 +622,7 @@ async function handleAgentRevoke(id: number, req: Request, env: Env, sess: Sessi
 // ============== AGENT-FACING (public) ==============
 async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
   const ipForRl = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'register', ipForRl);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_REGISTER, ipForRl))) return rateLimitResponse();
 
   const body = await req.json<any>();
   if (!body.enroll_token || !body.hostname) return jsonError('enroll_token + hostname erforderlich');
@@ -735,6 +738,11 @@ function computeSecurityScore(s: any): number {
 async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
   const agentTokenHdr = req.headers.get('X-Agent-Token');
   if (!agentTokenHdr) return jsonError('X-Agent-Token header erforderlich', 401);
+
+  // Per-token rate limit — 12/min ~= 1 heartbeat per 5 seconds avg.
+  // Protects against a single mis-configured agent hammering the API
+  // (e.g. heartbeat loop bug, infinite retry on connection failure).
+  if (!(await rlCheck(env.RL_HEARTBEAT, `tok:${agentTokenHdr}`))) return rateLimitResponse();
 
   const agent = await findAgentByToken(env.DB, agentTokenHdr);
   if (!agent) return jsonError('Invalid agent token', 401);
@@ -1156,8 +1164,7 @@ Write-Host ""
 // ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
 async function handleBulkInstallPs1(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
 
   const t = await env.DB.prepare(
     `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
@@ -1429,8 +1436,7 @@ Read-Host "  Druecken Sie Enter zum Schliessen"
 
 async function handleBulkInstallBat(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
 
   // Tenant kontrolü
   const t = await env.DB.prepare(
@@ -1526,8 +1532,7 @@ pause >nul
 
 async function handleBulkInstall(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'install-script', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
 
   // Tenant'ı bul + install enabled mi
   const t = await env.DB.prepare(
@@ -1685,10 +1690,9 @@ Write-Host ""
 }
 
 async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
-  // Rate limit by IP (anonymous endpoint, accepts arbitrary bulk_token)
+  // Rate limit by IP — 30/min per CF location (NAT-friendly for Sickinger 30 PC bulk install)
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'bulk-enroll', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_BULK_ENROLL, ip))) return rateLimitResponse();
 
   const body = await req.json<any>();
   const bulkToken = String(body.bulk_token || '');
@@ -1796,8 +1800,7 @@ async function handleAgentBinary(filename: string, env: Env): Promise<Response> 
 // v0.5.10: Standalone installer .exe (per tenant, baked-in token)
 async function handleInstallerExe(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
 
   // Verify tenant exists + install enabled (security check)
   const t = await env.DB.prepare(
@@ -2225,7 +2228,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.1', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.2', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2346,7 +2349,7 @@ export default {
     }
   },
 
-  // ============== CRON: alert evaluator (every 15 min) + monthly report (1st of month, 09:00) ==============
+  // ============== CRON: alert (15min) + backup (03:00) + monthly (1st 09:00) ==============
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const cron = event.cron;
     console.log(`[cron] triggered: ${cron} at ${new Date().toISOString()}`);
@@ -2359,6 +2362,10 @@ export default {
         } else {
           console.warn('[cron] monthly report skipped — missing BROWSER_RENDERING_TOKEN/CF_ACCOUNT_ID/RESEND_API_KEY');
         }
+      } else if (cron === '0 3 * * *') {
+        // Daily D1 backup → R2
+        const b = await runDailyBackup(env.DB, env.AGENTS);
+        console.log('[cron] backup result:', JSON.stringify(b));
       } else {
         // Default: */15 * * * * → alert evaluator
         const result = await evaluateAlerts(env);

@@ -11,13 +11,42 @@ database_id = "REPLACE_AFTER_D1_CREATE"
 binding = "AGENTS"
 bucket_name = "hasi-agent-binaries"
 
-[[kv_namespaces]]
-binding = "RATELIMIT"
-id = "9a868bfa0c824d449c39946108eae6f9"
+# Native Workers Rate Limit Bindings (per-Cloudflare-location, 0ms latency, free)
+# 5 separate bindings = 5 isolated namespaces, distinct counters per bucket.
 
-# Cron triggers: alert evaluator every 15 min
+[[unsafe.bindings]]
+name = "RL_LOGIN"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_REGISTER"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 20, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_BULK_ENROLL"
+type = "ratelimit"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_INSTALL"
+type = "ratelimit"
+namespace_id = "1004"
+simple = { limit = 60, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_HEARTBEAT"
+type = "ratelimit"
+namespace_id = "1005"
+simple = { limit = 12, period = 60 }
+
+# Cron triggers: alert evaluator every 15 min, daily backup at 03:00 UTC, monthly report 1st @ 09:00
 [triggers]
-crons = ["*/15 * * * *", "0 9 1 * *"]
+crons = ["*/15 * * * *", "0 3 * * *", "0 9 1 * *"]
 
 # Secrets (mit wrangler secret put):
 #   PW_SALT       — z.B. langer Random-String, z.B. 64 Zeichen
