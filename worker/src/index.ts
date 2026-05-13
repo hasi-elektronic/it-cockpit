@@ -186,6 +186,158 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
   return json(session);
 }
 
+// Super-admin: cross-tenant overview — health summary + critical PCs per Mandant
+async function handleAdminOverview(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+
+  // 1. All tenants
+  const tenants = await env.DB.prepare(`
+    SELECT id, slug, name, plan, status, device_quota, monthly_fee
+    FROM tenants
+    WHERE status = 'active'
+    ORDER BY name
+  `).all<any>();
+
+  const result: any[] = [];
+  const latest = await env.DB.prepare(
+    `SELECT version FROM agent_versions WHERE platform='windows' AND is_latest=1 LIMIT 1`
+  ).first<any>();
+  const latestVersion = latest?.version || null;
+
+  for (const t of (tenants.results || [])) {
+    // Device count + agent status aggregates
+    const stats = await env.DB.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN d.agent_status='online' THEN 1 ELSE 0 END) AS online,
+        SUM(CASE WHEN d.agent_status='offline' OR d.agent_status='no_agent' OR d.agent_status IS NULL THEN 1 ELSE 0 END) AS offline,
+        SUM(CASE WHEN a.last_seen IS NULL THEN 1 ELSE 0 END) AS never_seen
+      FROM devices d
+      LEFT JOIN agents a ON a.device_id = d.id AND a.status = 'active'
+      WHERE d.tenant_id = ?
+    `).bind(t.id).first<any>();
+
+    // Telemetry-based aggregates (latest row per device)
+    const telemStats = await env.DB.prepare(`
+      SELECT
+        SUM(CASE WHEN dt.disk_c_free_gb < 10 THEN 1 ELSE 0 END) AS low_disk
+      FROM devices d
+      JOIN device_telemetry dt ON dt.device_id = d.id
+      WHERE d.tenant_id = ?
+        AND dt.id IN (
+          SELECT MAX(id) FROM device_telemetry GROUP BY device_id
+        )
+    `).bind(t.id).first<any>();
+
+    // Outdated agent count
+    const outdated = latestVersion ? await env.DB.prepare(`
+      SELECT COUNT(*) AS cnt
+      FROM agents a
+      JOIN devices d ON d.id = a.device_id
+      WHERE d.tenant_id = ? AND a.status='active' AND a.agent_version != ?
+    `).bind(t.id, latestVersion).first<any>() : { cnt: 0 };
+
+    // Critical problem list — top 5 worst PCs
+    const problems: any[] = [];
+
+    // Offline > 1h
+    const offlineRows = await env.DB.prepare(`
+      SELECT d.hostname, a.last_seen,
+             CAST((julianday('now') - julianday(a.last_seen)) * 24 AS INTEGER) AS hours_offline
+      FROM devices d
+      JOIN agents a ON a.device_id = d.id
+      WHERE d.tenant_id = ? AND a.status='active'
+        AND a.last_seen IS NOT NULL
+        AND julianday('now') - julianday(a.last_seen) > 0.0417  -- > 1h
+      ORDER BY a.last_seen ASC
+      LIMIT 5
+    `).bind(t.id).all<any>();
+    for (const r of (offlineRows.results || [])) {
+      problems.push({
+        kind: 'offline',
+        severity: r.hours_offline > 24 ? 'critical' : 'warning',
+        hostname: r.hostname,
+        message: `Offline seit ${r.hours_offline}h`,
+      });
+    }
+
+    // Never seen
+    const neverRows = await env.DB.prepare(`
+      SELECT d.hostname
+      FROM devices d
+      JOIN agents a ON a.device_id = d.id
+      WHERE d.tenant_id = ? AND a.status='active' AND a.last_seen IS NULL
+      LIMIT 3
+    `).bind(t.id).all<any>();
+    for (const r of (neverRows.results || [])) {
+      problems.push({
+        kind: 'never_seen',
+        severity: 'critical',
+        hostname: r.hostname,
+        message: 'Noch nie online gewesen',
+      });
+    }
+
+    // Low disk (from latest telemetry)
+    const diskRows = await env.DB.prepare(`
+      SELECT d.hostname, dt.disk_c_free_gb
+      FROM devices d
+      JOIN device_telemetry dt ON dt.device_id = d.id
+      WHERE d.tenant_id = ?
+        AND dt.disk_c_free_gb IS NOT NULL AND dt.disk_c_free_gb < 10
+        AND dt.id IN (SELECT MAX(id) FROM device_telemetry GROUP BY device_id)
+      ORDER BY dt.disk_c_free_gb ASC
+      LIMIT 3
+    `).bind(t.id).all<any>();
+    for (const r of (diskRows.results || [])) {
+      problems.push({
+        kind: 'low_disk',
+        severity: 'warning',
+        hostname: r.hostname,
+        message: `Nur ${Math.round(r.disk_c_free_gb)} GB frei auf C:`,
+      });
+    }
+
+    // Determine overall card status
+    const hasCritical = problems.some(p => p.severity === 'critical');
+    const hasWarning = problems.some(p => p.severity === 'warning');
+    const statusLabel = hasCritical ? 'critical' : hasWarning ? 'warning' : 'ok';
+
+    result.push({
+      tenant: {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        plan: t.plan,
+        device_quota: t.device_quota,
+        monthly_fee: t.monthly_fee || 0,
+      },
+      stats: {
+        total: stats?.total || 0,
+        online: stats?.online || 0,
+        offline: stats?.offline || 0,
+        never_seen: stats?.never_seen || 0,
+        outdated_agents: outdated?.cnt || 0,
+        low_disk: telemStats?.low_disk || 0,
+      },
+      problems: problems.slice(0, 6),  // top 6 worst
+      status: statusLabel,
+    });
+  }
+
+  // Sort: critical first, then warning, then ok
+  result.sort((a, b) => {
+    const order = { critical: 0, warning: 1, ok: 2 };
+    return (order[a.status] ?? 99) - (order[b.status] ?? 99);
+  });
+
+  return json({
+    mandanten: result,
+    latest_agent_version: latestVersion,
+    generated_at: new Date().toISOString(),
+  });
+}
+
 async function handleStats(req: Request, env: Env, sess: Session): Promise<Response> {
   const d = await env.DB.prepare(
     "SELECT COUNT(*) as total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active, " +
@@ -2384,7 +2536,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.7.0', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.7.1', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2589,6 +2741,8 @@ export default {
       }
 
       if (path === '/api/stats') return handleStats(req, env, sess);
+      // v0.7.1: super-admin cross-tenant overview
+      if (path === '/api/admin/overview' && m === 'GET') return handleAdminOverview(req, env, sess);
       if (path === '/api/dashboard') return handleDashboard(req, env, sess);
       if (path === '/api/audit' && m === 'GET') return handleAuditList(req, env, sess);
 

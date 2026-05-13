@@ -477,6 +477,109 @@ tailwind.config = {
 
         <!-- ============== OVERVIEW ============== -->
         <div v-if="page==='overview'">
+          <!-- v0.7.1: Super-admin cross-tenant overview -->
+          <div v-if="session.role === 'super_admin' && adminOverview">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-xl font-semibold text-slate-900">Alle Mandanten</h2>
+                <p class="text-sm text-slate-500 mt-1">
+                  {{ adminOverview.mandanten.length }} Mandanten ·
+                  {{ adminTotalDevices }} Geräte ·
+                  <span v-if="adminCriticalCount > 0" class="text-rose-600 font-medium">{{ adminCriticalCount }} brauchen Aufmerksamkeit</span>
+                  <span v-else class="text-emerald-600 font-medium">Alles in Ordnung</span>
+                </p>
+              </div>
+              <button @click="loadAdminOverview()" class="px-3 py-1.5 text-sm rounded border border-slate-300 hover:bg-slate-50">🔄 Aktualisieren</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <div v-for="m in adminOverview.mandanten" :key="m.tenant.slug"
+                   @click="impersonateTenant(m.tenant.slug)"
+                   class="bg-white rounded-xl border border-slate-200 hover:border-cyan-400 hover:shadow-md transition cursor-pointer p-5">
+                <!-- Card header -->
+                <div class="flex items-start justify-between mb-3">
+                  <div>
+                    <div class="font-semibold text-slate-900">{{ m.tenant.name }}</div>
+                    <div class="text-xs text-slate-500 mt-0.5">
+                      {{ m.tenant.slug }} · {{ m.tenant.plan }} · {{ m.tenant.device_quota }} PC Kontingent
+                    </div>
+                  </div>
+                  <span :class="[
+                    'text-xs px-2 py-1 rounded font-medium',
+                    m.status === 'critical' ? 'bg-rose-100 text-rose-700' :
+                    m.status === 'warning'  ? 'bg-amber-100 text-amber-700' :
+                                              'bg-emerald-100 text-emerald-700'
+                  ]">
+                    {{ m.status === 'critical' ? m.problems.length + ' KRITISCH' :
+                       m.status === 'warning'  ? m.problems.length + ' WARNUNGEN' :
+                                                 'OK' }}
+                  </span>
+                </div>
+
+                <!-- Metric grid -->
+                <div class="grid grid-cols-4 gap-2 mb-3">
+                  <div class="bg-slate-50 rounded p-2">
+                    <div class="text-[10px] text-slate-500 uppercase">Total</div>
+                    <div class="text-xl font-bold text-slate-900">{{ m.stats.total }}</div>
+                  </div>
+                  <div class="bg-emerald-50 rounded p-2">
+                    <div class="text-[10px] text-emerald-700 uppercase">Online</div>
+                    <div class="text-xl font-bold text-emerald-700">{{ m.stats.online }}</div>
+                  </div>
+                  <div class="bg-amber-50 rounded p-2" :class="m.stats.outdated_agents > 0 ? '' : 'opacity-50'">
+                    <div class="text-[10px] text-amber-700 uppercase">Update</div>
+                    <div class="text-xl font-bold text-amber-700">{{ m.stats.outdated_agents }}</div>
+                  </div>
+                  <div class="bg-rose-50 rounded p-2" :class="(m.stats.offline + m.stats.never_seen) > 0 ? '' : 'opacity-50'">
+                    <div class="text-[10px] text-rose-700 uppercase">Offline</div>
+                    <div class="text-xl font-bold text-rose-700">{{ m.stats.offline + m.stats.never_seen }}</div>
+                  </div>
+                </div>
+
+                <!-- Problems list -->
+                <div v-if="m.problems.length > 0" class="border-t border-slate-100 pt-3">
+                  <div class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Probleme</div>
+                  <div class="space-y-1">
+                    <div v-for="(p, i) in m.problems" :key="i" class="flex items-center gap-2 text-sm">
+                      <span :class="[
+                        'inline-block w-2 h-2 rounded-full flex-shrink-0',
+                        p.severity === 'critical' ? 'bg-rose-500' :
+                        p.severity === 'warning'  ? 'bg-amber-500' : 'bg-blue-400'
+                      ]"></span>
+                      <span class="font-medium text-slate-700 truncate">{{ p.hostname }}</span>
+                      <span class="text-xs text-slate-500 ml-auto">{{ p.message }}</span>
+                    </div>
+                    <div v-if="m.stats.outdated_agents > 0" class="flex items-center gap-2 text-sm">
+                      <span class="inline-block w-2 h-2 rounded-full flex-shrink-0 bg-amber-500"></span>
+                      <span class="font-medium text-slate-700">{{ m.stats.outdated_agents }}x Agent veraltet</span>
+                      <span class="text-xs text-slate-500 ml-auto">auf v{{ adminOverview.latest_agent_version }} update</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="m.stats.outdated_agents === 0" class="border-t border-slate-100 pt-3 text-sm text-slate-500">
+                  Keine offenen Probleme.
+                </div>
+                <div v-else class="border-t border-slate-100 pt-3">
+                  <div class="text-sm flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span class="text-slate-700">{{ m.stats.outdated_agents }}x Agent veraltet</span>
+                    <span class="text-xs text-slate-500 ml-auto">auf v{{ adminOverview.latest_agent_version }} update</span>
+                  </div>
+                </div>
+
+                <!-- Footer hint -->
+                <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-cyan-600 font-medium">
+                  Klicken für Detailansicht →
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center text-sm text-slate-400 mb-8">
+              Klick auf einen Mandanten wechselt zum Detail-View dieses Mandanten.
+            </div>
+          </div>
+
+          <!-- Bestehender Single-Tenant Overview (für admin/user) -->
           <!-- Top stats strip -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-white p-4 rounded-xl border border-slate-200">
@@ -2210,6 +2313,8 @@ createApp({
       tenantSaving: false,
       installModalOpen: false,
       installTenant: null,
+      adminOverview: null,
+      adminOverviewLoading: false,
       rotating: false,
       rotateResult: null,
       generatingReport: false,
@@ -2286,6 +2391,14 @@ createApp({
     },
     activeTenantCount() {
       return this.tenants.filter(t => t.status === 'active').length;
+    },
+    adminTotalDevices() {
+      if (!this.adminOverview) return 0;
+      return this.adminOverview.mandanten.reduce((s, m) => s + (m.stats.total || 0), 0);
+    },
+    adminCriticalCount() {
+      if (!this.adminOverview) return 0;
+      return this.adminOverview.mandanten.filter(m => m.status === 'critical').length;
     },
     filteredSoftware() {
       if (!this.softwareFilter) return this.detailSoftware;
@@ -2793,6 +2906,23 @@ createApp({
         this.toast('Fehler beim Wechseln: ' + e.message, 'error');
       }
     },
+    // v0.7.1: Admin overview — cross-tenant summary
+    async loadAdminOverview() {
+      if (this.session.role !== 'super_admin') return;
+      this.adminOverviewLoading = true;
+      try {
+        this.adminOverview = await this.api('/api/admin/overview');
+      } catch(e) {
+        console.warn('adminOverview load failed:', e);
+        this.adminOverview = null;
+      } finally {
+        this.adminOverviewLoading = false;
+      }
+    },
+    async impersonateTenant(slug) {
+      // Same as switchTenant — clicking a Mandant card jumps into its context
+      await this.switchTenant(slug);
+    },
     async saveSettings() {
       this.settingsSaving = true;
       try {
@@ -2911,9 +3041,10 @@ createApp({
         this.agents = agents.items || [];
         this.alertCount = alertCount;
         this.dashboard = dashboard;
-        // Super-admin: also load tenants
+        // Super-admin: also load tenants + cross-tenant overview
         if (this.session.role === 'super_admin') {
           await this.loadTenants();
+          await this.loadAdminOverview();
         }
       } catch(e) { this.toast(e.message, 'error'); }
     },
