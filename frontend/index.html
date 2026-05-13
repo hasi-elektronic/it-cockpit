@@ -2013,15 +2013,31 @@ tailwind.config = {
             <p>1. Eine der unten stehenden Methoden waehlen<br/>2. Mit Admin-Rechten ausfuehren<br/>3. Agent meldet sich automatisch im Cockpit an (Hostname-basiert)</p>
           </div>
 
+          <!-- Method 0: .exe (RECOMMENDED) -->
+          <div class="border-2 border-emerald-300 rounded-lg overflow-hidden">
+            <div class="bg-emerald-100 px-4 py-3">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 bg-emerald-600 text-white text-xs font-bold rounded">⭐ EMPFOHLEN</span>
+                <div class="font-medium text-emerald-900">.exe — Doppelklick</div>
+              </div>
+              <div class="text-xs text-emerald-700">Eigenstaendiges Programm (5 MB) · self-elevating · keine PowerShell-Probleme · USB-Stick-ready</div>
+            </div>
+            <div class="px-4 py-3 bg-emerald-50 flex items-center justify-between">
+              <code class="text-xs font-mono text-slate-700 flex-1 break-all">hasi-install-{{ installTenant?.slug }}.exe</code>
+              <a :href="installUrl(installTenant?.slug, 'exe')" :download="'hasi-install-' + installTenant?.slug + '.exe'"
+                 class="ml-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded font-medium whitespace-nowrap">⬇ Download .exe</a>
+            </div>
+          </div>
+
           <!-- Method 1: .bat -->
           <div class="border rounded-lg overflow-hidden">
-            <div class="bg-emerald-50 px-4 py-2 flex items-center justify-between">
+            <div class="bg-slate-50 px-4 py-2 flex items-center justify-between">
               <div>
-                <div class="font-medium text-emerald-900">⭐ Empfohlen: .bat (Doppelklick)</div>
-                <div class="text-xs text-emerald-700">Download, Rechtsklick → "Als Administrator ausführen"</div>
+                <div class="font-medium text-slate-900">.bat (Doppelklick)</div>
+                <div class="text-xs text-slate-600">Rechtsklick → "Als Administrator ausführen"</div>
               </div>
               <a :href="installUrl(installTenant?.slug, 'bat')" :download="'hasi-install-' + installTenant?.slug + '.bat'"
-                 class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded font-medium">⬇ Download</a>
+                 class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded font-medium">⬇ Download</a>
             </div>
             <div class="px-4 py-2 bg-slate-50 text-xs font-mono text-slate-600 break-all">{{ installUrl(installTenant?.slug, 'bat') }}</div>
           </div>
@@ -2918,3 +2934,4 @@ createApp({
 </body>
 </html>
 <!-- v0.5.8 install modal 1778659551 -->
+<!-- v0.5.10 exe installer 1778660496 -->

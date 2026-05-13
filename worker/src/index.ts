@@ -1755,6 +1755,30 @@ async function handleAgentBinary(filename: string, env: Env): Promise<Response> 
   });
 }
 
+// v0.5.10: Standalone installer .exe (per tenant, baked-in token)
+async function handleInstallerExe(slug: string, env: Env): Promise<Response> {
+  // Verify tenant exists + install enabled (security check)
+  const t = await env.DB.prepare(
+    `SELECT id, status, install_enabled FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+  if (!t || t.status !== 'active' || !t.install_enabled) {
+    return new Response('Installer not available for this tenant', { status: 404 });
+  }
+
+  const obj = await env.AGENTS.get(`installers/hasi-install-${slug}.exe`);
+  if (!obj) return new Response('Installer binary not built yet for this tenant', { status: 404 });
+
+  return new Response(obj.body, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="hasi-install-${slug}.exe"`,
+      'Cache-Control': 'no-cache',
+      'ETag': obj.httpEtag,
+      ...CORS_HEADERS,
+    }
+  });
+}
+
 // ============== ALERT MANAGEMENT ==============
 
 async function handleAlertsList(req: Request, env: Env, sess: Session): Promise<Response> {
@@ -2158,7 +2182,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.9', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.10', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2179,6 +2203,9 @@ export default {
       // v0.5.7: .ps1 installer (fancier — rechtsklick → "Mit PowerShell ausführen")
       const ps1Match = path.match(/^\/api\/install\/([a-z0-9_-]+)\.ps1$/);
       if (ps1Match && m === 'GET') return handleBulkInstallPs1(ps1Match[1], req, env);
+      // v0.5.10: Standalone .exe installer (recommended — double-click, self-elevating)
+      const exeMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\.exe$/);
+      if (exeMatch && m === 'GET') return handleInstallerExe(exeMatch[1], env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
