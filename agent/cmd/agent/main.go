@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.5.0"
+const AgentVersion = "0.5.2"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -145,13 +145,22 @@ type RegisterResponse struct {
 	HeartbeatIntervalSecond int    `json:"heartbeat_interval_seconds"`
 }
 
+type AVProductInfo struct {
+	Name         string `json:"name"`
+	Enabled      bool   `json:"enabled"`
+	UpToDate     bool   `json:"up_to_date"`
+	IsDefender   bool   `json:"is_defender"`
+	ProductState int64  `json:"product_state,omitempty"`
+}
+
 type SecurityStatus struct {
 	BitlockerEnabled    bool   `json:"bitlocker_enabled"`
 	BitlockerStatus     string `json:"bitlocker_status,omitempty"`
-	AVProduct           string `json:"av_product,omitempty"`
+	AVProduct           string `json:"av_product,omitempty"` // primary (best-of), backward compat
 	AVEnabled           bool   `json:"av_enabled"`
 	AVUpToDate          bool   `json:"av_up_to_date"`
 	AVSignatureAgeDays  int    `json:"av_signature_age_days,omitempty"`
+	AVProducts          []AVProductInfo `json:"av_products,omitempty"` // v0.5.2: alle erkannten
 	WULastSearch        string `json:"wu_last_search,omitempty"`
 	WULastInstall       string `json:"wu_last_install,omitempty"`
 	WUPendingCount      int    `json:"wu_pending_count"`

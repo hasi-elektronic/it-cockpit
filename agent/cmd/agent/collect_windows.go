@@ -419,7 +419,21 @@ func collectWindowsSecurity() *SecurityStatus {
 		avEntries = append(avEntries, avEntry{name, state, isOn, isCurrent, isDefender})
 	}
 
-	// Wähle das beste AV-Produkt: aktiv vor inaktiv, 3rd-party vor Defender
+	// Wähle das beste AV-Produkt: aktiv vor inaktiv, Suite-Vendor vor komplementär, 3rd-party vor Defender
+	// Bekannte vollwertige Security-Suiten: bevorzugen über reine Anti-Malware-Scanner wie Malwarebytes
+	isSuite := func(name string) bool {
+		n := strings.ToLower(name)
+		suites := []string{"g data", "g-data", "gdata", "bitdefender", "kaspersky", "eset", "mcafee",
+			"sophos", "norton", "avira", "avast", "avg", "f-secure", "fsecure", "trend micro", "trendmicro",
+			"emsisoft", "panda", "comodo", "k7", "quick heal", "webroot"}
+		for _, s := range suites {
+			if strings.Contains(n, s) {
+				return true
+			}
+		}
+		return false
+	}
+
 	bestIdx := -1
 	for i, a := range avEntries {
 		if bestIdx == -1 {
@@ -427,13 +441,15 @@ func collectWindowsSecurity() *SecurityStatus {
 			continue
 		}
 		best := avEntries[bestIdx]
-		// Bewertung: aktiv (4) + 3rd-party (2) + current (1)
+		// Bewertung: aktiv (8) + Suite (4) + !Defender (2) + current (1)
 		bestScore := 0
-		if best.IsOn { bestScore += 4 }
+		if best.IsOn { bestScore += 8 }
+		if isSuite(best.Name) { bestScore += 4 }
 		if !best.IsDefender { bestScore += 2 }
 		if best.IsCurrent { bestScore += 1 }
 		curScore := 0
-		if a.IsOn { curScore += 4 }
+		if a.IsOn { curScore += 8 }
+		if isSuite(a.Name) { curScore += 4 }
 		if !a.IsDefender { curScore += 2 }
 		if a.IsCurrent { curScore += 1 }
 		if curScore > bestScore {
@@ -482,6 +498,17 @@ func collectWindowsSecurity() *SecurityStatus {
 			sec.AVSignatureAgeDays = ageDays
 			sec.AVUpToDate = ageDays < 7
 		}
+	}
+
+	// v0.5.2: ALLE AV-Produkte als Liste (nicht nur "primary")
+	for _, a := range avEntries {
+		sec.AVProducts = append(sec.AVProducts, AVProductInfo{
+			Name:         a.Name,
+			Enabled:      a.IsOn,
+			UpToDate:     a.IsCurrent,
+			IsDefender:   a.IsDefender,
+			ProductState: a.State,
+		})
 	}
 
 	// Windows Update info

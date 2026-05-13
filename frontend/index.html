@@ -1285,9 +1285,26 @@ tailwind.config = {
                   <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ {{ detailSecurity.bitlocker_status_text || 'inaktiv' }}</span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-100">
-                  <span class="text-sm text-slate-700">🛡 Antivirus</span>
+                  <span class="text-sm text-slate-700">🛡 Antivirus (primär)</span>
                   <span v-if="detailSecurity.av_enabled" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ {{ detailSecurity.av_product || 'aktiv' }}</span>
                   <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-medium">✗ inaktiv</span>
+                </div>
+                <!-- v0.5.2: Alle erkannten AV-Produkte -->
+                <div v-if="detailAntivirus && detailAntivirus.length > 1" class="col-span-2 py-2 border-b border-slate-100 bg-slate-50 -mx-2 px-3 rounded">
+                  <div class="text-xs text-slate-600 mb-1.5 font-medium">📋 Alle erkannten AV-Produkte ({{ detailAntivirus.length }})</div>
+                  <div class="space-y-1.5">
+                    <div v-for="av in detailAntivirus" :key="av.name" class="flex items-center justify-between gap-2">
+                      <span class="text-xs text-slate-700">{{ av.name }}</span>
+                      <span class="flex gap-1 text-xs">
+                        <span :class="av.enabled ? 'px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700' : 'px-1.5 py-0.5 rounded bg-slate-200 text-slate-600'">
+                          {{ av.enabled ? '✓ aktiv' : 'inaktiv' }}
+                        </span>
+                        <span :class="av.up_to_date ? 'px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700' : 'px-1.5 py-0.5 rounded bg-amber-100 text-amber-700'">
+                          {{ av.up_to_date ? '✓ aktuell' : '⚠ veraltet' }}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-100">
                   <span class="text-sm text-slate-700">📅 AV Signaturen aktuell</span>
@@ -1958,7 +1975,7 @@ createApp({
       devices: [], licenses: [], users: [], audit: [],
       agents: [], enrollResult: null, enrolling: false,
       detailDevice: null, detailTab: 'hardware', detailSecurity: null, detailTelemetry: [], detailSoftware: [], softwareFilter: '',
-      detailDisks: [], detailProcesses: [], detailBrowsers: [],
+      detailDisks: [], detailProcesses: [], detailBrowsers: [], detailAntivirus: [],
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
       tenants: [],
@@ -2162,17 +2179,19 @@ createApp({
       this.detailDisks = [];
       this.detailProcesses = [];
       this.detailBrowsers = [];
+      this.detailAntivirus = [];
       this.softwareFilter = '';
       this.modal = 'detail';
-      // Async load: security, telemetry, software + v0.5 new (disks, processes, browsers)
+      // Async load: security, telemetry, software + v0.5 new (disks, processes, browsers, antivirus)
       try {
-        const [sec, tel, sw, disks, procs, browsers] = await Promise.all([
+        const [sec, tel, sw, disks, procs, browsers, av] = await Promise.all([
           this.api(`/api/devices/${d.id}/security`),
           this.api(`/api/devices/${d.id}/telemetry`),
           this.api(`/api/devices/${d.id}/software`),
           this.api(`/api/devices/${d.id}/disks`).catch(() => ({items: []})),
           this.api(`/api/devices/${d.id}/processes`).catch(() => ({items: []})),
           this.api(`/api/devices/${d.id}/browsers`).catch(() => ({items: []})),
+          this.api(`/api/devices/${d.id}/antivirus`).catch(() => ({items: []})),
         ]);
         this.detailSecurity = sec;
         this.detailTelemetry = tel.items || [];
@@ -2180,6 +2199,7 @@ createApp({
         this.detailDisks = disks.items || [];
         this.detailProcesses = procs.items || [];
         this.detailBrowsers = browsers.items || [];
+        this.detailAntivirus = av.items || [];
       } catch(e) {
         this.toast('Fehler beim Laden der Details: ' + e.message, 'error');
       }

@@ -432,6 +432,16 @@ async function handleDeviceBrowsers(id: number, req: Request, env: Env, sess: Se
   return json({ items: r.results });
 }
 
+async function handleDeviceAntivirus(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const own = await env.DB.prepare('SELECT id FROM devices WHERE id = ? AND tenant_id = ?').bind(id, sess.tenant_id).first();
+  if (!own) return jsonError('Gerät nicht gefunden', 404);
+  const r = await env.DB.prepare(
+    `SELECT name, enabled, up_to_date, is_defender, product_state, last_seen
+     FROM device_antivirus WHERE device_id = ? ORDER BY enabled DESC, name`
+  ).bind(id).all();
+  return json({ items: r.results });
+}
+
 // ============== LICENSES ==============
 async function handleLicensesList(req: Request, env: Env, sess: Session): Promise<Response> {
   const res = await env.DB.prepare('SELECT * FROM licenses WHERE tenant_id = ? ORDER BY software_name').bind(sess.tenant_id).all();
@@ -868,6 +878,26 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
         ).bind(
           agent.tenant_id, agent.device_id, s.name, s.version || '', s.publisher || null,
           s.install_date || null, now, now
+        ).run();
+      } catch(e) {}
+    }
+  }
+
+  // v0.5.2: Multi-AV liste (alle erkannten AV-Produkte)
+  if (body.security && body.security.av_products && Array.isArray(body.security.av_products)) {
+    for (const av of body.security.av_products.slice(0, 10)) {
+      try {
+        await env.DB.prepare(
+          `INSERT INTO device_antivirus (tenant_id, device_id, name, enabled, up_to_date, is_defender, product_state, last_seen)
+           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+           ON CONFLICT(device_id, name) DO UPDATE SET
+             enabled=excluded.enabled, up_to_date=excluded.up_to_date,
+             is_defender=excluded.is_defender, product_state=excluded.product_state,
+             last_seen=excluded.last_seen`
+        ).bind(
+          agent.tenant_id, agent.device_id, av.name,
+          av.enabled ? 1 : 0, av.up_to_date ? 1 : 0,
+          av.is_defender ? 1 : 0, av.product_state || null
         ).run();
       } catch(e) {}
     }
@@ -1533,7 +1563,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.1', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.2', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -1574,6 +1604,8 @@ export default {
       if (mt && m === 'GET') return handleDeviceProcesses(Number(mt[1]), req, env, sess);
       mt = path.match(/^\/api\/devices\/(\d+)\/browsers$/);
       if (mt && m === 'GET') return handleDeviceBrowsers(Number(mt[1]), req, env, sess);
+      mt = path.match(/^\/api\/devices\/(\d+)\/antivirus$/);
+      if (mt && m === 'GET') return handleDeviceAntivirus(Number(mt[1]), req, env, sess);
 
       if (path === '/api/licenses' && m === 'GET') return handleLicensesList(req, env, sess);
       if (path === '/api/licenses' && m === 'POST') return handleLicenseCreate(req, env, sess);
