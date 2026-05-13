@@ -1002,6 +1002,34 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
        ip_address=COALESCE(?,ip_address), updated_at=datetime('now') WHERE id=?`
   ).bind(body.ip_internal || null, agent.device_id).run();
 
+  // v0.6.1: Inventory backfill — agent sends static inventory once per day.
+  // COALESCE keeps existing values if new fields are NULL/missing (e.g. heartbeat without inventory).
+  if (body.manufacturer || body.cpu || body.serial_number || body.ram_gb || body.storage_gb) {
+    await env.DB.prepare(
+      `UPDATE devices SET
+         manufacturer = COALESCE(?, manufacturer),
+         model        = COALESCE(?, model),
+         serial_number= COALESCE(?, serial_number),
+         cpu          = COALESCE(?, cpu),
+         ram_gb       = COALESCE(?, ram_gb),
+         storage_gb   = COALESCE(?, storage_gb),
+         os           = COALESCE(?, os),
+         mac_address  = COALESCE(?, mac_address),
+         updated_at   = datetime('now')
+       WHERE id = ?`
+    ).bind(
+      body.manufacturer || null,
+      body.model || null,
+      body.serial_number || null,
+      body.cpu || null,
+      body.ram_gb || null,
+      body.storage_gb || null,
+      body.os_version || null,
+      body.mac_address || null,
+      agent.device_id
+    ).run();
+  }
+
   // v0.5.12: AnyDesk ID — only update if not manually locked by admin
   if (body.anydesk_id && typeof body.anydesk_id === 'string' && body.anydesk_id.trim()) {
     await env.DB.prepare(
@@ -2551,7 +2579,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.7.1', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.7.2', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints

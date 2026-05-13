@@ -145,6 +145,16 @@ export const HeartbeatSchema = z.object({
   // AnyDesk (v0.5.12+)
   anydesk_id:          z.string().max(20).regex(/^[0-9]+$/).optional().nullable(),
 
+  // v0.6.1: Static inventory backfill (sent ~once per day from agent)
+  manufacturer:        z.string().max(128).optional().nullable(),
+  model:               z.string().max(128).optional().nullable(),
+  serial_number:       z.string().max(64).optional().nullable(),
+  cpu:                 z.string().max(256).optional().nullable(),
+  ram_gb:              z.number().min(0).max(8192).optional().nullable(),
+  storage_gb:          z.number().min(0).max(1_048_576).optional().nullable(),
+  os_version:          z.string().max(128).optional().nullable(),
+  mac_address:         z.string().max(32).optional().nullable(),
+
   // Arrays of structured data — bounded length to prevent DoS
   disks:     z.array(z.any()).max(50).optional().nullable(),
   processes: z.array(z.any()).max(100).optional().nullable(),

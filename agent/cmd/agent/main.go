@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.6.0"
+const AgentVersion = "0.6.1"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -63,10 +63,11 @@ type Config struct {
 }
 
 type State struct {
-	AgentToken   string `json:"agent_token"`
-	DeviceID     int    `json:"device_id"`
-	TenantID     int    `json:"tenant_id"`
-	RegisteredAt string `json:"registered_at"`
+	AgentToken         string `json:"agent_token"`
+	DeviceID           int    `json:"device_id"`
+	TenantID           int    `json:"tenant_id"`
+	RegisteredAt       string `json:"registered_at"`
+	LastInventoryAt    string `json:"last_inventory_at,omitempty"`  // v0.6.1
 }
 
 func configDir() string {
@@ -242,6 +243,15 @@ type HeartbeatPayload struct {
 	OutdatedSwCount int            `json:"outdated_sw_count,omitempty"`
 	// v0.5.12: AnyDesk ID for remote support
 	AnyDeskID      string          `json:"anydesk_id,omitempty"`
+	// v0.6.1: Static inventory (sent once per day; backfills bulk-enrolled devices)
+	Manufacturer   string          `json:"manufacturer,omitempty"`
+	Model          string          `json:"model,omitempty"`
+	SerialNumber   string          `json:"serial_number,omitempty"`
+	CPU            string          `json:"cpu,omitempty"`
+	RAMGbTotal     float64         `json:"ram_gb,omitempty"`
+	StorageGbTotal float64         `json:"storage_gb,omitempty"`
+	OSVersion      string          `json:"os_version,omitempty"`
+	MACAddress     string          `json:"mac_address,omitempty"`
 }
 
 // ==================== HTTP ====================

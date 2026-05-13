@@ -138,6 +138,32 @@ func performSelfUpdate(update *UpdateInfo) error {
 // If update succeeds, this function calls os.Exit(0) so the new binary takes over.
 func sendHeartbeatWithUpdate(cfg *Config, state *State) error {
 	payload := collectHeartbeat()
+
+	// v0.6.1: Inventory backfill — once per 24h, attach Manufacturer/CPU/RAM/etc.
+	// Critical for devices added via bulk-enroll (which skip register()).
+	needInventory := false
+	if state.LastInventoryAt == "" {
+		needInventory = true
+	} else if t, err := time.Parse(time.RFC3339, state.LastInventoryAt); err == nil {
+		if time.Since(t) > 24*time.Hour {
+			needInventory = true
+		}
+	}
+	if needInventory {
+		log.Printf("[inventory] collecting static inventory (last sent: %q)", state.LastInventoryAt)
+		inv := collectStaticInventory()
+		if inv != nil {
+			payload.Manufacturer = inv.Manufacturer
+			payload.Model = inv.Model
+			payload.SerialNumber = inv.SerialNumber
+			payload.CPU = inv.CPU
+			payload.RAMGbTotal = inv.RAMGb
+			payload.StorageGbTotal = inv.StorageGb
+			payload.OSVersion = inv.OS
+			payload.MACAddress = getPrimaryMAC()
+		}
+	}
+
 	body, status, err := postJSON(cfg.APIURL+"/agent/heartbeat", payload, map[string]string{
 		"X-Agent-Token": state.AgentToken,
 	})
@@ -146,6 +172,14 @@ func sendHeartbeatWithUpdate(cfg *Config, state *State) error {
 	}
 	if status != 200 {
 		return fmt.Errorf("heartbeat status %d: %s", status, string(body))
+	}
+
+	// On success, persist inventory timestamp if we sent one
+	if needInventory {
+		state.LastInventoryAt = time.Now().UTC().Format(time.RFC3339)
+		if err := saveState(state); err != nil {
+			log.Printf("[inventory] warning: state save failed: %v", err)
+		}
 	}
 
 	// Parse response for update directive
