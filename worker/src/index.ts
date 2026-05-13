@@ -1712,6 +1712,7 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
     ok: true,
     device_id: deviceId,
     agent_token: agentToken,
+    tenant_id: t.id,
     tenant_slug: t.slug,
     action,
   });
@@ -2182,7 +2183,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.10', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.11', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints

@@ -124,8 +124,13 @@ func main() {
 	if err := os.WriteFile(configPath, cfgJSON, 0644); err != nil {
 		fail("config.json konnte nicht geschrieben werden: "+err.Error(), logBuf.String(), logPath)
 	}
-	st := map[string]interface{}{"device_id": enrollResp.DeviceID}
-	stJSON, _ := json.Marshal(st)
+	// state.json — agent needs agent_token here (struct: agent_token, device_id, tenant_id)
+	st := map[string]interface{}{
+		"agent_token": enrollResp.AgentToken,
+		"device_id":   enrollResp.DeviceID,
+		"tenant_id":   enrollResp.TenantID,
+	}
+	stJSON, _ := json.MarshalIndent(st, "", "  ")
 	_ = os.WriteFile(statePath, stJSON, 0644)
 	ok("config.json + state.json geschrieben")
 	logf("Config written")
@@ -234,6 +239,7 @@ type EnrollResponse struct {
 	OK         bool   `json:"ok"`
 	DeviceID   int64  `json:"device_id"`
 	AgentToken string `json:"agent_token"`
+	TenantID   int64  `json:"tenant_id"`
 	TenantSlug string `json:"tenant_slug"`
 	Action     string `json:"action"`
 }
