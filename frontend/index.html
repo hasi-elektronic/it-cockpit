@@ -1871,7 +1871,7 @@ tailwind.config = {
                 <button @click="runFix('internet_block')" class="action-card border-red-300 hover:border-red-500 hover:bg-red-100">
                   <div class="text-2xl">⛔</div>
                   <div class="font-semibold text-sm">Internet SPERREN</div>
-                  <div class="text-xs text-slate-500">Ransomware-Quarantaene</div>
+                  <div class="text-xs text-slate-500">Agent bleibt · Auto-Reset 30 Min</div>
                 </button>
                 <button @click="runFix('internet_unblock')" class="action-card border-green-200 hover:border-green-400 hover:bg-green-50 col-span-2">
                   <div class="text-2xl">✅</div>
@@ -2986,7 +2986,7 @@ createApp({
         temp_cleanup: 'Temp-Dateien und Caches loeschen? (geoeffnete Dateien werden uebersprungen)',
         browser_reset: 'NOTFALL: Alle Browser (Chrome, Edge, Firefox, IE) hart beenden + Cache loeschen?\\n\\nOffene Tabs gehen verloren!',
         defender_fullscan: 'Defender VOLL-Scan starten? Laeuft 1-4 Stunden im Hintergrund.',
-        internet_block: 'NOTFALL: Internet komplett sperren?\\n\\nNur fuer Ransomware-Verdacht. Mit "Internet wieder freigeben" rueckgaengig.',
+        internet_block: 'NOTFALL: Internet sperren?\\n\\nNUR Cloudflare (Agent + Dashboard) bleibt erreichbar.\\nAlles andere wird blockiert.\\n\\nAuto-Reset nach 30 Minuten (Sicherheits-Reset).\\nManueller Reset via "Internet wieder freigeben".',
         internet_unblock: 'Internet-Sperre wieder aufheben?',
       };
       if (needsConfirm.includes(action) && !confirm(confirmText[action])) return;
@@ -3011,8 +3011,8 @@ createApp({
         hosts_check:       { type: 'ps',  args: { script: this.getHostsCheckScript() }},
         autostart_check:   { type: 'ps',  args: { script: this.getAutostartScript() }},
         network_sessions:  { type: 'ps',  args: { script: this.getNetworkSessionsScript() }},
-        internet_block:    { type: 'cmd', args: { command: 'netsh advfirewall firewall add rule name="HasiEmergencyBlock_Out" dir=out action=block enable=yes & netsh advfirewall firewall add rule name="HasiEmergencyBlock_In" dir=in action=block enable=yes & echo Internet SPERRE aktiviert (Hasi-Notfall-Quarantaene)' }},
-        internet_unblock:  { type: 'cmd', args: { command: 'netsh advfirewall firewall delete rule name="HasiEmergencyBlock_Out" & netsh advfirewall firewall delete rule name="HasiEmergencyBlock_In" & echo Internet-Sperre aufgehoben' }},
+        internet_block:    { type: 'ps',  args: { script: this.getInternetBlockScript() }},
+        internet_unblock:  { type: 'ps',  args: { script: this.getInternetUnblockScript() }},
 
         // System-Info (v0.7.7)
         systeminfo:        { type: 'cmd', args: { command: 'systeminfo' }},
@@ -3083,6 +3083,48 @@ createApp({
     // Show active RDP sessions + established TCP connections (suspicious remote IPs)
     getNetworkSessionsScript() {
       return "Write-Output '--- Aktive RDP/Console Sessions ---'; qwinsta 2>$null; Write-Output ''; Write-Output '--- Aktive Netzwerk-Verbindungen (ESTABLISHED) ---'; Get-NetTCPConnection -State Established -EA SilentlyContinue | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess, @{N='Process';E={(Get-Process -Id $_.OwningProcess -EA SilentlyContinue).ProcessName}} | Where-Object {$_.RemoteAddress -ne '127.0.0.1' -and $_.RemoteAddress -ne '::1'} | Format-Table -AutoSize";
+    },
+
+    // EMERGENCY: Block all internet EXCEPT Cloudflare (so agent stays online).
+    // Auto-revert task scheduled 30 min later as safety net.
+    // Strategy: explicit allow rule for CF IPs (TCP 443), then block-all
+    // outbound rule. Windows firewall: when both allow and block apply, the
+    // MORE SPECIFIC rule wins. Allow rule has remoteip+port+protocol -> wins
+    // over generic block-all. Agent traffic survives.
+    getInternetBlockScript() {
+      return "$ErrorActionPreference = 'Continue'; " +
+        // Cloudflare IPv4 ranges (https://www.cloudflare.com/ips/)
+        "$cf = '173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22'; " +
+        // 1) Allow CF first (more specific = higher priority)
+        "netsh advfirewall firewall add rule name='HasiAllow_CF_Out' dir=out action=allow protocol=TCP remoteport=443 remoteip=$cf | Out-Null; " +
+        // 2) Block all other outbound
+        "netsh advfirewall firewall add rule name='HasiEmergencyBlock_Out' dir=out action=block enable=yes | Out-Null; " +
+        // 3) Block all inbound (full quarantine)
+        "netsh advfirewall firewall add rule name='HasiEmergencyBlock_In' dir=in action=block enable=yes | Out-Null; " +
+        // 4) Safety net: auto-revert after 30 min via scheduled task
+        "$unblockTime = (Get-Date).AddMinutes(30).ToString('HH:mm'); " +
+        "$revertCmd = 'cmd /c netsh advfirewall firewall delete rule name=HasiEmergencyBlock_Out & netsh advfirewall firewall delete rule name=HasiEmergencyBlock_In & netsh advfirewall firewall delete rule name=HasiAllow_CF_Out & schtasks /delete /tn HasiAutoUnblock /f'; " +
+        "schtasks /create /tn 'HasiAutoUnblock' /tr $revertCmd /sc once /st $unblockTime /ru SYSTEM /f 2>&1 | Out-Null; " +
+        "Write-Output 'INTERNET-QUARANTAENE AKTIVIERT'; " +
+        "Write-Output ''; " +
+        "Write-Output ('Cloudflare-Allowlist: ' + ($cf.Split(',').Count) + ' IP-Ranges (Agent + Dashboard bleiben online)'); " +
+        "Write-Output 'Inbound: KOMPLETT GESPERRT'; " +
+        "Write-Output 'Outbound: NUR Cloudflare TCP/443 erlaubt'; " +
+        "Write-Output ('Auto-Reset: ' + $unblockTime + ' (in 30 Minuten, Sicherheits-Auto-Revert)'); " +
+        "Write-Output 'Manueller Reset: Button \"Internet wieder freigeben\"'";
+    },
+
+    getInternetUnblockScript() {
+      return "$ErrorActionPreference = 'Continue'; " +
+        "$removed = @(); " +
+        "foreach ($rule in @('HasiEmergencyBlock_Out','HasiEmergencyBlock_In','HasiAllow_CF_Out')) { " +
+        "  $r = netsh advfirewall firewall delete rule name=$rule 2>&1; " +
+        "  if ($LASTEXITCODE -eq 0) { $removed += $rule } " +
+        "}; " +
+        // Also delete the auto-revert task if still pending
+        "schtasks /delete /tn 'HasiAutoUnblock' /f 2>&1 | Out-Null; " +
+        "if ($removed) { Write-Output ('Sperre aufgehoben. Entfernt: ' + ($removed -join ', ')) } else { Write-Output 'Keine aktive Hasi-Sperre gefunden.' }; " +
+        "Write-Output 'Auto-Revert-Task (falls aktiv) ebenfalls geloescht.'";
     },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
