@@ -6,6 +6,7 @@
 import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
 import { generateMonthlyReports } from './monthly_report';
 import { checkRateLimit, rateLimitResponse, getClientIp } from './ratelimit';
+import { sha256Hex, findAgentByToken, findTenantByInstallToken, findAgentByEnrollToken } from './tokens';
 
 export interface Env {
   DB: D1Database;
@@ -623,14 +624,13 @@ async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
   const body = await req.json<any>();
   if (!body.enroll_token || !body.hostname) return jsonError('enroll_token + hostname erforderlich');
 
-  const agent = await env.DB.prepare(
-    `SELECT id, tenant_id, device_id, status FROM agents WHERE enroll_token = ?`
-  ).bind(body.enroll_token).first<any>();
+  const agent = await findAgentByEnrollToken(env.DB, body.enroll_token);
   if (!agent) return jsonError('Invalid enroll token', 401);
   if (agent.status === 'revoked') return jsonError('Token revoked', 403);
 
   const ip = req.headers.get('CF-Connecting-IP') || '';
   const agentToken = randomToken('AGT-', 32);
+  const agentTokenHash = await sha256Hex(agentToken);
 
   let deviceId = agent.device_id;
   if (!deviceId) {
@@ -674,9 +674,10 @@ async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
   }
 
   await env.DB.prepare(
-    `UPDATE agents SET status='active', device_id=?, agent_token=?, agent_version=?,
+    `UPDATE agents SET status='active', device_id=?, agent_token=?, agent_token_hash=?,
+       token_hashed_at=datetime('now'), agent_version=?,
        os_platform=?, hostname_reported=?, last_seen=datetime('now'), last_ip=? WHERE id=?`
-  ).bind(deviceId, agentToken, body.agent_version, body.os_platform, body.hostname, ip, agent.id).run();
+  ).bind(deviceId, agentToken, agentTokenHash, body.agent_version, body.os_platform, body.hostname, ip, agent.id).run();
 
   try {
     await env.DB.prepare(
@@ -735,9 +736,7 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
   const agentTokenHdr = req.headers.get('X-Agent-Token');
   if (!agentTokenHdr) return jsonError('X-Agent-Token header erforderlich', 401);
 
-  const agent = await env.DB.prepare(
-    `SELECT id, tenant_id, device_id, status FROM agents WHERE agent_token = ?`
-  ).bind(agentTokenHdr).first<any>();
+  const agent = await findAgentByToken(env.DB, agentTokenHdr);
   if (!agent) return jsonError('Invalid agent token', 401);
   if (agent.status !== 'active') return jsonError('Agent revoked', 403);
 
@@ -1696,10 +1695,9 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
   const hostname = String(body.hostname || '').trim();
   if (!bulkToken || !hostname) return jsonError('bulk_token + hostname erforderlich', 400);
 
-  // Token'a uyan tenant'ı bul
-  const t = await env.DB.prepare(
-    `SELECT id, slug FROM tenants WHERE install_token = ? AND install_enabled = 1 AND status = 'active'`
-  ).bind(bulkToken).first<any>();
+  // Token'a uyan tenant'ı bul (dual-mode: hash + plaintext)
+  const tenantRow = await findTenantByInstallToken(env.DB, bulkToken);
+  const t = (tenantRow && tenantRow.install_enabled && tenantRow.status === 'active') ? tenantRow : null;
   if (!t) return jsonError('Ungueltiges Bulk-Token oder Tenant deaktiviert', 401);
 
   // Var olan cihaz mı (hostname match — case-insensitive)
@@ -1740,10 +1738,12 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
   // Create new agent + token (her seferinde UNIQUE enroll_token üret — sadece audit trail için)
   const agentToken = 'AGT-' + crypto.randomUUID().replace(/-/g, '');
   const enrollToken = 'BULK-' + crypto.randomUUID().replace(/-/g, '');
+  const agentTokenHash = await sha256Hex(agentToken);
+  const enrollTokenHash = await sha256Hex(enrollToken);
   await env.DB.prepare(`
-    INSERT INTO agents (tenant_id, device_id, enroll_token, agent_token, agent_version, os_platform, hostname_reported, status, created_at)
-    VALUES (?, ?, ?, ?, '0.5.4', ?, ?, 'active', datetime('now'))
-  `).bind(t.id, deviceId, enrollToken, agentToken, body.os_platform || 'windows', hostname).run();
+    INSERT INTO agents (tenant_id, device_id, enroll_token, enroll_token_hash, agent_token, agent_token_hash, token_hashed_at, agent_version, os_platform, hostname_reported, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), '0.5.4', ?, ?, 'active', datetime('now'))
+  `).bind(t.id, deviceId, enrollToken, enrollTokenHash, agentToken, agentTokenHash, body.os_platform || 'windows', hostname).run();
 
   return json({
     ok: true,
@@ -1756,7 +1756,7 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
 }
 
 async function handleInstallScript(token: string, req: Request, env: Env): Promise<Response> {
-  const agent = await env.DB.prepare(`SELECT id, status FROM agents WHERE enroll_token = ?`).bind(token).first<any>();
+  const agent = await findAgentByEnrollToken(env.DB, token);
   if (!agent) return textResponse('# Invalid enroll token\nWrite-Host "FEHLER: Token ungueltig" -ForegroundColor Red\nexit 1', 401);
   if (agent.status === 'revoked') return textResponse('# Token revoked\nWrite-Host "FEHLER: Token gesperrt" -ForegroundColor Red\nexit 1', 403);
   const url = new URL(req.url);
@@ -2048,7 +2048,7 @@ async function handleCommandCancel(id: number, req: Request, env: Env, sess: Ses
 async function handleAgentCommandsFetch(req: Request, env: Env): Promise<Response> {
   const token = req.headers.get('X-Agent-Token');
   if (!token) return jsonError('Token fehlt', 401);
-  const agent = await env.DB.prepare(`SELECT id, tenant_id, device_id, status FROM agents WHERE agent_token = ?`).bind(token).first<any>();
+  const agent = await findAgentByToken(env.DB, token);
   if (!agent || agent.status !== 'active') return jsonError('Token ungueltig', 401);
 
   // Pick all queued commands for this agent, mark as 'sent'
@@ -2085,7 +2085,8 @@ async function handleAgentCommandsFetch(req: Request, env: Env): Promise<Respons
 async function handleAgentCommandResult(id: number, req: Request, env: Env): Promise<Response> {
   const token = req.headers.get('X-Agent-Token');
   if (!token) return jsonError('Token fehlt', 401);
-  const agent = await env.DB.prepare(`SELECT id FROM agents WHERE agent_token = ? AND status='active'`).bind(token).first<any>();
+  const agentLookup = await findAgentByToken(env.DB, token);
+  const agent = (agentLookup && agentLookup.status === 'active') ? agentLookup : null;
   if (!agent) return jsonError('Token ungueltig', 401);
 
   const body = await req.json<any>();
@@ -2224,7 +2225,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.0', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.1', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
