@@ -330,6 +330,10 @@ tailwind.config = {
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           Geräte <span class="ml-auto text-xs opacity-60">{{ devices.length }}</span>
         </div>
+        <div @click="openInstallForCurrentTenant()" class="sidebar-link" style="color: rgb(165 243 252);">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Agent installieren
+        </div>
         <div @click="goto('agents')" :class="['sidebar-link', page==='agents'&&'active']">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           Agents <span class="ml-auto text-xs opacity-60">{{ agents.length }}</span>
@@ -3394,6 +3398,21 @@ createApp({
       this.installTenant = t;
       this.rotateResult = null;
       this.installModalOpen = true;
+    },
+    // v0.8.1: Sidebar shortcut — open install modal for currently active tenant.
+    // super_admin sees tenant_id/slug/name from session (whatever they switched into).
+    // For super_admin still in home tenant -> use home tenant.
+    openInstallForCurrentTenant() {
+      const pseudoTenant = {
+        id: this.session.tenant_id,
+        slug: this.session.tenant_slug || this.session.home_tenant_slug,
+        name: this.session.tenant_name,
+      };
+      if (!pseudoTenant.slug) {
+        this.toast('Kein aktiver Mandant - bitte zuerst einen Mandanten oeffnen', 'error');
+        return;
+      }
+      this.showInstallModal(pseudoTenant);
     },
     async rotateInstallToken() {
       if (!this.installTenant) return;
