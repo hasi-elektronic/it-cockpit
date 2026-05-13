@@ -22,6 +22,7 @@ export interface Env {
   RESEND_API_KEY?: string;
   BROWSER_RENDERING_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
+  BACKUP_SECRET?: string;
 }
 
 interface Session {
@@ -2228,7 +2229,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.2', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.4', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2257,8 +2258,40 @@ export default {
       const bm = path.match(/^\/agent-binary\/(.+)$/);
       if (bm && m === 'GET') return handleAgentBinary(bm[1], env);
 
+      // Backup trigger — secret-protected (allows ops/cron bypass without login)
+      if (path === '/api/admin/backup/run' && m === 'POST') {
+        const url = new URL(req.url);
+        const secret = url.searchParams.get('secret') || req.headers.get('X-Admin-Secret');
+        const sess2 = await authenticate(req, env);
+        const okBySecret = !!(secret && env.BACKUP_SECRET && secret === env.BACKUP_SECRET);
+        const okBySession = !!(sess2 && sess2.role === 'super_admin');
+        if (!okBySecret && !okBySession) {
+          return jsonError('Nur Super-Admin oder gueltiges Secret', 403);
+        }
+        const r = await runDailyBackup(env.DB, env.AGENTS);
+        return json(r);
+      }
+
       const sess = await authenticate(req, env);
       if (!sess) return jsonError('Unauthorized', 401);
+
+      // Super-admin only: list backups
+      if (path === '/api/admin/backup/list' && m === 'GET') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const items: any[] = [];
+        let cursor: string | undefined;
+        do {
+          const listing = await env.AGENTS.list({ prefix: 'backups/', limit: 1000, cursor });
+          for (const o of listing.objects) {
+            if (o.key.endsWith('/manifest.json')) {
+              items.push({ key: o.key, size: o.size, uploaded: o.uploaded });
+            }
+          }
+          cursor = listing.truncated ? listing.cursor : undefined;
+        } while (cursor);
+        items.sort((a, b) => b.key.localeCompare(a.key));
+        return json({ backups: items });
+      }
 
       if (path === '/api/stats') return handleStats(req, env, sess);
       if (path === '/api/dashboard') return handleDashboard(req, env, sess);
