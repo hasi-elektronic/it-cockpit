@@ -1618,9 +1618,9 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
   ).bind(bulkToken).first<any>();
   if (!t) return jsonError('Ungueltiges Bulk-Token oder Tenant deaktiviert', 401);
 
-  // Var olan cihaz mı (hostname match)
+  // Var olan cihaz mı (hostname match — case-insensitive)
   let device = await env.DB.prepare(
-    `SELECT id FROM devices WHERE tenant_id = ? AND hostname = ?`
+    `SELECT id, hostname FROM devices WHERE tenant_id = ? AND LOWER(hostname) = LOWER(?)`
   ).bind(t.id, hostname).first<any>();
 
   let deviceId: number;
@@ -1653,12 +1653,13 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
     `UPDATE agents SET status = 'revoked', revoked_at = datetime('now') WHERE device_id = ? AND status = 'active'`
   ).bind(deviceId).run();
 
-  // Create new agent + token
+  // Create new agent + token (her seferinde UNIQUE enroll_token üret — sadece audit trail için)
   const agentToken = 'AGT-' + crypto.randomUUID().replace(/-/g, '');
+  const enrollToken = 'BULK-' + crypto.randomUUID().replace(/-/g, '');
   await env.DB.prepare(`
     INSERT INTO agents (tenant_id, device_id, enroll_token, agent_token, agent_version, os_platform, hostname_reported, status, created_at)
     VALUES (?, ?, ?, ?, '0.5.4', ?, ?, 'active', datetime('now'))
-  `).bind(t.id, deviceId, 'BULK-USED', agentToken, body.os_platform || 'windows', hostname).run();
+  `).bind(t.id, deviceId, enrollToken, agentToken, body.os_platform || 'windows', hostname).run();
 
   return json({
     ok: true,
@@ -2110,7 +2111,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.7', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.8', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
