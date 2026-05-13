@@ -1738,7 +1738,7 @@ tailwind.config = {
                   <div class="font-semibold text-sm">Win Updates pruefen</div>
                   <div class="text-xs text-slate-500">Anzahl verfuegbarer Updates</div>
                 </button>
-                <button @click="dispatchCommand('ps', {script: 'Start-MpScan -ScanType QuickScan'})" class="action-card border-teal-200 hover:border-teal-400 hover:bg-teal-50">
+                <button @click="runFix('defender_quickscan')" class="action-card border-teal-200 hover:border-teal-400 hover:bg-teal-50">
                   <div class="text-2xl">🛡️</div>
                   <div class="font-semibold text-sm">Defender Quick Scan</div>
                   <div class="text-xs text-slate-500">~5 Minuten</div>
@@ -3073,7 +3073,8 @@ createApp({
 
         // Sicherheit & Notfall (v0.7.7)
         browser_reset:     { type: 'ps',  args: { script: this.getBrowserResetScript() }},
-        defender_fullscan: { type: 'ps',  args: { script: "Write-Output 'Defender Voll-Scan gestartet (laeuft im Hintergrund)...'; Start-MpScan -ScanType FullScan -AsJob | Out-Null; Write-Output 'Scan-Job gestartet. Fortschritt: Get-MpComputerStatus | Select FullScanStartTime, FullScanEndTime'" }},
+        defender_fullscan: { type: 'ps',  args: { script: this.getDefenderFullScanScript() }},
+        defender_quickscan:{ type: 'ps',  args: { script: this.getDefenderQuickScanScript() }},
         hosts_check:       { type: 'ps',  args: { script: this.getHostsCheckScript() }},
         autostart_check:   { type: 'ps',  args: { script: this.getAutostartScript() }},
         network_sessions:  { type: 'ps',  args: { script: this.getNetworkSessionsScript() }},
@@ -3084,7 +3085,7 @@ createApp({
         systeminfo:        { type: 'cmd', args: { command: 'systeminfo' }},
         ipconfig_all:      { type: 'cmd', args: { command: 'ipconfig /all' }},
         tasklist_top:      { type: 'ps',  args: { script: "Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 ProcessName, Id, @{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB,1)}}, @{N='CPU';E={if ($_.CPU) {[math]::Round($_.CPU,1)} else {0}}}, Path | Format-Table -AutoSize" }},
-        netstat_active:    { type: 'cmd', args: { command: 'netstat -ano -p tcp | findstr ESTABLISHED' }},
+        netstat_active:    { type: 'ps',  args: { script: this.getNetstatActiveScript() }},
         whoami_full:       { type: 'cmd', args: { command: 'whoami /all' }},
         route_arp:         { type: 'ps',  args: { script: "Write-Output '--- Routing-Tabelle ---'; route print -4 | Select-String -NotMatch '^=+$'; Write-Output ''; Write-Output '--- ARP-Tabelle (MAC-Adressen) ---'; arp -a" }},
         usb_devices:       { type: 'ps',  args: { script: "Get-PnpDevice -PresentOnly -EA SilentlyContinue | Where-Object {$_.Class -in 'USB','DiskDrive','Mouse','Keyboard','HIDClass','Camera','Printer'} | Select-Object Class, FriendlyName, Status | Sort-Object Class | Format-Table -AutoSize" }},
@@ -3127,6 +3128,23 @@ createApp({
 
     // ---- v0.7.7: Sicherheit & Notfall helpers ----
 
+    // v0.8.0: Smart Defender scan — detects 3rd-party AV and falls back gracefully.
+    // Background: When ESET/Kaspersky/G-DATA etc. is installed, Windows disables
+    // Defender. Start-MpScan then fails with HRESULT 0x800106ba (RPC unavailable).
+    // We detect this upfront and report which AV is actually active.
+    getDefenderQuickScanScript() {
+      return "$av = Get-MpComputerStatus -EA SilentlyContinue; if ($av -and $av.AMServiceEnabled) { Start-MpScan -ScanType QuickScan -AsJob | Out-Null; Write-Output ('Defender Quick-Scan gestartet (laeuft im Hintergrund, ~5 Min)') } else { Write-Output 'Windows Defender ist DEAKTIVIERT (vermutlich durch 3rd-party AV).'; Write-Output ''; $tp = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -EA SilentlyContinue; if ($tp) { Write-Output 'Aktive Antivirus-Loesung(en):'; $tp | Select-Object displayName, @{N='Status';E={if ($_.productState -band 0x1000) {'aktiv'} else {'inaktiv'}}}, @{N='Aktuell';E={if ($_.productState -band 0x10) {'NEIN'} else {'ja'}}} | Format-Table -AutoSize; Write-Output ''; Write-Output 'Hinweis: Scan muss ueber die AV-Hersteller-Konsole oder per Vendor-CLI gestartet werden.' } else { Write-Output 'WARNUNG: Kein aktiver Antivirus erkannt!' } }";
+    },
+
+    getDefenderFullScanScript() {
+      return "$av = Get-MpComputerStatus -EA SilentlyContinue; if ($av -and $av.AMServiceEnabled) { Start-MpScan -ScanType FullScan -AsJob | Out-Null; Write-Output 'Defender Voll-Scan gestartet (Hintergrund, 1-4 Stunden)'; Write-Output 'Fortschritt pruefen: Get-MpComputerStatus | Select FullScanStartTime, FullScanEndTime' } else { Write-Output 'Windows Defender ist DEAKTIVIERT (3rd-party AV aktiv).'; Write-Output ''; $tp = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -EA SilentlyContinue; if ($tp) { Write-Output 'Bitte Voll-Scan ueber folgende AV-Loesung starten:'; $tp | Select-Object displayName | Format-List } else { Write-Output 'WARNUNG: Kein aktiver Antivirus erkannt!' } }";
+    },
+
+    // v0.8.0: netstat ESTABLISHED — uses Get-NetTCPConnection, handles empty gracefully
+    getNetstatActiveScript() {
+      return "$conns = Get-NetTCPConnection -State Established -EA SilentlyContinue | Where-Object {$_.RemoteAddress -ne '127.0.0.1' -and $_.RemoteAddress -ne '::1' -and $_.RemoteAddress -ne '0.0.0.0'}; if ($conns) { $conns | Select-Object LocalPort, RemoteAddress, RemotePort, OwningProcess, @{N='Process';E={(Get-Process -Id $_.OwningProcess -EA SilentlyContinue).ProcessName}} | Format-Table -AutoSize } else { Write-Output 'Keine externen ESTABLISHED Verbindungen gefunden.'; Write-Output ''; Write-Output 'Hinweis: Das ist normal, wenn keine Browser-Tabs / Cloud-Apps aktiv sind.'; Write-Output 'Pruefe ggf. mit \"Aktive Verbindungen\" Button fuer RDP + alle Sockets.' }";
+    },
+
     // Kill all browsers, clear their caches. Used after tech-support-scam
     // popups, fake virus warnings, browser hijacks.
     getBrowserResetScript() {
@@ -3141,9 +3159,10 @@ createApp({
     },
 
     // Show all autostart entries (Run, RunOnce, Startup folders, scheduled tasks)
-    // Common malware persistence locations.
+    // Common malware persistence locations. v0.8.0: explicit "(leer)" for empty
+    // keys so it's clear something WAS checked.
     getAutostartScript() {
-      return "Write-Output '--- Registry: HKLM Run ---'; Get-ItemProperty 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue | Select-Object * -ExcludeProperty PS* | Format-List; Write-Output '--- Registry: HKCU Run ---'; Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue | Select-Object * -ExcludeProperty PS* | Format-List; Write-Output '--- Startup-Ordner ---'; Get-ChildItem \"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\" -EA SilentlyContinue | Select-Object Name, LastWriteTime | Format-Table; Write-Output '--- Auto-Tasks (verdaechtige) ---'; Get-ScheduledTask | Where-Object {$_.State -eq 'Ready' -and $_.TaskPath -notmatch '^\\\\Microsoft'} | Select-Object TaskName, TaskPath, State | Format-Table -AutoSize";
+      return "function Show-RunKey($path, $label) { Write-Output ('--- ' + $label + ' ---'); $k = Get-ItemProperty $path -EA SilentlyContinue; if ($k) { $props = $k.PSObject.Properties | Where-Object {$_.Name -notlike 'PS*'}; if ($props) { foreach ($p in $props) { Write-Output ('  ' + $p.Name + ' = ' + $p.Value) } } else { Write-Output '  (leer - sauber)' } } else { Write-Output '  (Schluessel existiert nicht)' }; Write-Output '' }; Show-RunKey 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' 'Registry: HKLM Run (alle Nutzer)'; Show-RunKey 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' 'Registry: HKCU Run (aktiver Nutzer)'; Show-RunKey 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce' 'Registry: HKLM RunOnce'; Write-Output '--- Startup-Ordner (Autostart) ---'; $startup = Get-ChildItem \"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\" -EA SilentlyContinue; if ($startup) { $startup | Select-Object Name, LastWriteTime | Format-Table -AutoSize } else { Write-Output '  (leer)' }; Write-Output ''; Write-Output '--- Geplante Tasks (NICHT Microsoft) ---'; $tasks = Get-ScheduledTask | Where-Object {$_.State -eq 'Ready' -and $_.TaskPath -notmatch '^\\\\Microsoft' -and $_.TaskPath -notmatch '^\\\\$'}; if ($tasks) { $tasks | Select-Object TaskName, TaskPath, State | Format-Table -AutoSize } else { Write-Output '  (keine verdaechtigen Tasks)' }";
     },
 
     // Show active RDP sessions + established TCP connections (suspicious remote IPs)
@@ -3286,7 +3305,7 @@ createApp({
         gpo_update:    { command_type: 'cmd',  command_args: { command: 'gpupdate /force' } },
         spooler:       { command_type: 'ps',   command_args: { script: "try { Restart-Service Spooler -Force -EA Stop; Write-Output 'Spooler neu gestartet' } catch { Write-Output ('Fehler: ' + $_.Exception.Message) }" } },
         temp_cleanup:  { command_type: 'ps',   command_args: { script: this.getCleanupScript() } },
-        defender_scan: { command_type: 'ps',   command_args: { script: 'Start-MpScan -ScanType QuickScan' } },
+        defender_scan: { command_type: 'ps',   command_args: { script: this.getDefenderQuickScanScript() } },
         check_updates: { command_type: 'ps',   command_args: { script: this.getWinUpdateScript() } },
         event_errors:  { command_type: 'ps',   command_args: { script: this.getEventErrorsScript() } },
         reboot60:      { command_type: 'reboot', command_args: { delay_seconds: 60 } },
