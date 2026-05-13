@@ -11,7 +11,12 @@ database_id = "REPLACE_AFTER_D1_CREATE"
 binding = "AGENTS"
 bucket_name = "hasi-agent-binaries"
 
-# Native Workers Rate Limit Bindings (per-Cloudflare-location, 0ms latency, free)
+# Layer 1a: KV-backed sliding window (global, per-token hassas presets)
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "b69c82a8170640678076194d92faca31"
+
+# Layer 1b: Native Workers Rate Limit bindings (per-CF-location, 0ms, free)
 # 5 separate bindings = 5 isolated namespaces, distinct counters per bucket.
 
 [[unsafe.bindings]]

@@ -5,13 +5,14 @@
 
 import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
 import { generateMonthlyReports } from './monthly_report';
-import { rlCheck, rateLimitResponse, getClientIp, RateLimitBinding } from './ratelimit';
+import { rlCheck, kvCheck, rateLimitResponse, getClientIp, RateLimitBinding } from './ratelimit';
 import { sha256Hex, findAgentByToken, findTenantByInstallToken, findAgentByEnrollToken } from './tokens';
 import { runDailyBackup } from './backup';
 
 export interface Env {
   DB: D1Database;
   AGENTS: R2Bucket;
+  RATELIMIT: KVNamespace;
   RL_LOGIN: RateLimitBinding;
   RL_REGISTER: RateLimitBinding;
   RL_BULK_ENROLL: RateLimitBinding;
@@ -107,9 +108,11 @@ async function logAudit(env: Env, sess: Session, action: string, entity: string,
 
 // ============== AUTH ==============
 async function handleLogin(req: Request, env: Env): Promise<Response> {
-  // Brute force protection — 10 / min per IP (per CF location)
+  // Hybrid rate limit: edge (native) + global (KV)
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_LOGIN, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_LOGIN, ip))) return rateLimitResponse(60, 'edge');
+  const kv = await kvCheck(env.RATELIMIT, 'login', ip);
+  if (!kv.allowed) return rateLimitResponse(kv.retryAfter, 'global');
 
   const { tenant, email, password } = await req.json<any>();
   if (!tenant || !email || !password) return jsonError('tenant, email, password erforderlich');
@@ -623,7 +626,9 @@ async function handleAgentRevoke(id: number, req: Request, env: Env, sess: Sessi
 // ============== AGENT-FACING (public) ==============
 async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
   const ipForRl = getClientIp(req);
-  if (!(await rlCheck(env.RL_REGISTER, ipForRl))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_REGISTER, ipForRl))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'register', ipForRl);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   const body = await req.json<any>();
   if (!body.enroll_token || !body.hostname) return jsonError('enroll_token + hostname erforderlich');
@@ -740,10 +745,12 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
   const agentTokenHdr = req.headers.get('X-Agent-Token');
   if (!agentTokenHdr) return jsonError('X-Agent-Token header erforderlich', 401);
 
-  // Per-token rate limit — 12/min ~= 1 heartbeat per 5 seconds avg.
-  // Protects against a single mis-configured agent hammering the API
-  // (e.g. heartbeat loop bug, infinite retry on connection failure).
-  if (!(await rlCheck(env.RL_HEARTBEAT, `tok:${agentTokenHdr}`))) return rateLimitResponse();
+  // Hybrid rate limit per token:
+  //   - Edge (native): 12/min per CF location (~1/5sec avg) — fast path
+  //   - Global (KV):   360/hour per token (~1/10sec sustained) — accurate
+  if (!(await rlCheck(env.RL_HEARTBEAT, `tok:${agentTokenHdr}`))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'heartbeat', agentTokenHdr);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   const agent = await findAgentByToken(env.DB, agentTokenHdr);
   if (!agent) return jsonError('Invalid agent token', 401);
@@ -1165,7 +1172,9 @@ Write-Host ""
 // ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
 async function handleBulkInstallPs1(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'install', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   const t = await env.DB.prepare(
     `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
@@ -1437,7 +1446,9 @@ Read-Host "  Druecken Sie Enter zum Schliessen"
 
 async function handleBulkInstallBat(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'install', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   // Tenant kontrolü
   const t = await env.DB.prepare(
@@ -1533,7 +1544,9 @@ pause >nul
 
 async function handleBulkInstall(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'install-script', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   // Tenant'ı bul + install enabled mi
   const t = await env.DB.prepare(
@@ -1691,9 +1704,11 @@ Write-Host ""
 }
 
 async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
-  // Rate limit by IP — 30/min per CF location (NAT-friendly for Sickinger 30 PC bulk install)
+  // Hybrid rate limit: edge (CF-location bound) + global (cross-region)
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_BULK_ENROLL, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_BULK_ENROLL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'bulk-enroll', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   const body = await req.json<any>();
   const bulkToken = String(body.bulk_token || '');
@@ -1801,7 +1816,9 @@ async function handleAgentBinary(filename: string, env: Env): Promise<Response> 
 // v0.5.10: Standalone installer .exe (per tenant, baked-in token)
 async function handleInstallerExe(slug: string, req: Request, env: Env): Promise<Response> {
   const ip = getClientIp(req);
-  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse();
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'install', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
   // Verify tenant exists + install enabled (security check)
   const t = await env.DB.prepare(
@@ -2229,7 +2246,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.4', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.5', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
