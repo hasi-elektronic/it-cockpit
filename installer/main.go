@@ -143,26 +143,19 @@ func main() {
 	ok(fmt.Sprintf("Task '%s' eingerichtet", taskName))
 	logf("Task registered")
 
-	// First heartbeat (verbose)
+	// Start the scheduled task immediately (runs as SYSTEM, async — installer doesn't wait)
 	fmt.Println()
-	fmt.Printf("  %sSende ersten Heartbeat...%s\n", colorCyan, colorReset)
-	hbOutput, hbErr := runAgentOnce(exePath)
-	logf("Heartbeat output:\n%s", hbOutput)
-	if hbErr != nil {
-		fmt.Printf("        %s⚠ Heartbeat-Fehler: %v%s\n", colorYellow, hbErr, colorReset)
-		fmt.Printf("        %sTask laeuft trotzdem in 15 Min automatisch%s\n", colorGray, colorReset)
-		logf("Heartbeat error: %v", hbErr)
-	} else {
-		fmt.Printf("        %s✓ Heartbeat erfolgreich%s\n", colorGreen, colorReset)
-		if strings.TrimSpace(hbOutput) != "" {
-			for _, line := range strings.Split(strings.TrimSpace(hbOutput), "\n") {
-				fmt.Printf("          %s%s%s\n", colorGray, strings.TrimSpace(line), colorReset)
-			}
-		}
-	}
-
-	// Force scheduled task run for SYSTEM-context first run
+	fmt.Printf("  %sStarte Agent im Hintergrund...%s\n", colorCyan, colorReset)
 	startTaskNow(taskName)
+	logf("Task started (background, SYSTEM context)")
+
+	// Quick fire-and-forget heartbeat via agent (don't wait — telemetry takes 2-3 min)
+	// We launch detached process and continue immediately
+	go func() {
+		_ = launchDetachedAgent(exePath)
+	}()
+	time.Sleep(1 * time.Second) // give it a moment to spawn
+	ok("Agent gestartet — Heartbeat folgt in 1-3 Minuten")
 
 	// Write install log
 	_ = os.WriteFile(logPath, logBuf.Bytes(), 0644)
@@ -355,6 +348,24 @@ func runAgentOnce(exePath string) (string, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.CombinedOutput()
 	return string(out), err
+}
+
+// launchDetachedAgent starts hasi-agent.exe --once as a fully detached
+// background process. The installer doesn't wait for it to finish.
+// Telemetry collection takes 2-3 minutes, but Task Scheduler will pick
+// up next runs automatically.
+func launchDetachedAgent(exePath string) error {
+	cmd := exec.Command(exePath, "--once")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x00000008, // DETACHED_PROCESS
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// Don't wait — let it run in background
+	go cmd.Wait()
+	return nil
 }
 
 func startTaskNow(taskName string) {
