@@ -2340,6 +2340,127 @@ async function handleCommandDispatch(req: Request, env: Env, sess: Session): Pro
   return json({ ok: true, command_id: r.meta.last_row_id });
 }
 
+// v0.7.9: Batch command dispatch — same command to N devices at once.
+// Auth: admin queues within their tenant. super_admin can target any tenant
+// (or 'all' tenants) by passing tenant_id or device_ids array.
+//
+// Request:
+//   { command_type, command_args, device_ids?: [], tenant_id?, all_online?: bool }
+// At least one of device_ids / tenant_id / all_online must be set.
+//
+// Response:
+//   { ok: true, queued: N, skipped: [{ device_id, reason }], command_ids: [] }
+async function handleCommandBatchDispatch(req: Request, env: Env, sess: Session): Promise<Response> {
+  if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
+
+  const body = await req.json<any>().catch(() => null);
+  if (!body) return jsonError('Invalid JSON body', 400);
+
+  const type = String(body.command_type || '');
+  const args = (body.command_args || {}) as CommandArgs;
+  if (!type) return jsonError('command_type erforderlich', 400);
+
+  const v = validateCommand(type, args);
+  if (!v.ok) return jsonError(v.error!, 400);
+
+  // Resolve target device list
+  let devices: any[] = [];
+  if (Array.isArray(body.device_ids) && body.device_ids.length > 0) {
+    // Explicit list — fetch them all
+    const ids = body.device_ids.slice(0, 200).map((x: any) => Number(x)).filter((x: number) => x > 0);
+    if (ids.length === 0) return jsonError('device_ids enthielt keine gueltigen Eintraege', 400);
+    const placeholders = ids.map(() => '?').join(',');
+    const rs = await env.DB.prepare(
+      `SELECT d.id, d.tenant_id, d.hostname,
+              a.id AS agent_id, a.last_seen
+       FROM devices d
+       LEFT JOIN agents a ON a.device_id = d.id AND a.status = 'active'
+       WHERE d.id IN (${placeholders})`
+    ).bind(...ids).all<any>();
+    devices = rs.results || [];
+  } else if (body.tenant_id || body.all_online) {
+    // By tenant — admin can only target own tenant; super_admin can target any
+    let tenantId = Number(body.tenant_id || sess.tenant_id);
+    if (sess.role !== 'super_admin' && tenantId !== sess.tenant_id) {
+      return jsonError('Admin kann nur eigenen Mandant ansprechen', 403);
+    }
+    let whereClause = 'd.tenant_id = ?';
+    const bindArgs: any[] = [tenantId];
+    if (body.all_online) {
+      whereClause += " AND a.last_seen > datetime('now', '-10 minutes')";
+    }
+    // super_admin with all_online=true and no tenant_id -> ALL tenants
+    if (sess.role === 'super_admin' && body.all_online && !body.tenant_id) {
+      whereClause = "a.last_seen > datetime('now', '-10 minutes')";
+      bindArgs.length = 0;
+    }
+    const rs = await env.DB.prepare(
+      `SELECT d.id, d.tenant_id, d.hostname,
+              a.id AS agent_id, a.last_seen
+       FROM devices d
+       LEFT JOIN agents a ON a.device_id = d.id AND a.status = 'active'
+       WHERE ${whereClause}`
+    ).bind(...bindArgs).all<any>();
+    devices = rs.results || [];
+  } else {
+    return jsonError('Mindestens eines der Felder erforderlich: device_ids, tenant_id, all_online', 400);
+  }
+
+  // Authorize: admin can only batch within own tenant
+  if (sess.role !== 'super_admin') {
+    const wrongTenant = devices.filter(d => d.tenant_id !== sess.tenant_id);
+    if (wrongTenant.length > 0) {
+      return jsonError(`Zugriff verweigert auf ${wrongTenant.length} Geraet(e) anderer Mandanten`, 403);
+    }
+  }
+
+  // Hard cap to prevent runaway
+  if (devices.length > 100) {
+    return jsonError(`Zu viele Ziele (${devices.length}) — Maximum 100 pro Batch`, 400);
+  }
+
+  // Per-device queue with skip-tracking
+  const queued: number[] = [];
+  const skipped: any[] = [];
+  for (const dev of devices) {
+    if (!dev.agent_id) {
+      skipped.push({ device_id: dev.id, hostname: dev.hostname, reason: 'Kein aktiver Agent' });
+      continue;
+    }
+    // Skip if device already has 5+ queued commands (don't pile up)
+    const pending = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM commands WHERE device_id = ? AND status = 'queued'`
+    ).bind(dev.id).first<any>();
+    if ((pending?.n || 0) >= 5) {
+      skipped.push({ device_id: dev.id, hostname: dev.hostname, reason: 'Warteschlange voll (5+ pending)' });
+      continue;
+    }
+    const r = await env.DB.prepare(
+      `INSERT INTO commands (tenant_id, device_id, agent_id, command_type, command_args,
+                             status, created_by, notes, timeout_seconds)
+       VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?)`
+    ).bind(
+      dev.tenant_id, dev.id, dev.agent_id, type, JSON.stringify(args),
+      sess.user_id, `Batch by ${sess.user_email}`,
+      type === 'ps' || type === 'cmd' ? 180 : 60
+    ).run();
+    queued.push(Number(r.meta.last_row_id));
+  }
+
+  await logAudit(env, sess, 'batch_dispatch', 'commands', null,
+    { type, queued_count: queued.length, skipped_count: skipped.length, total_targeted: devices.length },
+    req.headers.get('CF-Connecting-IP'));
+
+  return json({
+    ok: true,
+    targeted: devices.length,
+    queued: queued.length,
+    skipped: skipped.length,
+    skipped_details: skipped.slice(0, 20),
+    command_ids: queued,
+  });
+}
+
 // Cockpit: cancel a queued command
 async function handleCommandCancel(id: number, req: Request, env: Env, sess: Session): Promise<Response> {
   if (sess.role !== 'super_admin' && sess.role !== 'admin') return jsonError('Keine Berechtigung', 403);
@@ -2723,7 +2844,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.7.3', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.7.9', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2986,6 +3107,7 @@ export default {
       // Remote commands
       if (path === '/api/commands' && m === 'GET') return handleCommandsList(req, env, sess);
       if (path === '/api/commands' && m === 'POST') return handleCommandDispatch(req, env, sess);
+      if (path === '/api/commands/batch' && m === 'POST') return handleCommandBatchDispatch(req, env, sess);
       mt = path.match(/^\/api\/commands\/(\d+)\/cancel$/);
       if (mt && m === 'POST') return handleCommandCancel(Number(mt[1]), req, env, sess);
 

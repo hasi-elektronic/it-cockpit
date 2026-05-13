@@ -457,10 +457,11 @@ tailwind.config = {
               </div>
 
               <!-- Actions -->
-              <div class="px-5 py-3 flex gap-2">
-                <button @click="switchTenant(t.slug)" class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded font-medium">
+              <div class="px-5 py-3 flex gap-2 flex-wrap">
+                <button @click="switchTenant(t.slug)" class="flex-1 min-w-[80px] px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded font-medium">
                   Öffnen →
                 </button>
+                <button @click="openBatchModal(t)" class="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm rounded" title="Batch-Befehl an alle Geraete">⚡</button>
                 <button @click="showInstallModal(t)" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm rounded" title="Agent-Installation">⬇️</button>
                 <button @click="openTenantModal(t)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded">✎</button>
                 <button v-if="t.id !== session.home_tenant_id" @click="deleteTenant(t)" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm rounded">🗑</button>
@@ -2267,6 +2268,55 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- ==================== BATCH COMMAND MODAL (v0.7.9) ==================== -->
+    <div v-if="modal === 'batch'" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel max-w-2xl">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">⚡ Batch-Befehl: {{ batchTenant && batchTenant.name }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body space-y-4">
+          <!-- Target summary -->
+          <div class="bg-orange-50 border border-orange-200 rounded p-3 text-sm">
+            <div class="font-semibold text-orange-900 mb-1">🎯 Zielgeraete</div>
+            <div class="text-orange-800">
+              <span v-if="batchTenant">{{ batchTenant.device_count || 0 }} Geraete im Mandant · </span>
+              <span class="font-semibold">{{ batchOnlineCount }} online (innerhalb 10 Min)</span>
+            </div>
+            <div class="text-xs text-orange-700 mt-1">Nur online-Geraete erhalten den Befehl. Offline-Geraete werden uebersprungen.</div>
+          </div>
+
+          <!-- Action select -->
+          <div>
+            <label class="form-label">Aktion auswaehlen</label>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <button v-for="b in batchActions" :key="b.key"
+                @click="batchForm.action = b.key"
+                :class="['text-left px-3 py-2 rounded border text-sm', batchForm.action === b.key ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-200' : 'border-slate-200 hover:border-slate-300 bg-white']">
+                <div class="font-semibold text-slate-900">{{ b.emoji }} {{ b.label }}</div>
+                <div class="text-xs text-slate-500">{{ b.desc }}</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Confirmation row -->
+          <div v-if="batchForm.action" class="bg-rose-50 border border-rose-200 rounded p-3 text-sm">
+            <div class="font-semibold text-rose-900 mb-1">⚠ Bestaetigung</div>
+            <div class="text-rose-800">
+              Aktion <strong>{{ getBatchActionLabel(batchForm.action) }}</strong> wird an <strong>{{ batchOnlineCount }} Geraete</strong> gesendet.
+            </div>
+            <div class="text-xs text-rose-700 mt-1">Diese Aktion kann nicht rueckgaengig gemacht werden, nachdem die Geraete den Befehl ausgefuehrt haben.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Abbrechen</button>
+          <button @click="submitBatch" :disabled="!batchForm.action || batchSubmitting || batchOnlineCount === 0" class="btn-primary">
+            {{ batchSubmitting ? 'Sende an ' + batchOnlineCount + ' Geraete…' : '🚀 An ' + batchOnlineCount + ' Geraete senden' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== TENANT MODAL ==================== -->
     <div v-if="modal === 'tenant'" class="modal-backdrop" @click.self="closeModal">
       <div class="modal-panel max-w-2xl">
@@ -2504,6 +2554,22 @@ createApp({
       expandedDetail: null, expandedAv: null, portFilter: '',
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
+      // v0.7.9: Batch dispatch state
+      batchTenant: null,
+      batchOnlineCount: 0,
+      batchForm: { action: null },
+      batchSubmitting: false,
+      batchActions: [
+        { key: 'ping',         emoji: '📡', label: 'Ping',            desc: 'Erreichbarkeits-Test' },
+        { key: 'flush_dns',    emoji: '🌐', label: 'DNS leeren',      desc: 'ipconfig /flushdns' },
+        { key: 'gpo_update',   emoji: '📁', label: 'GPO erzwingen',   desc: 'gpupdate /force' },
+        { key: 'spooler',      emoji: '🖨️', label: 'Spooler neu',     desc: 'Druckdienst restart' },
+        { key: 'temp_cleanup', emoji: '🧹', label: 'Temp aufraeumen', desc: '%TEMP% leeren' },
+        { key: 'defender_scan',emoji: '🛡️', label: 'Defender Scan',   desc: 'Quick-Scan' },
+        { key: 'check_updates',emoji: '🔍', label: 'Win-Updates',     desc: 'Verfuegbare Updates zaehlen' },
+        { key: 'event_errors', emoji: '📜', label: 'Fehler-Log',      desc: 'Letzte 10 Errors' },
+        { key: 'reboot60',     emoji: '🔄', label: 'Neustart 60s',    desc: 'Mit Hinweis fuer Nutzer' },
+      ],
       tenants: [],
       tenantForm: { id: null, slug: '', name: '', plan: 'starter', status: 'active', device_quota: 50, monthly_fee: 0, contact_name: '', contact_email: '', contact_phone: '', address: '', city: '', industry: '', notes: '' },
       tenantSaving: false,
@@ -3185,6 +3251,77 @@ createApp({
         const r = await this.api('/api/tenants');
         this.tenants = r.items || [];
       } catch(e) { this.toast('Fehler: ' + e.message, 'error'); }
+    },
+
+    // ---------- Batch dispatch (v0.7.9) ----------
+    async openBatchModal(tenant) {
+      this.batchTenant = tenant;
+      this.batchForm = { action: null };
+      this.batchOnlineCount = 0;
+      this.modal = 'batch';
+      // Quick poll: how many devices in this tenant are online?
+      try {
+        const r = await this.api('/api/devices?tenant_id=' + tenant.id + '&limit=200');
+        const tenMinAgo = Date.now() - 10 * 60 * 1000;
+        this.batchOnlineCount = (r.items || []).filter(d => {
+          if (!d.last_seen) return false;
+          const t = new Date(d.last_seen.replace(' ', 'T') + 'Z').getTime();
+          return t > tenMinAgo;
+        }).length;
+      } catch(e) {
+        this.toast('Online-Geraete-Zahl konnte nicht ermittelt werden: ' + e.message, 'error');
+      }
+    },
+
+    getBatchActionLabel(key) {
+      const a = this.batchActions.find(x => x.key === key);
+      return a ? (a.emoji + ' ' + a.label) : key;
+    },
+
+    // Map batch action key -> { command_type, command_args }
+    resolveBatchAction(key) {
+      const map = {
+        ping:          { command_type: 'ping', command_args: {} },
+        flush_dns:     { command_type: 'cmd',  command_args: { command: 'ipconfig /flushdns' } },
+        gpo_update:    { command_type: 'cmd',  command_args: { command: 'gpupdate /force' } },
+        spooler:       { command_type: 'ps',   command_args: { script: "try { Restart-Service Spooler -Force -EA Stop; Write-Output 'Spooler neu gestartet' } catch { Write-Output ('Fehler: ' + $_.Exception.Message) }" } },
+        temp_cleanup:  { command_type: 'ps',   command_args: { script: this.getCleanupScript() } },
+        defender_scan: { command_type: 'ps',   command_args: { script: 'Start-MpScan -ScanType QuickScan' } },
+        check_updates: { command_type: 'ps',   command_args: { script: this.getWinUpdateScript() } },
+        event_errors:  { command_type: 'ps',   command_args: { script: this.getEventErrorsScript() } },
+        reboot60:      { command_type: 'reboot', command_args: { delay_seconds: 60 } },
+      };
+      return map[key];
+    },
+
+    async submitBatch() {
+      if (!this.batchForm.action || !this.batchTenant) return;
+      if (!confirm(`Batch-Befehl "${this.getBatchActionLabel(this.batchForm.action)}" an ${this.batchOnlineCount} online Geraete von ${this.batchTenant.name} senden?`)) return;
+      this.batchSubmitting = true;
+      try {
+        const cmd = this.resolveBatchAction(this.batchForm.action);
+        if (!cmd) throw new Error('Unbekannte Aktion: ' + this.batchForm.action);
+        const r = await this.api('/api/commands/batch', {
+          method: 'POST',
+          body: JSON.stringify({
+            command_type: cmd.command_type,
+            command_args: cmd.command_args,
+            tenant_id: this.batchTenant.id,
+            all_online: true,
+          })
+        });
+        const msg = `Batch gesendet: ${r.queued} Befehle queued, ${r.skipped} uebersprungen (von ${r.targeted} Zielen)`;
+        this.toast(msg, 'success');
+        if (r.skipped > 0 && r.skipped_details && r.skipped_details.length > 0) {
+          console.log('Batch skipped details:', r.skipped_details);
+        }
+        this.closeModal();
+        await this.loadAdminOverview();  // refresh cards
+      } catch(e) {
+        this.toast('Fehler beim Batch-Senden: ' + e.message, 'error');
+      } finally {
+        this.batchSubmitting = false;
+      }
     },
     openTenantModal(t) {
       if (t) {
