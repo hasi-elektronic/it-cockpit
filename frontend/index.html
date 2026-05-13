@@ -1366,7 +1366,7 @@ tailwind.config = {
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-100"
                      :class="detailSecurity.pending_reboot ? 'cursor-pointer hover:bg-slate-50 -mx-2 px-2 rounded' : ''"
-                     @click="if (detailSecurity.pending_reboot) expandedDetail = expandedDetail==='reboot' ? null : 'reboot'">
+                     @click="detailSecurity.pending_reboot && (expandedDetail = expandedDetail==='reboot' ? null : 'reboot')">
                   <span class="text-sm text-slate-700">🔁 Neustart ausstehend</span>
                   <span v-if="!detailSecurity.pending_reboot" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">✓ nein</span>
                   <span v-else class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-medium">⚠ ja ({{ detailSecurity.pending_reboot_reason }}) <span class="text-amber-500">{{ expandedDetail==='reboot' ? '▾' : '▸' }}</span></span>
