@@ -2417,7 +2417,151 @@ async function handleAgentCommandResult(id: number, req: Request, env: Env): Pro
   return json({ ok: true });
 }
 
-// ============== TENANT MANAGEMENT (super_admin only) ==============
+// ============== ADMIN COMMAND QUEUING (admin/super_admin) ==============
+
+// Whitelist of command types that can be queued by admins (security guard).
+const ALLOWED_COMMAND_TYPES = new Set([
+  'ping',         // smoke test
+  'reboot',       // restart PC (args: { delay_seconds })
+  'lock',         // lock screen
+  'msg',          // show toast to user (args: { message })
+  'scan_quick',   // Windows Defender quick scan
+  'scan_full',   // Windows Defender full scan
+  'wake',         // (placeholder — WoL needs separate magic-packet flow, see /wake endpoint)
+  'shutdown',     // graceful shutdown (args: { delay_seconds })
+  'flush_dns',    // ipconfig /flushdns
+  'gpupdate',     // gpupdate /force
+  'sfc_scan',     // System File Checker
+  'check_updates',// search Windows Update
+]);
+
+async function handleDeviceCommandQueue(deviceId: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  // Find the device + its active agent (must belong to caller's tenant unless super_admin)
+  const dev = await env.DB.prepare(`
+    SELECT d.id, d.tenant_id, d.hostname,
+           a.id AS agent_id, a.status AS agent_status, a.last_seen
+    FROM devices d
+    LEFT JOIN agents a ON a.device_id = d.id AND a.status = 'active'
+    WHERE d.id = ?
+  `).bind(deviceId).first<any>();
+  if (!dev) return jsonError('Geraet nicht gefunden', 404);
+  if (dev.tenant_id !== sess.tenant_id && sess.role !== 'super_admin') {
+    return jsonError('Kein Zugriff', 403);
+  }
+  if (!dev.agent_id) return jsonError('Agent nicht installiert auf diesem Geraet', 400);
+
+  const body = await req.json<any>().catch(() => null);
+  if (!body || !body.type) return jsonError('type erforderlich', 400);
+
+  const ctype = String(body.type).toLowerCase();
+  if (!ALLOWED_COMMAND_TYPES.has(ctype)) {
+    return jsonError(`Command-Typ nicht erlaubt: ${ctype}`, 400);
+  }
+
+  // Build command_args based on type
+  let args: any = {};
+  switch (ctype) {
+    case 'reboot':
+    case 'shutdown':
+      args = { delay_seconds: Math.max(0, Math.min(Number(body.delay_seconds) || 30, 3600)) };
+      break;
+    case 'msg':
+      if (!body.message) return jsonError('message erforderlich fuer msg', 400);
+      args = { message: String(body.message).slice(0, 500) };
+      break;
+    case 'scan_quick':
+      // Translate to a 'ps' command on the agent
+      return queueRawCommand(env, dev, sess, 'ps', {
+        script: `Start-MpScan -ScanType QuickScan`,
+      }, 1800, ctype);
+    case 'scan_full':
+      return queueRawCommand(env, dev, sess, 'ps', {
+        script: `Start-MpScan -ScanType FullScan`,
+      }, 7200, ctype);
+    case 'flush_dns':
+      return queueRawCommand(env, dev, sess, 'cmd', {
+        command: `ipconfig /flushdns`,
+      }, 60, ctype);
+    case 'gpupdate':
+      return queueRawCommand(env, dev, sess, 'cmd', {
+        command: `gpupdate /force`,
+      }, 300, ctype);
+    case 'sfc_scan':
+      return queueRawCommand(env, dev, sess, 'cmd', {
+        command: `sfc /scannow`,
+      }, 1800, ctype);
+    case 'check_updates':
+      return queueRawCommand(env, dev, sess, 'ps', {
+        script: `$session = New-Object -ComObject Microsoft.Update.Session; $searcher = $session.CreateUpdateSearcher(); $result = $searcher.Search('IsInstalled=0'); "$($result.Updates.Count) updates available"`,
+      }, 600, ctype);
+    case 'ping':
+    case 'lock':
+    case 'wake':
+      args = {};
+      break;
+  }
+
+  return queueRawCommand(env, dev, sess, ctype, args, body.timeout_seconds || 120, ctype);
+}
+
+async function queueRawCommand(
+  env: Env, dev: any, sess: Session,
+  agentType: string, args: any, timeoutSec: number, displayType: string
+): Promise<Response> {
+  const result = await env.DB.prepare(`
+    INSERT INTO commands (tenant_id, device_id, agent_id, command_type, command_args,
+                          status, timeout_seconds, created_by, created_at)
+    VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, datetime('now'))
+  `).bind(
+    dev.tenant_id,
+    dev.id,
+    dev.agent_id,
+    agentType,
+    JSON.stringify(args),
+    Math.max(10, Math.min(timeoutSec, 7200)),
+    sess.user_id   // INTEGER FK to users(id), not email string
+  ).run();
+
+  await logAudit(env as any, sess, 'queue_command', 'device', dev.id, {
+    type: displayType,
+    agent_type: agentType,
+    args,
+    hostname: dev.hostname,
+  }, null);
+
+  return json({
+    ok: true,
+    command_id: result.meta.last_row_id,
+    queued_at: new Date().toISOString(),
+    estimated_pickup: 'Beim naechsten Heartbeat (max. 15 Min)',
+  });
+}
+
+// List commands for a device (admin view)
+async function handleDeviceCommandsList(deviceId: number, req: Request, env: Env, sess: Session): Promise<Response> {
+  const dev = await env.DB.prepare(`SELECT id, tenant_id FROM devices WHERE id = ?`).bind(deviceId).first<any>();
+  if (!dev) return jsonError('Geraet nicht gefunden', 404);
+  if (dev.tenant_id !== sess.tenant_id && sess.role !== 'super_admin') {
+    return jsonError('Kein Zugriff', 403);
+  }
+  const url = new URL(req.url);
+  const limit = Math.min(Number(url.searchParams.get('limit') || 20), 100);
+
+  const r = await env.DB.prepare(`
+    SELECT c.id, c.command_type, c.command_args, c.status, c.created_at, c.picked_at, c.completed_at,
+           c.result_exit, c.error_message, u.email AS created_by,
+           substr(c.result_stdout, 1, 500) AS stdout_preview
+    FROM commands c
+    LEFT JOIN users u ON u.id = c.created_by
+    WHERE c.device_id = ?
+    ORDER BY c.id DESC
+    LIMIT ?
+  `).bind(deviceId, limit).all<any>();
+
+  return json({ commands: r.results || [] });
+}
+
+
 
 function requireSuperAdmin(sess: Session): Response | null {
   if (sess.role !== 'super_admin') return jsonError('Nur Super-Admins koennen Mandanten verwalten', 403);
@@ -2579,7 +2723,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.7.2', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.7.3', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
