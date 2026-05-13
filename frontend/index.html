@@ -1715,10 +1715,10 @@ tailwind.config = {
                   <div class="font-semibold text-sm">Nachricht</div>
                   <div class="text-xs text-slate-500">Popup beim Nutzer</div>
                 </button>
-                <button @click="confirmDispatch('lock')" class="action-card border-amber-200 hover:border-amber-400 hover:bg-amber-50">
+                <button @click="confirmLockInteractive()" class="action-card border-amber-200 hover:border-amber-400 hover:bg-amber-50">
                   <div class="text-2xl">🔒</div>
                   <div class="font-semibold text-sm">Bildschirm sperren</div>
-                  <div class="text-xs text-slate-500">Sofort</div>
+                  <div class="text-xs text-slate-500">Aktive Session</div>
                 </button>
                 <button @click="openCommandModal('reboot')" class="action-card border-rose-200 hover:border-rose-400 hover:bg-rose-50">
                   <div class="text-2xl">🔄</div>
@@ -2812,6 +2812,14 @@ createApp({
       const cmd = 'shutdown /s /t 60 /c "Hasi IT-Cockpit: Herunterfahren in 60s"';
       this.dispatchCommand('cmd', { command: cmd });
     },
+    confirmLockInteractive() {
+      // SYSTEM service can't lock user session directly via rundll32.
+      // Workaround: schtasks creates an INTERACTIVE one-shot task that runs as
+      // the currently logged-in user, which actually locks their screen.
+      if (!confirm('Bildschirm des aktiven Nutzers sperren?')) return;
+      const script = "$tn='HasiLock_' + (Get-Random); schtasks /create /tn $tn /tr 'rundll32.exe user32.dll,LockWorkStation' /sc once /st 23:59 /ru 'INTERACTIVE' /f | Out-Null; schtasks /run /tn $tn | Out-Null; Start-Sleep -Seconds 2; schtasks /delete /tn $tn /f | Out-Null; Write-Output 'Bildschirm gesperrt fuer aktiven Nutzer'";
+      this.dispatchCommand('ps', { script: script });
+    },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
       this.modal = 'command';
@@ -2820,11 +2828,22 @@ createApp({
       this.commandSubmitting = true;
       try {
         const args = {};
-        const t = this.commandForm.type;
-        if (t === 'msg')    args.message = this.commandForm.message;
-        if (t === 'reboot') args.delay_seconds = this.commandForm.delay_seconds || 60;
-        if (t === 'ps')     args.script = this.commandForm.script;
-        if (t === 'cmd')    args.command = this.commandForm.command;
+        let t = this.commandForm.type;
+
+        // SYSTEM service workaround: msg can't reach user session via msg.exe
+        // when run as service, so route through schtasks INTERACTIVE PowerShell.
+        if (t === 'msg') {
+          const safe = this.commandForm.message.replace(/'/g, "''");
+          args.script = "$tn='HasiMsg_' + (Get-Random); $arg = '-NoProfile -WindowStyle Hidden -Command \"[System.Reflection.Assembly]::LoadWithPartialName(\\\"System.Windows.Forms\\\") | Out-Null; [System.Windows.Forms.MessageBox]::Show(\\\"" + safe + "\\\", \\\"Hasi IT-Cockpit\\\", \\\"OK\\\", \\\"Information\\\") | Out-Null\"'; schtasks /create /tn $tn /tr \"powershell.exe $arg\" /sc once /st 23:59 /ru 'INTERACTIVE' /f | Out-Null; schtasks /run /tn $tn | Out-Null; Start-Sleep -Seconds 3; schtasks /delete /tn $tn /f | Out-Null; Write-Output ('Mitteilung gesendet: ' + '" + safe + "')";
+          t = 'ps';  // route as PowerShell
+        } else if (t === 'reboot') {
+          args.delay_seconds = this.commandForm.delay_seconds || 60;
+        } else if (t === 'ps') {
+          args.script = this.commandForm.script;
+        } else if (t === 'cmd') {
+          args.command = this.commandForm.command;
+        }
+
         const r = await this.api('/api/commands', {
           method: 'POST',
           body: JSON.stringify({
