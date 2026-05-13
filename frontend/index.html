@@ -1742,7 +1742,7 @@ tailwind.config = {
                   <div class="font-semibold text-sm">Defender Quick Scan</div>
                   <div class="text-xs text-slate-500">~5 Minuten</div>
                 </button>
-                <button @click="dispatchCommand('cmd', {command:'start \"\" \"C:\\\\Program Files (x86)\\\\AnyDesk\\\\AnyDesk.exe\"'})" class="action-card border-lime-200 hover:border-lime-400 hover:bg-lime-50">
+                <button @click="dispatchCommand('cmd', {command: getAnyDeskCommand()})" class="action-card border-lime-200 hover:border-lime-400 hover:bg-lime-50">
                   <div class="text-2xl">📞</div>
                   <div class="font-semibold text-sm">AnyDesk starten</div>
                   <div class="text-xs text-slate-500">Remote-Tool oeffnen</div>
@@ -2800,23 +2800,12 @@ createApp({
       this.dispatchCommand(type, args);
     },
     getWinUpdateScript() {
-      return `$ErrorActionPreference = 'Stop'
-try {
-  $session = New-Object -ComObject Microsoft.Update.Session
-  $searcher = $session.CreateUpdateSearcher()
-  $result = $searcher.Search('IsInstalled=0 and Type=\\'Software\\'')
-  $count = $result.Updates.Count
-  if ($count -eq 0) {
-    Write-Output "System ist aktuell - keine Updates verfuegbar"
-  } else {
-    Write-Output "$count Update(s) verfuegbar:"
-    foreach ($u in $result.Updates) {
-      Write-Output "  - $($u.Title)"
-    }
-  }
-} catch {
-  Write-Output "Fehler bei Update-Suche: $_"
-}`;
+      // Use double-quote-safe single quotes (no escape needed in PS for single-quote literals).
+      return "$ErrorActionPreference = 'Stop'; try { $session = New-Object -ComObject Microsoft.Update.Session; $searcher = $session.CreateUpdateSearcher(); $result = $searcher.Search('IsInstalled=0'); $count = $result.Updates.Count; if ($count -eq 0) { Write-Output 'System ist aktuell - keine Updates verfuegbar' } else { Write-Output \"$count Update(s) verfuegbar:\"; foreach ($u in $result.Updates) { Write-Output (' - ' + $u.Title) } } } catch { Write-Output ('Fehler bei Update-Suche: ' + $_.Exception.Message) }";
+    },
+    getAnyDeskCommand() {
+      // Try both common install locations
+      return 'if exist "C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe" (start "" "C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe") else (start "" "C:\\ProgramData\\AnyDesk\\AnyDesk.exe")';
     },
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
