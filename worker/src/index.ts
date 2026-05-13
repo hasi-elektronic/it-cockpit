@@ -1135,6 +1135,99 @@ Write-Host ""
 }
 
 // ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
+async function handleBulkInstallBat(slug: string, req: Request, env: Env): Promise<Response> {
+  // Tenant kontrolü
+  const t = await env.DB.prepare(
+    `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+
+  if (!t || t.status !== 'active' || !t.install_enabled) {
+    return new Response(`@echo off\r\necho FEHLER: Tenant '${slug}' nicht verfuegbar\r\npause\r\nexit /b 1\r\n`, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/x-msdownload',
+        'Content-Disposition': `attachment; filename="hasi-install-${slug}.bat"`,
+      }
+    });
+  }
+
+  const url = new URL(req.url);
+  const apiUrl = `${url.origin}/api`;
+
+  // .bat içeriği — self-elevate, sonra PowerShell script'i çağır
+  const bat = `@echo off
+:: ==========================================================
+:: Hasi IT-Cockpit - Installer fuer ${t.name}
+:: Doppelklick: Selbst-Elevation zu Admin, dann Installation
+:: ==========================================================
+
+setlocal enabledelayedexpansion
+
+:: Pruefe Admin-Rechte
+net session >nul 2>&1
+if %errorLevel% NEQ 0 (
+    echo.
+    echo  =====================================================
+    echo   HASI IT-COCKPIT INSTALLATION
+    echo   ${t.name}
+    echo  =====================================================
+    echo.
+    echo  Administrator-Rechte werden angefordert...
+    echo.
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    exit /b
+)
+
+:: Wir sind jetzt Admin
+title Hasi IT-Cockpit Installer - ${t.name}
+color 0B
+cls
+
+echo.
+echo  =====================================================
+echo   HASI IT-COCKPIT INSTALLATION
+echo   ${t.name}
+echo  =====================================================
+echo.
+echo  Hostname: %COMPUTERNAME%
+echo  Benutzer: %USERNAME%
+echo.
+
+:: Run PowerShell install script
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { irm '${apiUrl}/install/${slug}' | iex } catch { Write-Host ''; Write-Host 'FEHLER:' $_ -ForegroundColor Red; exit 1 }"
+
+if %errorLevel% NEQ 0 (
+    echo.
+    echo  ===================================================
+    echo   INSTALLATION FEHLGESCHLAGEN
+    echo  ===================================================
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo  ===================================================
+echo   INSTALLATION ABGESCHLOSSEN
+echo  ===================================================
+echo.
+echo  Naechstes Heartbeat in 15 Minuten (automatisch)
+echo  Im Cockpit: ${url.origin.replace('-api.hguencavdi.workers.dev', '.pages.dev')}
+echo.
+echo  Druecken Sie eine Taste zum Schliessen...
+pause >nul
+`;
+
+  return new Response(bat.replace(/\r?\n/g, '\r\n'), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/x-msdownload',
+      'Content-Disposition': `attachment; filename="hasi-install-${slug}.bat"`,
+      'Cache-Control': 'no-cache',
+    }
+  });
+}
+
 async function handleBulkInstall(slug: string, req: Request, env: Env): Promise<Response> {
   // Tenant'ı bul + install enabled mi
   const t = await env.DB.prepare(
@@ -1795,7 +1888,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.5', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.6', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -1810,6 +1903,9 @@ export default {
       // v0.5.5: Bulk install per tenant — sadece slug ile
       const bulkMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)$/);
       if (bulkMatch && m === 'GET') return handleBulkInstall(bulkMatch[1], req, env);
+      // v0.5.6: .bat installer (double-click → Als Admin ausführen)
+      const batMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\.bat$/);
+      if (batMatch && m === 'GET') return handleBulkInstallBat(batMatch[1], req, env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
