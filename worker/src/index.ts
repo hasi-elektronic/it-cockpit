@@ -2074,29 +2074,53 @@ async function handleInstallScript(token: string, req: Request, env: Env): Promi
 
 // ============== AGENT BINARY (public, R2-served) ==============
 async function handleAgentBinary(filename: string, env: Env): Promise<Response> {
-  // Only allow whitelisted filenames
-  const allowed = [
-    'hasi-agent-windows-amd64.exe',
-    'hasi-agent-darwin-amd64',
-    'hasi-agent-linux-amd64',
-  ];
-  if (!allowed.includes(filename)) {
-    return new Response('Not Found', { status: 404 });
+  // Map filename -> platform
+  const platformMap: Record<string, string> = {
+    'hasi-agent-windows-amd64.exe': 'windows',
+    'hasi-agent-darwin-amd64':      'darwin',
+    'hasi-agent-linux-amd64':       'linux',
+  };
+  const platform = platformMap[filename];
+  if (!platform) return new Response('Not Found', { status: 404 });
+
+  // v0.8.3: Resolve latest agent version dynamically from agent_versions table.
+  // When super_admin publishes a new version (sets is_latest=1), ALL future
+  // installer downloads automatically get the new binary — no manual R2 upload
+  // of 'latest/' alias needed.
+  const latest = await env.DB.prepare(
+    `SELECT version, r2_key, sha256, size_bytes FROM agent_versions
+     WHERE platform = ? AND is_latest = 1 LIMIT 1`
+  ).bind(platform).first<any>();
+
+  let r2Key: string;
+  let version: string | null = null;
+  let sha256: string | null = null;
+  if (latest && latest.r2_key) {
+    r2Key = latest.r2_key;
+    version = latest.version;
+    sha256 = latest.sha256;
+  } else {
+    // Fallback: legacy 'latest/' alias (pre-v0.8.3 behavior)
+    r2Key = `latest/${filename}`;
   }
 
-  const obj = await env.AGENTS.get(`latest/${filename}`);
-  if (!obj) return new Response('Binary not found', { status: 404 });
+  const obj = await env.AGENTS.get(r2Key);
+  if (!obj) {
+    return new Response(`Binary not found in R2 (key=${r2Key})`, { status: 404 });
+  }
 
-  const isExe = filename.endsWith('.exe');
-  return new Response(obj.body, {
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'public, max-age=300, must-revalidate',
-      'ETag': obj.httpEtag,
-      ...CORS_HEADERS,
-    }
-  });
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/octet-stream',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    // Short cache so version upgrades reach clients within 5 min worst case
+    'Cache-Control': 'public, max-age=300, must-revalidate',
+    'ETag': obj.httpEtag,
+    ...CORS_HEADERS,
+  };
+  if (version) headers['X-Agent-Version'] = version;
+  if (sha256) headers['X-SHA256'] = sha256;
+
+  return new Response(obj.body, { headers });
 }
 
 // v0.5.10: Standalone installer .exe (per tenant, baked-in token)
@@ -2844,7 +2868,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.7.9', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.8.3', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints

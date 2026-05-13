@@ -2415,16 +2415,16 @@ tailwind.config = {
             <p>1. Eine der unten stehenden Methoden waehlen<br/>2. Mit Admin-Rechten ausfuehren<br/>3. Agent meldet sich automatisch im Cockpit an (Hostname-basiert)</p>
           </div>
 
-          <!-- v0.8.2: Show which agent version is baked into this installer -->
-          <div v-if="latestAgentVersion" class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex items-center justify-between">
-            <div>
-              <span class="text-slate-500">Aktuell verfuegbare Agent-Version:</span>
-              <code class="ml-2 font-mono font-bold text-slate-900">v{{ latestAgentVersion.version }}</code>
-              <span v-if="latestAgentVersion.released_at" class="ml-2 text-slate-500">({{ formatDate(latestAgentVersion.released_at) }})</span>
+          <!-- v0.8.3: Show which agent version will be installed -->
+          <div v-if="latestAgentVersion" class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-emerald-600">✓</span>
+              <span class="font-medium text-emerald-900">Installer ist immer aktuell</span>
             </div>
-            <div class="text-slate-500">
-              <span v-if="installerVersionMatches" class="text-emerald-600 font-medium">✓ Installer ist aktuell</span>
-              <span v-else class="text-amber-600 font-medium">⚠ Installer evtl. veraltet — Self-Update beim ersten Heartbeat</span>
+            <div class="text-xs text-emerald-800">
+              Wird Agent <code class="font-mono font-bold">v{{ latestAgentVersion.version }}</code> installieren
+              <span v-if="latestAgentVersion.released_at" class="text-emerald-700">(veroeffentlicht {{ formatDate(latestAgentVersion.released_at) }})</span>.
+              Bei jedem Download wird automatisch die neueste verfuegbare Version geladen.
             </div>
           </div>
 
