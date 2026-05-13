@@ -11,6 +11,10 @@ database_id = "REPLACE_AFTER_D1_CREATE"
 binding = "AGENTS"
 bucket_name = "hasi-agent-binaries"
 
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "9a868bfa0c824d449c39946108eae6f9"
+
 # Cron triggers: alert evaluator every 15 min
 [triggers]
 crons = ["*/15 * * * *", "0 9 1 * *"]

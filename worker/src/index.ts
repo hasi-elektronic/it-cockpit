@@ -5,10 +5,12 @@
 
 import { evaluateAlerts, sendTestTelegram, sendTestEmail } from './alerts';
 import { generateMonthlyReports } from './monthly_report';
+import { checkRateLimit, rateLimitResponse, getClientIp } from './ratelimit';
 
 export interface Env {
   DB: D1Database;
   AGENTS: R2Bucket;
+  RATELIMIT: KVNamespace;
   PW_SALT: string;
   TOKEN_SECRET: string;
   RESEND_API_KEY?: string;
@@ -98,6 +100,11 @@ async function logAudit(env: Env, sess: Session, action: string, entity: string,
 
 // ============== AUTH ==============
 async function handleLogin(req: Request, env: Env): Promise<Response> {
+  // Brute force protection — 10 / 10 min per IP
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'login', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const { tenant, email, password } = await req.json<any>();
   if (!tenant || !email || !password) return jsonError('tenant, email, password erforderlich');
 
@@ -609,6 +616,10 @@ async function handleAgentRevoke(id: number, req: Request, env: Env, sess: Sessi
 
 // ============== AGENT-FACING (public) ==============
 async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
+  const ipForRl = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'register', ipForRl);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const body = await req.json<any>();
   if (!body.enroll_token || !body.hostname) return jsonError('enroll_token + hostname erforderlich');
 
@@ -1145,6 +1156,10 @@ Write-Host ""
 
 // ============== BULK INSTALL (per tenant, hostname-based auto-enrollment) ==============
 async function handleBulkInstallPs1(slug: string, req: Request, env: Env): Promise<Response> {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const t = await env.DB.prepare(
     `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
   ).bind(slug).first<any>();
@@ -1414,6 +1429,10 @@ Read-Host "  Druecken Sie Enter zum Schliessen"
 }
 
 async function handleBulkInstallBat(slug: string, req: Request, env: Env): Promise<Response> {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   // Tenant kontrolü
   const t = await env.DB.prepare(
     `SELECT id, slug, name, install_enabled, status FROM tenants WHERE slug = ?`
@@ -1507,6 +1526,10 @@ pause >nul
 }
 
 async function handleBulkInstall(slug: string, req: Request, env: Env): Promise<Response> {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'install-script', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   // Tenant'ı bul + install enabled mi
   const t = await env.DB.prepare(
     `SELECT id, slug, name, install_token, install_enabled, status FROM tenants WHERE slug = ?`
@@ -1663,6 +1686,11 @@ Write-Host ""
 }
 
 async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
+  // Rate limit by IP (anonymous endpoint, accepts arbitrary bulk_token)
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'bulk-enroll', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const body = await req.json<any>();
   const bulkToken = String(body.bulk_token || '');
   const hostname = String(body.hostname || '').trim();
@@ -1766,7 +1794,11 @@ async function handleAgentBinary(filename: string, env: Env): Promise<Response> 
 }
 
 // v0.5.10: Standalone installer .exe (per tenant, baked-in token)
-async function handleInstallerExe(slug: string, env: Env): Promise<Response> {
+async function handleInstallerExe(slug: string, req: Request, env: Env): Promise<Response> {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(env.RATELIMIT, 'install', ip);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   // Verify tenant exists + install enabled (security check)
   const t = await env.DB.prepare(
     `SELECT id, status, install_enabled FROM tenants WHERE slug = ?`
@@ -2192,7 +2224,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.12', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.0', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2215,7 +2247,7 @@ export default {
       if (ps1Match && m === 'GET') return handleBulkInstallPs1(ps1Match[1], req, env);
       // v0.5.10: Standalone .exe installer (recommended — double-click, self-elevating)
       const exeMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\.exe$/);
-      if (exeMatch && m === 'GET') return handleInstallerExe(exeMatch[1], env);
+      if (exeMatch && m === 'GET') return handleInstallerExe(exeMatch[1], req, env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
