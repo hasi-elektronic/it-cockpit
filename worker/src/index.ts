@@ -1004,7 +1004,41 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
     }
   }
 
-  return json({ ok: true, next_heartbeat_seconds: 900 });
+  // Layer 8: Self-update — tell agent if a newer version is available
+  let updateInfo: any = null;
+  try {
+    const platform = (body.os_platform || 'windows').toLowerCase();
+    const latest = await env.DB.prepare(
+      `SELECT version, r2_key, sha256, size_bytes, is_required
+       FROM agent_versions
+       WHERE platform = ? AND is_latest = 1
+       LIMIT 1`
+    ).bind(platform).first<any>();
+
+    if (latest && body.agent_version && latest.version !== body.agent_version) {
+      // Build absolute download URL from request origin
+      const reqUrl = new URL(req.url);
+      const downloadUrl = `${reqUrl.protocol}//${reqUrl.host}/api/agent/binary/${latest.version}`;
+      updateInfo = {
+        available: true,
+        latest_version: latest.version,
+        current_version: body.agent_version,
+        download_url: downloadUrl,
+        sha256: latest.sha256 || null,
+        size_bytes: latest.size_bytes || null,
+        required: !!latest.is_required,
+      };
+    }
+  } catch (e) {
+    // Self-update lookup is best-effort; don't break heartbeat
+    console.warn('[heartbeat] update lookup failed:', e);
+  }
+
+  return json({
+    ok: true,
+    next_heartbeat_seconds: 900,
+    update: updateInfo,  // null if up-to-date
+  });
 }
 
 // ============== INSTALL SCRIPT (public) ==============
@@ -2350,7 +2384,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.9', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.7.0', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2378,6 +2412,27 @@ export default {
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
       if (bm && m === 'GET') return handleAgentBinary(bm[1], env);
+
+      // Layer 8: Self-update binary download (public, rate-limited).
+      // Agent has token but binary itself is not secret — anyone who knows
+      // the version string can download the same .exe served to all customers.
+      const verBin = path.match(/^\/api\/agent\/binary\/([0-9a-zA-Z._-]+)$/);
+      if (verBin && m === 'GET') {
+        if (!(await rlCheck(env.RL_INSTALL, getClientIp(req)))) return rateLimitResponse(60, 'edge');
+        const v = await env.DB.prepare(
+          `SELECT version, r2_key, sha256 FROM agent_versions WHERE version = ? LIMIT 1`
+        ).bind(verBin[1]).first<any>();
+        if (!v) return new Response('Version not found', { status: 404 });
+        const obj = await env.AGENTS.get(v.r2_key);
+        if (!obj) return new Response('Binary not found in R2: ' + v.r2_key, { status: 404 });
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="hasi-agent-${v.version}.exe"`,
+          'Cache-Control': 'public, max-age=3600',
+        };
+        if (v.sha256) headers['X-SHA256'] = v.sha256;
+        return new Response(obj.body, { headers });
+      }
 
       // Backup trigger — secret-protected (allows ops/cron bypass without login)
       if (path === '/api/admin/backup/run' && m === 'POST') {
@@ -2467,6 +2522,59 @@ export default {
           extra: { simulated: true, triggered_by: sess.user_email },
         });
         return json({ ok: true, message: 'Error logged with level=' + level });
+      }
+
+      // v0.7.0 — Layer 8: Agent version management
+      if (path === '/api/admin/agent-versions' && m === 'GET') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const r = await env.DB.prepare(
+          `SELECT id, version, platform, r2_key, sha256, size_bytes, released_at,
+                  is_latest, is_required, release_notes
+           FROM agent_versions ORDER BY released_at DESC LIMIT 50`
+        ).all<any>();
+        return json({ versions: r.results || [] });
+      }
+
+      // Publish a new version (super-admin): marks the row as is_latest=1 for its platform
+      if (path === '/api/admin/agent-versions' && m === 'POST') {
+        if (sess.role !== 'super_admin') return jsonError('Nur Super-Admin', 403);
+        const body = await req.json<any>();
+        const version = String(body.version || '').trim();
+        const platform = String(body.platform || 'windows').toLowerCase();
+        const r2_key = String(body.r2_key || '').trim();
+        if (!version || !r2_key) return jsonError('version + r2_key required', 400);
+        if (!/^[0-9]+\.[0-9]+\.[0-9]+/.test(version)) return jsonError('version must be semver (x.y.z)', 400);
+
+        // Verify the file exists in R2
+        const head = await env.AGENTS.head(r2_key);
+        if (!head) return jsonError(`R2 object not found: ${r2_key}`, 404);
+
+        // Demote previous latest for this platform
+        await env.DB.prepare(
+          `UPDATE agent_versions SET is_latest = 0 WHERE platform = ? AND is_latest = 1`
+        ).bind(platform).run();
+
+        // Insert (or upsert) new version row
+        await env.DB.prepare(`
+          INSERT INTO agent_versions (version, platform, r2_key, sha256, size_bytes, is_latest, is_required, release_notes)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+          ON CONFLICT(version) DO UPDATE SET
+            platform = excluded.platform,
+            r2_key = excluded.r2_key,
+            sha256 = excluded.sha256,
+            size_bytes = excluded.size_bytes,
+            is_latest = 1,
+            is_required = excluded.is_required,
+            release_notes = excluded.release_notes
+        `).bind(
+          version, platform, r2_key,
+          body.sha256 || null,
+          head.size || null,
+          body.is_required ? 1 : 0,
+          body.release_notes || null
+        ).run();
+
+        return json({ ok: true, version, platform, r2_key, size_bytes: head.size });
       }
 
       // Single error detail (super-admin)

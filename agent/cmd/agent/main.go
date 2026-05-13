@@ -40,7 +40,7 @@ import (
 	"time"
 )
 
-const AgentVersion = "0.5.5"
+const AgentVersion = "0.6.0"
 
 // ==================== Static Inventory (cross-platform) ====================
 
@@ -448,7 +448,7 @@ func main() {
 	}
 
 	// First heartbeat immediately
-	if err := sendHeartbeat(cfg, state); err != nil {
+	if err := sendHeartbeatWithUpdate(cfg, state); err != nil {
 		log.Printf("Initial heartbeat failed: %v", err)
 	} else {
 		log.Printf("Initial heartbeat OK")
@@ -474,7 +474,7 @@ func main() {
 	for {
 		select {
 		case <-hbTicker.C:
-			if err := sendHeartbeat(cfg, state); err != nil {
+			if err := sendHeartbeatWithUpdate(cfg, state); err != nil {
 				log.Printf("Heartbeat error: %v", err)
 			} else {
 				log.Printf("Heartbeat OK")
