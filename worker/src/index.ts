@@ -1318,34 +1318,60 @@ $settings = New-ScheduledTaskSettingsSet \`
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1, $trigger2) \`
     -Settings $settings -Principal $principal \`
     -Description "Hasi IT-Cockpit Agent — alle 15 Min + bei Boot" -Force | Out-Null
-OK "Task '$taskName' eingerichtet (15-Min-Intervall)"
 
-# First heartbeat
+# Task verification
+$verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($verifyTask) {
+    OK "Task '$taskName' eingerichtet ($($verifyTask.State))"
+} else {
+    Fail "Task konnte nicht erstellt werden"
+}
+
+# First heartbeat — direct exec, verbose, capture exit code
 Write-Host ""
-Write-Host "  Sende ersten Heartbeat (kann 30-60 Sekunden dauern)..." -ForegroundColor Cyan
+Write-Host "  Sende ersten Heartbeat..." -ForegroundColor Cyan
+$hbOutput = ""
+$hbExit = 1
 try {
     $hbOutput = & $exePath --once 2>&1 | Out-String
-    if ($hbOutput -match "Initial heartbeat OK") {
-        Write-Host "        ✓ Heartbeat erfolgreich gesendet" -ForegroundColor Green
-    } elseif ($hbOutput -match "heartbeat") {
-        Write-Host "        ⚠ Heartbeat-Antwort:" -ForegroundColor Yellow
-        Write-Host $hbOutput -ForegroundColor Gray
+    $hbExit = $LASTEXITCODE
+    if ($hbExit -eq 0) {
+        Write-Host "        ✓ Heartbeat erfolgreich" -ForegroundColor Green
+        if ($hbOutput.Trim()) { Write-Host ($hbOutput.Trim() -replace '(?m)^', '          ') -ForegroundColor DarkGray }
     } else {
-        Write-Host "        ⚠ Unbekannte Antwort:" -ForegroundColor Yellow
-        Write-Host $hbOutput -ForegroundColor Gray
+        Write-Host "        ⚠ Heartbeat-Exit-Code: $hbExit" -ForegroundColor Yellow
+        if ($hbOutput.Trim()) { Write-Host ($hbOutput.Trim() -replace '(?m)^', '          ') -ForegroundColor Yellow }
+        Write-Host "        Task laeuft trotzdem in 15 Min automatisch" -ForegroundColor Gray
     }
 } catch {
-    Write-Host "        ⚠ Erster Heartbeat fehlgeschlagen: $_" -ForegroundColor Yellow
-    Write-Host "        Wird im naechsten 15-Min-Cron versucht" -ForegroundColor Gray
+    Write-Host "        ⚠ Erster Heartbeat Exception: $_" -ForegroundColor Yellow
+    Write-Host "        Task laeuft trotzdem in 15 Min automatisch" -ForegroundColor Gray
 }
 
-# Start the scheduled task immediately for the first SYSTEM-context run
+# Force task start (SYSTEM context)
 try {
     Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
-    Write-Host "        ✓ Scheduled Task gestartet (SYSTEM-Kontext)" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+    $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($taskInfo) {
+        OK "Task gestartet (LastRunTime: $($taskInfo.LastRunTime), Result: 0x$('{0:X8}' -f $taskInfo.LastTaskResult))"
+    }
 } catch {
-    Write-Host "        ⚠ Task konnte nicht manuell gestartet werden, laeuft trotzdem in 15 Min" -ForegroundColor Gray
+    Write-Host "        ⚠ Task konnte nicht manuell gestartet werden: $_" -ForegroundColor Gray
 }
+
+# Write install log for debugging
+$logFile = "$installDir\\install.log"
+@"
+[$([DateTime]::UtcNow.ToString('o'))] Install completed
+Hostname: $hostname
+User: $env:USERNAME
+Device ID: $($enrollResp.device_id)
+Agent Token: $($enrollResp.agent_token.Substring(0,16))...
+Task: $($verifyTask.State)
+HB Exit: $hbExit
+HB Output: $hbOutput
+"@ | Set-Content -Path $logFile -Encoding UTF8
 
 # Success
 Write-Host ""
@@ -2132,7 +2158,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.5.8', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.5.9', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
