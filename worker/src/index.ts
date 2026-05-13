@@ -8,6 +8,14 @@ import { generateMonthlyReports } from './monthly_report';
 import { rlCheck, kvCheck, rateLimitResponse, getClientIp, RateLimitBinding } from './ratelimit';
 import { sha256Hex, findAgentByToken, findTenantByInstallToken, findAgentByEnrollToken } from './tokens';
 import { runDailyBackup } from './backup';
+import {
+  LoginSchema,
+  AgentRegisterSchema,
+  BulkEnrollSchema,
+  HeartbeatSchema,
+  CommandResultSchema,
+  validationError,
+} from './schemas';
 
 export interface Env {
   DB: D1Database;
@@ -114,7 +122,11 @@ async function handleLogin(req: Request, env: Env): Promise<Response> {
   const kv = await kvCheck(env.RATELIMIT, 'login', ip);
   if (!kv.allowed) return rateLimitResponse(kv.retryAfter, 'global');
 
-  const { tenant, email, password } = await req.json<any>();
+  const raw = await req.json<any>().catch(() => null);
+  if (!raw) return jsonError('Invalid JSON body', 400);
+  const parsed = LoginSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const { tenant, email, password } = parsed.data;
   if (!tenant || !email || !password) return jsonError('tenant, email, password erforderlich');
 
   const t = await env.DB.prepare('SELECT id, slug, name, plan FROM tenants WHERE slug = ? AND status = ?').bind(tenant, 'active').first<any>();
@@ -630,7 +642,11 @@ async function handleAgentRegister(req: Request, env: Env): Promise<Response> {
   const kvRl = await kvCheck(env.RATELIMIT, 'register', ipForRl);
   if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
-  const body = await req.json<any>();
+  const raw = await req.json<any>().catch(() => null);
+  if (!raw) return jsonError('Invalid JSON body', 400);
+  const parsed = AgentRegisterSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const body = parsed.data;
   if (!body.enroll_token || !body.hostname) return jsonError('enroll_token + hostname erforderlich');
 
   const agent = await findAgentByEnrollToken(env.DB, body.enroll_token);
@@ -756,7 +772,11 @@ async function handleAgentHeartbeat(req: Request, env: Env): Promise<Response> {
   if (!agent) return jsonError('Invalid agent token', 401);
   if (agent.status !== 'active') return jsonError('Agent revoked', 403);
 
-  const body = await req.json<any>();
+  const raw = await req.json<any>().catch(() => null);
+  if (!raw) return jsonError('Invalid JSON body', 400);
+  const parsed = HeartbeatSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const body = parsed.data;
   const ip = req.headers.get('CF-Connecting-IP') || '';
 
   await env.DB.prepare(
@@ -1710,10 +1730,13 @@ async function handleBulkEnroll(req: Request, env: Env): Promise<Response> {
   const kvRl = await kvCheck(env.RATELIMIT, 'bulk-enroll', ip);
   if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
 
-  const body = await req.json<any>();
-  const bulkToken = String(body.bulk_token || '');
-  const hostname = String(body.hostname || '').trim();
-  if (!bulkToken || !hostname) return jsonError('bulk_token + hostname erforderlich', 400);
+  const raw = await req.json<any>().catch(() => null);
+  if (!raw) return jsonError('Invalid JSON body', 400);
+  const parsed = BulkEnrollSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const body = parsed.data;
+  const bulkToken = body.bulk_token;
+  const hostname = body.hostname.trim();
 
   // Token'a uyan tenant'ı bul (dual-mode: hash + plaintext)
   const tenantRow = await findTenantByInstallToken(env.DB, bulkToken);
@@ -2110,11 +2133,15 @@ async function handleAgentCommandResult(id: number, req: Request, env: Env): Pro
   const agent = (agentLookup && agentLookup.status === 'active') ? agentLookup : null;
   if (!agent) return jsonError('Token ungueltig', 401);
 
-  const body = await req.json<any>();
-  const status = body.status === 'done' || body.status === 'error' ? body.status : 'done';
-  const stdout = (body.stdout || '').slice(0, 16000);
-  const stderr = (body.stderr || '').slice(0, 4000);
-  const exitCode = body.exit_code != null ? Number(body.exit_code) : null;
+  const raw = await req.json<any>().catch(() => null);
+  if (!raw) return jsonError('Invalid JSON body', 400);
+  const parsed = CommandResultSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const body = parsed.data;
+  const status = body.status || 'done';
+  const stdout = body.stdout || '';
+  const stderr = body.stderr || '';
+  const exitCode = body.exit_code ?? null;
   const errorMessage = body.error_message || null;
 
   const r = await env.DB.prepare(`
@@ -2246,7 +2273,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.6.5', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.6.6', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
