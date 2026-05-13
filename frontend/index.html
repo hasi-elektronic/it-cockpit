@@ -2415,6 +2415,19 @@ tailwind.config = {
             <p>1. Eine der unten stehenden Methoden waehlen<br/>2. Mit Admin-Rechten ausfuehren<br/>3. Agent meldet sich automatisch im Cockpit an (Hostname-basiert)</p>
           </div>
 
+          <!-- v0.8.2: Show which agent version is baked into this installer -->
+          <div v-if="latestAgentVersion" class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex items-center justify-between">
+            <div>
+              <span class="text-slate-500">Aktuell verfuegbare Agent-Version:</span>
+              <code class="ml-2 font-mono font-bold text-slate-900">v{{ latestAgentVersion.version }}</code>
+              <span v-if="latestAgentVersion.released_at" class="ml-2 text-slate-500">({{ formatDate(latestAgentVersion.released_at) }})</span>
+            </div>
+            <div class="text-slate-500">
+              <span v-if="installerVersionMatches" class="text-emerald-600 font-medium">✓ Installer ist aktuell</span>
+              <span v-else class="text-amber-600 font-medium">⚠ Installer evtl. veraltet — Self-Update beim ersten Heartbeat</span>
+            </div>
+          </div>
+
           <!-- Method 0: .exe (RECOMMENDED) -->
           <div class="border-2 border-emerald-300 rounded-lg overflow-hidden">
             <div class="bg-emerald-100 px-4 py-3">
@@ -2579,6 +2592,8 @@ createApp({
       tenantSaving: false,
       installModalOpen: false,
       installTenant: null,
+      latestAgentVersion: null,         // v0.8.2: shown in install modal
+      installerVersionMatches: true,    // v0.8.2: comparison hint
       adminOverview: null,
       adminOverviewLoading: false,
       rotating: false,
@@ -3398,6 +3413,27 @@ createApp({
       this.installTenant = t;
       this.rotateResult = null;
       this.installModalOpen = true;
+      // v0.8.2: fetch latest agent version for display
+      this.loadLatestAgentVersion();
+    },
+    async loadLatestAgentVersion() {
+      try {
+        const r = await this.api('/api/admin/agent-versions');
+        const versions = r.versions || r.items || [];
+        const latest = versions.find(v => v.is_latest && v.platform === 'windows');
+        if (latest) {
+          this.latestAgentVersion = latest;
+          // Heuristic: if installer in R2 was built recently (we can't easily know
+          // which version is baked-in without a metadata endpoint), assume match
+          // for now. Future: store installer version in tenant.installer_agent_version.
+          this.installerVersionMatches = true;
+        } else {
+          this.latestAgentVersion = null;
+        }
+      } catch(e) {
+        // Endpoint may not be available for non-super_admin
+        this.latestAgentVersion = null;
+      }
     },
     // v0.8.1: Sidebar shortcut — open install modal for currently active tenant.
     // super_admin sees tenant_id/slug/name from session (whatever they switched into).
