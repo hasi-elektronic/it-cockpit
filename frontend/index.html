@@ -1732,6 +1732,45 @@ tailwind.config = {
 
           <!-- ACTIONS -->
           <div v-if="detailTab==='actions'">
+            <!-- v0.8.7: Wartung (Maintenance) — agent installation lifecycle -->
+            <div class="mb-6">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-semibold text-slate-900">🛠️ Wartung</h4>
+                <div class="text-xs text-slate-500">Agent v{{ detailDevice.agent_version || '—' }}</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <!-- AnyDesk shortcut (only if AnyDesk-ID set) -->
+                <button v-if="detailDevice.anydesk_id"
+                        @click="openAnyDesk()"
+                        class="action-card border-red-200 hover:border-red-400 hover:bg-red-50">
+                  <div class="text-2xl">🟥</div>
+                  <div class="font-semibold text-sm">AnyDesk verbinden</div>
+                  <div class="text-xs text-slate-500 font-mono">{{ detailDevice.anydesk_id }}</div>
+                </button>
+                <button v-else
+                        @click="closeModal(); $nextTick(() => openDeviceModal(detailDevice))"
+                        class="action-card border-slate-200 hover:border-slate-400 hover:bg-slate-50">
+                  <div class="text-2xl">🟥</div>
+                  <div class="font-semibold text-sm">AnyDesk-ID hinzufuegen</div>
+                  <div class="text-xs text-slate-500">Noch nicht erfasst</div>
+                </button>
+                <!-- Reinstall workflow -->
+                <button @click="openReinstallGuide()"
+                        class="action-card border-orange-200 hover:border-orange-400 hover:bg-orange-50">
+                  <div class="text-2xl">🔄</div>
+                  <div class="font-semibold text-sm">Agent neu installieren</div>
+                  <div class="text-xs text-slate-500">Bei Problemen / Upgrade</div>
+                </button>
+                <!-- Force restart service -->
+                <button @click="dispatchCommand('cmd', { command: 'sc.exe stop HasiAgent && timeout /t 3 && sc.exe start HasiAgent' })"
+                        class="action-card border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50">
+                  <div class="text-2xl">🔁</div>
+                  <div class="font-semibold text-sm">Agent-Dienst neu</div>
+                  <div class="text-xs text-slate-500">stop + start (10s)</div>
+                </button>
+              </div>
+            </div>
+
             <!-- Quick action grid -->
             <div class="mb-6">
               <h4 class="font-semibold text-slate-900 mb-3">Schnellaktionen</h4>
@@ -2298,7 +2337,74 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- ==================== BATCH COMMAND MODAL (v0.7.9) ==================== -->
+    <!-- ==================== REINSTALL GUIDE MODAL (v0.8.7) ==================== -->
+    <div v-if="modal === 'reinstall' && reinstallGuide" class="modal-backdrop" @click.self="closeModal">
+      <div class="modal-panel max-w-2xl">
+        <div class="modal-header">
+          <h3 class="font-bold text-lg text-slate-900">🔄 Agent neu installieren</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+        </div>
+        <div class="modal-body space-y-4">
+
+          <div class="bg-slate-50 border border-slate-200 rounded p-3 text-sm">
+            <div class="font-semibold text-slate-900">{{ reinstallGuide.hostname }}</div>
+            <div class="text-xs text-slate-500">Aktuelle Agent-Version: v{{ reinstallGuide.agent_version }}</div>
+          </div>
+
+          <!-- Step 1: AnyDesk -->
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="font-semibold text-slate-900 mb-2">1. Mit dem PC verbinden</div>
+            <div v-if="reinstallGuide.anydesk_id" class="space-y-2">
+              <button @click="openAnyDesk()" class="w-full px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded text-sm font-medium text-red-800">
+                🟥 AnyDesk oeffnen → {{ reinstallGuide.anydesk_id }}
+              </button>
+              <div class="text-xs text-slate-500">AnyDesk muss installiert sein. ID wird in die Zwischenablage kopiert.</div>
+            </div>
+            <div v-else class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠ AnyDesk-ID nicht erfasst. Verbinde manuell via VPN/RDP/Vor-Ort.
+            </div>
+          </div>
+
+          <!-- Step 2: Download installer -->
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="font-semibold text-slate-900 mb-2">2. Installer auf PC herunterladen</div>
+            <div class="bg-slate-900 text-slate-100 rounded p-3 font-mono text-xs break-all mb-2 select-all">{{ reinstallGuide.installer_url }}</div>
+            <button @click="copyToClipboard(reinstallGuide.installer_url, 'Installer-URL kopiert')" class="text-xs text-cyan-600 hover:underline">📋 URL kopieren</button>
+            <div class="text-xs text-slate-500 mt-2">URL im Browser auf dem Ziel-PC oeffnen, Datei laden.</div>
+          </div>
+
+          <!-- Step 3: Run -->
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="font-semibold text-slate-900 mb-2">3. Installer ausfuehren</div>
+            <div class="text-sm text-slate-700 space-y-1">
+              <div>• Doppelklick auf <code class="bg-slate-100 px-1.5 py-0.5 rounded">hasi-install-{{ session.tenant_slug }}.exe</code></div>
+              <div>• UAC bestaetigen (Administrator-Rechte)</div>
+              <div>• Banner zeigt: <strong>Mandant: {{ session.tenant_name }}</strong></div>
+              <div>• Warten bis [6/6] ✓ erscheint</div>
+            </div>
+          </div>
+
+          <!-- Step 4: Verify -->
+          <div class="border border-slate-200 rounded-lg p-4">
+            <div class="font-semibold text-slate-900 mb-2">4. Pruefung</div>
+            <div class="text-sm text-slate-700">
+              Nach Abschluss erscheint der Agent in der Liste mit aktueller Version (v0.6.1) und Status <span class="text-emerald-600">online</span>.
+              Heartbeat alle 15 Minuten.
+            </div>
+          </div>
+
+          <!-- Hinweis -->
+          <div class="bg-cyan-50 border border-cyan-200 rounded p-3 text-xs text-cyan-900">
+            💡 Bei einer Neuinstallation wird der alte Agent automatisch erkannt und sauber ersetzt.
+            Das vorhandene Geraet bleibt in der Datenbank, agent_token wird erneuert.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeModal" class="btn-secondary">Schliessen</button>
+          <button v-if="reinstallGuide.anydesk_id" @click="openAnyDesk()" class="btn-primary">🟥 AnyDesk starten</button>
+        </div>
+      </div>
+    </div>
     <div v-if="modal === 'batch'" class="modal-backdrop" @click.self="closeModal">
       <div class="modal-panel max-w-2xl">
         <div class="modal-header">
@@ -2598,6 +2704,8 @@ createApp({
       expandedDetail: null, expandedAv: null, portFilter: '',
       deviceCommands: [], commandForm: { type: 'msg', message: '', script: '', command: '', delay_seconds: 60, notes: '' },
       commandSubmitting: false,
+      // v0.8.7: Reinstall workflow guide modal
+      reinstallGuide: null,
       // v0.7.9: Batch dispatch state
       batchTenant: null,
       batchOnlineCount: 0,
@@ -3260,6 +3368,33 @@ createApp({
     openCommandModal(type) {
       this.commandForm = { type, message: '', script: '', command: '', delay_seconds: 60, notes: '' };
       this.modal = 'command';
+    },
+    // v0.8.7: Open AnyDesk app via custom URL scheme
+    openAnyDesk() {
+      if (!this.detailDevice || !this.detailDevice.anydesk_id) return;
+      const id = this.detailDevice.anydesk_id;
+      // AnyDesk uses anydesk: protocol on Windows/macOS
+      window.location.href = `anydesk:${id}`;
+      // Fallback: copy to clipboard so user can paste manually
+      navigator.clipboard?.writeText(id).catch(() => {});
+      this.toast(`AnyDesk-ID ${id} kopiert + AnyDesk geoeffnet`, 'success');
+    },
+    // v0.8.7: Show reinstall guide modal — installer URL + step-by-step
+    openReinstallGuide() {
+      this.reinstallGuide = {
+        installer_url: API_BASE + `/api/install/${this.session.tenant_slug}.exe`,
+        hostname: this.detailDevice.hostname,
+        anydesk_id: this.detailDevice.anydesk_id || null,
+        agent_version: this.detailDevice.agent_version || '—',
+      };
+      this.modal = 'reinstall';
+    },
+    copyToClipboard(text, label) {
+      navigator.clipboard?.writeText(text).then(() => {
+        this.toast(`${label || 'Kopiert'} ✓`, 'success');
+      }).catch(() => {
+        this.toast('Kopieren fehlgeschlagen', 'error');
+      });
     },
     async submitCommand() {
       this.commandSubmitting = true;
