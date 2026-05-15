@@ -345,6 +345,46 @@ func resolveSlugFromFilename() (string, error) {
 		return "", fmt.Errorf("filename %q does not start with %q", base, prefix)
 	}
 	tail := strings.TrimPrefix(name, prefix)
+
+	// v0.8.6: Sanitize common browser/copy suffixes that humans don't realize
+	// are part of the filename:
+	//   "sickinger (4)"      ← Chrome/Edge duplicate downloads
+	//   "sickinger - kopie"  ← Windows "Copy" right-click (German)
+	//   "sickinger - copy"   ← Windows "Copy" right-click (English)
+	//   "sickinger.bak"      ← manual backups
+	//   "sickinger_old"      ← manual renames
+	//   "sickinger (1) (2)"  ← multiple Chrome dupes
+	for {
+		trimmed := tail
+		// Strip trailing " (N)" copies — repeat in case of " (1) (2)"
+		if idx := strings.LastIndex(trimmed, " ("); idx > 0 {
+			rest := trimmed[idx+2:]
+			if strings.HasSuffix(rest, ")") {
+				inner := strings.TrimSuffix(rest, ")")
+				if isAllDigits(inner) {
+					trimmed = strings.TrimSpace(trimmed[:idx])
+				}
+			}
+		}
+		// Strip trailing " - kopie" / " - copy" / " - copy (N)"
+		for _, suffix := range []string{" - kopie", " - copy", "-kopie", "-copy"} {
+			if strings.HasSuffix(trimmed, suffix) {
+				trimmed = strings.TrimSuffix(trimmed, suffix)
+				trimmed = strings.TrimSpace(trimmed)
+			}
+		}
+		// Strip trailing ".bak" / "_old" / "_backup"
+		for _, suffix := range []string{".bak", "_old", "_backup", "-old", "-backup", "-bak"} {
+			if strings.HasSuffix(trimmed, suffix) {
+				trimmed = strings.TrimSuffix(trimmed, suffix)
+			}
+		}
+		if trimmed == tail {
+			break // no more changes, stable
+		}
+		tail = trimmed
+	}
+
 	// Cut at first "-v" (version suffix like -v0.8.5) if present.
 	if idx := strings.Index(tail, "-v"); idx > 0 {
 		// Verify the part after -v looks like a version (digit/dot)
@@ -365,6 +405,18 @@ func resolveSlugFromFilename() (string, error) {
 		}
 	}
 	return tail, nil
+}
+
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // tenantInfo is the JSON response from /api/install/<slug>/bulk-token.
