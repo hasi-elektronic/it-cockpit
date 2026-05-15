@@ -16,14 +16,18 @@ import (
 	"time"
 )
 
-// Build-time variables (set via -ldflags)
+// Build-time variables (set via -ldflags). For the generic build, only
+// the public URLs are baked in. TenantSlug + TenantName + BulkToken are
+// resolved at runtime: slug from filename (hasi-install-<slug>.exe),
+// name + token from GET /api/install/<slug>/bulk-token.
 var (
-	TenantSlug = "sickinger" // default, override at build: -X main.TenantSlug=xxx
-	TenantName = "Manfred Sickinger GmbH"
+	TenantSlug = ""       // resolved from os.Args[0] filename
+	TenantName = ""       // resolved from /api/install/<slug>/bulk-token
+	BulkToken  = ""       // resolved from /api/install/<slug>/bulk-token
 	APIBase    = "https://it-cockpit-api.hguencavdi.workers.dev/api"
 	Origin     = "https://it-cockpit-api.hguencavdi.workers.dev"
 	CockpitURL = "https://it-cockpit.pages.dev"
-	Version    = "1.0.0"
+	Version    = "0.8.5"
 )
 
 const (
@@ -66,6 +70,49 @@ func main() {
 	username := getUsername()
 	fmt.Printf("  %sHostname:%s  %s%s%s\n", colorGray, colorReset, colorWhite, hostname, colorReset)
 	fmt.Printf("  %sBenutzer:%s  %s%s%s\n", colorGray, colorReset, colorWhite, username, colorReset)
+	fmt.Println()
+
+	// v0.8.5: Resolve tenant context at runtime instead of bake-time.
+	// 1) Slug is parsed from os.Args[0] filename (e.g. "hasi-install-sickinger.exe" -> "sickinger")
+	// 2) Token + name are fetched from GET /api/install/<slug>/bulk-token
+	// This way token rotation does NOT require an installer rebuild.
+	if TenantSlug == "" {
+		resolved, err := resolveSlugFromFilename()
+		if err != nil {
+			fmt.Printf("\n  %sFEHLER:%s Mandant konnte nicht aus Dateinamen ermittelt werden.\n", colorRed, colorReset)
+			fmt.Printf("  Dateiname muss dem Muster 'hasi-install-<mandant>.exe' folgen.\n")
+			fmt.Printf("  Gefunden: %s\n", filepath.Base(os.Args[0]))
+			fmt.Printf("  Detail: %v\n", err)
+			pause()
+			os.Exit(1)
+		}
+		TenantSlug = resolved
+	}
+
+	if BulkToken == "" {
+		fmt.Printf("  %sErmittle Mandanten-Konfiguration fuer '%s'...%s\n", colorGray, TenantSlug, colorReset)
+		info, err := fetchTenantInfo(TenantSlug)
+		if err != nil {
+			fmt.Printf("\n  %sFEHLER:%s Mandanten-Konfiguration nicht abrufbar.\n", colorRed, colorReset)
+			fmt.Printf("  Mandant: %s\n", TenantSlug)
+			fmt.Printf("  Detail: %v\n", err)
+			fmt.Printf("\n  Pruefe:\n")
+			fmt.Printf("    - Internet-Verbindung\n")
+			fmt.Printf("    - Mandant existiert und ist aktiviert\n")
+			fmt.Printf("    - Cockpit-Dienst erreichbar: %s\n", Origin)
+			pause()
+			os.Exit(1)
+		}
+		BulkToken = info.BulkToken
+		TenantName = info.TenantName
+	}
+
+	// Show resolved tenant
+	if TenantName != "" {
+		fmt.Printf("  %sMandant:%s   %s%s%s\n", colorGray, colorReset, colorWhite, TenantName, colorReset)
+	} else {
+		fmt.Printf("  %sMandant:%s   %s%s%s\n", colorGray, colorReset, colorWhite, TenantSlug, colorReset)
+	}
 	fmt.Println()
 
 	installDir := `C:\Program Files\HasiCockpit`
@@ -272,10 +319,90 @@ func bulkEnroll(hostname string) (*EnrollResponse, error) {
 	return &er, nil
 }
 
-// Token baked at build time via -ldflags -X
-var BulkToken = ""
-
+// bulkToken returns the current install_token. v0.8.5+: fetched at runtime
+// via fetchTenantInfo() and stored in the package-level BulkToken variable.
 func bulkToken() string { return BulkToken }
+
+// resolveSlugFromFilename extracts the tenant slug from os.Args[0].
+// Accepts patterns:
+//
+//	hasi-install-sickinger.exe          -> sickinger
+//	hasi-install-sickinger-v0.8.5.exe   -> sickinger
+//	hasi-install-sickinger_test.exe     -> sickinger_test
+//
+// Returns error if the filename does not match the expected pattern.
+func resolveSlugFromFilename() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		exe = os.Args[0]
+	}
+	base := filepath.Base(exe)
+	// strip .exe
+	name := strings.TrimSuffix(strings.ToLower(base), ".exe")
+	// Expect "hasi-install-<slug>" prefix
+	const prefix = "hasi-install-"
+	if !strings.HasPrefix(name, prefix) {
+		return "", fmt.Errorf("filename %q does not start with %q", base, prefix)
+	}
+	tail := strings.TrimPrefix(name, prefix)
+	// Cut at first "-v" (version suffix like -v0.8.5) if present.
+	if idx := strings.Index(tail, "-v"); idx > 0 {
+		// Verify the part after -v looks like a version (digit/dot)
+		rest := tail[idx+2:]
+		if len(rest) > 0 && (rest[0] >= '0' && rest[0] <= '9') {
+			tail = tail[:idx]
+		}
+	}
+	tail = strings.TrimSpace(tail)
+	if tail == "" {
+		return "", fmt.Errorf("filename %q has empty slug part", base)
+	}
+	// Slug must match [a-z0-9_-]+
+	for _, c := range tail {
+		ok := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
+		if !ok {
+			return "", fmt.Errorf("filename %q contains invalid slug characters: %q", base, tail)
+		}
+	}
+	return tail, nil
+}
+
+// tenantInfo is the JSON response from /api/install/<slug>/bulk-token.
+type tenantInfo struct {
+	Slug       string `json:"slug"`
+	TenantName string `json:"tenant_name"`
+	BulkToken  string `json:"bulk_token"`
+}
+
+// fetchTenantInfo retrieves the current bulk-token + display name for a
+// given slug. This is the v0.8.5 runtime replacement for the bake-time
+// -ldflags injection. Token rotation no longer needs a rebuild.
+func fetchTenantInfo(slug string) (*tenantInfo, error) {
+	url := APIBase + "/install/" + slug + "/bulk-token"
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", "HasiInstaller/"+Version)
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == 404 {
+		return nil, fmt.Errorf("Mandant '%s' nicht gefunden oder nicht aktiviert", slug)
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+	var info tenantInfo
+	if err := json.Unmarshal(body, &info); err != nil {
+		return nil, fmt.Errorf("parse JSON: %w (body=%s)", err, string(body))
+	}
+	if info.BulkToken == "" {
+		return nil, fmt.Errorf("Server lieferte leeren Token")
+	}
+	return &info, nil
+}
 
 func downloadFile(url, dst string) (int64, error) {
 	resp, err := http.Get(url)

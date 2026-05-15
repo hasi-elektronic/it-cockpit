@@ -2138,19 +2138,69 @@ async function handleInstallerExe(slug: string, req: Request, env: Env): Promise
     return new Response('Installer not available for this tenant', { status: 404 });
   }
 
+  // v0.8.5: prefer the generic installer (token-less). The installer parses
+  // its own filename to discover the tenant slug, then fetches the bulk-token
+  // at runtime from /api/install/<slug>/bulk-token. This means:
+  //  - Token rotation does NOT require rebuild + re-upload of per-tenant .exe
+  //  - One single binary serves all tenants
+  //  - Per-tenant pre-built .exe still works as fallback (legacy)
+  const generic = await env.AGENTS.get('installers/hasi-install-generic.exe');
+  if (generic) {
+    return new Response(generic.body, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        // CRITICAL: filename must be hasi-install-<slug>.exe so the installer
+        // can extract the slug from os.Args[0] at startup.
+        'Content-Disposition': `attachment; filename="hasi-install-${slug}.exe"`,
+        'Cache-Control': 'no-cache',
+        'ETag': generic.httpEtag,
+        'X-Installer-Mode': 'generic-runtime-token',
+        ...CORS_HEADERS,
+      }
+    });
+  }
+
+  // Fallback to legacy per-tenant pre-built binary
   const obj = await env.AGENTS.get(`installers/hasi-install-${slug}.exe`);
   if (!obj) return new Response('Installer binary not built yet for this tenant', { status: 404 });
-
   return new Response(obj.body, {
     headers: {
       'Content-Type': 'application/octet-stream',
       'Content-Disposition': `attachment; filename="hasi-install-${slug}.exe"`,
       'Cache-Control': 'no-cache',
       'ETag': obj.httpEtag,
+      'X-Installer-Mode': 'legacy-baked-token',
       ...CORS_HEADERS,
     }
   });
 }
+
+// v0.8.5: Public bulk-token lookup by slug. Used by the generic installer at
+// runtime to obtain the current install_token without rebuilding the .exe.
+// Rate-limited per IP. Returns 404 if tenant doesn't exist or install_enabled=0.
+async function handleInstallTokenLookup(slug: string, req: Request, env: Env): Promise<Response> {
+  const ip = getClientIp(req);
+  if (!(await rlCheck(env.RL_INSTALL, ip))) return rateLimitResponse(60, 'edge');
+  const kvRl = await kvCheck(env.RATELIMIT, 'install', ip);
+  if (!kvRl.allowed) return rateLimitResponse(kvRl.retryAfter, 'global');
+
+  const t = await env.DB.prepare(
+    `SELECT id, slug, name, status, install_enabled, install_token
+     FROM tenants WHERE slug = ?`
+  ).bind(slug).first<any>();
+  if (!t || t.status !== 'active' || !t.install_enabled) {
+    return new Response(JSON.stringify({ error: 'Not available' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
+  }
+  return json({
+    slug: t.slug,
+    tenant_name: t.name,
+    bulk_token: t.install_token,
+  });
+}
+
 
 // ============== ALERT MANAGEMENT ==============
 
@@ -2868,7 +2918,7 @@ export default {
     const m = req.method;
 
     try {
-      if (path === '/health') return json({ status: 'ok', version: '0.8.3', time: new Date().toISOString() });
+      if (path === '/health') return json({ status: 'ok', version: '0.8.5', time: new Date().toISOString() });
       if (path === '/api/auth/login' && m === 'POST') return handleLogin(req, env);
 
       // Public agent endpoints
@@ -2892,6 +2942,10 @@ export default {
       // v0.5.10: Standalone .exe installer (recommended — double-click, self-elevating)
       const exeMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\.exe$/);
       if (exeMatch && m === 'GET') return handleInstallerExe(exeMatch[1], req, env);
+
+      // v0.8.5: Public bulk-token lookup by slug (used by generic installer runtime)
+      const tokMatch = path.match(/^\/api\/install\/([a-z0-9_-]+)\/bulk-token$/);
+      if (tokMatch && m === 'GET') return handleInstallTokenLookup(tokMatch[1], req, env);
 
       // Public binary download
       const bm = path.match(/^\/agent-binary\/(.+)$/);
