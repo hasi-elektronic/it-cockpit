@@ -68,6 +68,9 @@ tailwind.config = {
   /* Modal */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem; }
   .modal-panel { background: white; border-radius: 1rem; max-width: 600px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
+  /* v0.8.4: legacy alias used by install modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem; overflow-y: auto; }
+  .modal-content { background: white; border-radius: 1rem; max-width: 600px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
   .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgb(241 245 249); display:flex; justify-content:space-between; align-items:center; }
   .modal-body { padding: 1.5rem; }
   .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid rgb(241 245 249); display:flex; justify-content:flex-end; gap:.5rem; background: rgb(248 250 252); border-radius: 0 0 1rem 1rem; }
@@ -81,7 +84,13 @@ tailwind.config = {
   @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
   /* Action cards (Remote actions tab) */
-  .action-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.75rem 1rem; background: white; border: 1px solid; border-radius: 0.5rem; text-align: left; transition: all 0.15s; cursor: pointer; }
+  .action-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.75rem 1rem; background: white; border: 1px solid; border-radius: 0.5rem; text-align: left; transition: all 0.15s; cursor: pointer; min-height: 56px; }
+  /* v0.8.4: tighter mobile spacing for action grid */
+  @media (max-width: 640px) {
+    .action-card { padding: 0.625rem 0.75rem; min-height: 64px; }
+    .action-card .text-2xl { font-size: 1.25rem; }
+    .action-card .font-semibold { font-size: 0.8125rem; }
+  }
   .action-card:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
@@ -287,10 +296,16 @@ tailwind.config = {
   </div>
 
   <!-- ==================== DASHBOARD ==================== -->
-  <div v-if="view === 'dashboard'" class="min-h-screen flex bg-slate-50">
+  <div v-if="view === 'dashboard'" class="min-h-screen flex bg-slate-50 relative">
 
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-900 text-slate-200 flex-shrink-0 flex flex-col">
+    <!-- v0.8.4: Mobile sidebar backdrop (only visible when drawer open) -->
+    <div v-if="mobileSidebarOpen" @click="mobileSidebarOpen = false"
+         class="md:hidden fixed inset-0 bg-black/50 z-30 transition-opacity"></div>
+
+    <!-- Sidebar (desktop: persistent, mobile: drawer) -->
+    <aside :class="['bg-slate-900 text-slate-200 flex-shrink-0 flex flex-col transition-transform',
+                    'fixed md:relative inset-y-0 left-0 z-40 w-64',
+                    mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
       <div class="px-5 py-5 border-b border-slate-800 flex items-center gap-2">
         <div class="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center text-white font-bold">H</div>
         <div>
@@ -376,10 +391,13 @@ tailwind.config = {
     </aside>
 
     <!-- Main -->
-    <main class="flex-1 overflow-y-auto">
-      <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center">
-        <div>
-          <h1 class="text-xl font-bold text-slate-900">{{ pageTitle }}</h1>
+    <main class="flex-1 overflow-y-auto min-w-0">
+      <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex justify-between items-center gap-3 sticky top-0 z-20">
+        <button @click="mobileSidebarOpen = true" class="md:hidden p-2 -ml-2 rounded hover:bg-slate-100 text-slate-700" aria-label="Menue oeffnen">
+          <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="flex-1 min-w-0">
+          <h1 class="text-base md:text-xl font-bold text-slate-900 truncate">{{ pageTitle }}</h1>
           <div class="text-xs text-slate-500">{{ pageSubtitle }}</div>
         </div>
         <div class="flex gap-2">
@@ -389,7 +407,7 @@ tailwind.config = {
         </div>
       </header>
 
-      <div class="p-8">
+      <div class="p-4 md:p-8">
 
         <!-- Overview -->
         <!-- ============== MANDANTEN (Super-Admin) ============== -->
@@ -816,7 +834,8 @@ tailwind.config = {
         <!-- Devices -->
         <div v-if="page==='devices'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+            <table class="w-full min-w-[860px]">
               <thead><tr><th>Hostname</th><th>User</th><th>Hardware</th><th>OS</th><th>Agent</th><th>Sicherheit</th><th>Garantie</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
                 <tr v-if="devices.length===0"><td colspan="8" class="text-center text-slate-500 py-12">Noch keine Geräte. <button @click="openDeviceModal()" class="text-cyan-600 hover:underline font-semibold">+ Gerät hinzufügen</button> oder CSV-Import.</td></tr>
@@ -864,13 +883,15 @@ tailwind.config = {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         <!-- Licenses -->
         <div v-if="page==='licenses'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+            <table class="w-full min-w-[720px]">
               <thead><tr><th>Software</th><th>Vendor</th><th>Typ</th><th>Seats</th><th>Kosten/Jahr</th><th>Läuft ab</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
                 <tr v-if="licenses.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Lizenzen erfasst. <button @click="openLicenseModal()" class="text-cyan-600 hover:underline font-semibold">+ Lizenz hinzufügen</button></td></tr>
@@ -889,13 +910,15 @@ tailwind.config = {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         <!-- Users -->
         <div v-if="page==='users'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+            <table class="w-full min-w-[720px]">
               <thead><tr><th>Name</th><th>E-Mail</th><th>Abteilung</th><th>Rolle</th><th>Geräte</th><th>Status</th><th class="text-right">Aktionen</th></tr></thead>
               <tbody>
                 <tr v-if="users.length===0"><td colspan="7" class="text-center text-slate-500 py-12">Noch keine Mitarbeiter. <button @click="openUserModal()" class="text-cyan-600 hover:underline font-semibold">+ Mitarbeiter hinzufügen</button></td></tr>
@@ -913,13 +936,15 @@ tailwind.config = {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         <!-- Audit -->
         <div v-if="page==='audit'">
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table class="w-full">
+            <div class="overflow-x-auto">
+            <table class="w-full min-w-[640px]">
               <thead><tr><th>Zeit</th><th>User</th><th>Aktion</th><th>Entität</th><th>ID</th><th>IP</th></tr></thead>
               <tbody>
                 <tr v-if="audit.length===0"><td colspan="6" class="text-center text-slate-500 py-12">Noch keine Aktivität.</td></tr>
@@ -933,6 +958,7 @@ tailwind.config = {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -1209,7 +1235,7 @@ tailwind.config = {
     <div v-if="modal === 'detail' && detailDevice" class="modal-backdrop" @click.self="closeModal">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
         <!-- Header -->
-        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div class="px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex items-center justify-between gap-2 flex-wrap">
           <div class="flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-white text-xl font-bold">💻</div>
             <div>
@@ -1238,10 +1264,10 @@ tailwind.config = {
         </div>
 
         <!-- Tabs -->
-        <div class="px-6 border-b border-slate-200 flex gap-1">
+        <div class="px-4 md:px-6 border-b border-slate-200 flex gap-1 overflow-x-auto">
           <button v-for="t in detailTabs" :key="t"
                   @click="detailTab = t; if (t==='actions') loadDeviceCommands()"
-                  :class="['px-4 py-2.5 text-sm font-medium border-b-2 transition',
+                  :class="['px-3 md:px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap flex-shrink-0',
                            detailTab===t ? 'border-cyan-500 text-cyan-700' : 'border-transparent text-slate-600 hover:text-slate-900']">
             {{ ({hardware:'Hardware',security:'Sicherheit',telemetry:'Telemetrie',software:'Software',actions:'⚡ Aktionen'})[t] }}
             <span v-if="t==='software' && detailSoftware.length>0" class="ml-1 text-xs text-slate-400">{{ detailSoftware.length }}</span>
@@ -1250,7 +1276,7 @@ tailwind.config = {
         </div>
 
         <!-- Tab content -->
-        <div class="flex-1 overflow-auto p-6">
+        <div class="flex-1 overflow-auto p-4 md:p-6">
 
           <!-- HARDWARE -->
           <div v-if="detailTab==='hardware'">
@@ -2544,6 +2570,7 @@ createApp({
     return {
       view: 'landing',
       page: 'overview',
+      mobileSidebarOpen: false,  // v0.8.4: mobile drawer state
       modal: null,           // null | 'device' | 'license' | 'user' | 'confirm'
       session: { token:'', tenant_id:0, tenant_slug:'', tenant_name:'', user_email:'', role:'', plan:'', user_id:0 },
       loginForm: { tenant:'hasi', email:'', password:'' },
@@ -3591,6 +3618,7 @@ createApp({
     },
     goto(p) {
       this.page = p;
+      this.mobileSidebarOpen = false;  // v0.8.4: auto-close drawer on nav
       if (p === 'overview') this.loadDashboard();
       if (p === 'audit') this.loadAudit();
       if (p === 'agents') this.loadAgents();
