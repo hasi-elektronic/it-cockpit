@@ -1,11 +1,17 @@
 name = "it-cockpit-api"
 main = "src/index.ts"
 compatibility_date = "2026-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+
+# Cloudflare Email Service (it-cockpit.de onboarded)
+[[send_email]]
+name = "EMAIL"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "it-cockpit"
-database_id = "REPLACE_AFTER_D1_CREATE"
+database_id = "77365060-defb-4bcc-8b4f-7f656450e6a3"
 
 [[r2_buckets]]
 binding = "AGENTS"

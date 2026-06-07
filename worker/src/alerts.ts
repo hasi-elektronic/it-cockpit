@@ -3,9 +3,13 @@
  * Runs every 15 min via cron, checks all devices+settings, fires/resolves alerts
  */
 
+import { EmailMessage } from "cloudflare:email";
+import { createMimeMessage } from "mimetext";
+
 export interface AlertEnv {
   DB: D1Database;
-  RESEND_API_KEY?: string;  // optional secret
+  RESEND_API_KEY?: string;  // optional secret (Fallback)
+  EMAIL?: { send: (msg: EmailMessage) => Promise<void> };  // Cloudflare Email Service
 }
 
 interface AlertSettings {
@@ -99,33 +103,53 @@ function formatTelegramMessage(alert: FiredAlert, deviceHostname: string | null,
   return msg;
 }
 
-// ---------- Email (Resend) ----------
+// ---------- Email (Cloudflare Email Service + Resend Fallback) ----------
 
-async function sendEmail(apiKey: string, to: string, subject: string, html: string): Promise<boolean> {
-  try {
-    const resp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: 'Hasi IT-Cockpit <noreply@machbar24.com>',
-        to: [to],
-        subject,
-        html,
-      }),
-    });
-    if (!resp.ok) {
-      const err = await resp.text();
-      console.error('Resend error:', resp.status, err);
+async function sendEmail(env: AlertEnv, to: string, subject: string, html: string): Promise<boolean> {
+  const fromAddr = 'noreply@it-cockpit.de';
+  const fromName = 'Hasi IT-Cockpit';
+  // 1) Cloudflare Email Service
+  if (env.EMAIL) {
+    try {
+      const msg = createMimeMessage();
+      msg.setSender({ name: fromName, addr: fromAddr });
+      msg.setRecipient(to);
+      msg.setSubject(subject);
+      msg.addMessage({ contentType: 'text/html', data: html });
+      await env.EMAIL.send(new EmailMessage(fromAddr, to, msg.asRaw()));
+      return true;
+    } catch (e) {
+      console.error('CF Email Fehler, Resend Fallback:', e);
+    }
+  }
+  // 2) Resend Fallback
+  if (env.RESEND_API_KEY) {
+    try {
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: `${fromName} <noreply@machbar24.com>`,
+          to: [to],
+          subject,
+          html,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        console.error('Resend error:', resp.status, err);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Email send error:', e);
       return false;
     }
-    return true;
-  } catch (e) {
-    console.error('Email send error:', e);
-    return false;
   }
+  return false;
 }
 
 function formatEmailHtml(alert: FiredAlert, deviceHostname: string | null, tenantName: string): string {
@@ -503,11 +527,11 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
         }
 
         // Email notification (Resend, only critical & warning)
-        if (tenantSettings.email_enabled && tenantSettings.email_recipient && env.RESEND_API_KEY && fired.severity !== 'info') {
+        if (tenantSettings.email_enabled && tenantSettings.email_recipient && (env.EMAIL || env.RESEND_API_KEY) && fired.severity !== 'info') {
           const hostname = fired.device_id ? deviceHostnames.get(fired.device_id) || null : null;
           const subject = `${SEVERITY_EMOJI[fired.severity]} ${SEVERITY_LABEL[fired.severity]}: ${fired.title}${hostname ? ' · ' + hostname : ''}`;
           const html = formatEmailHtml(fired, hostname, tenantName);
-          const ok = await sendEmail(env.RESEND_API_KEY, tenantSettings.email_recipient, subject, html);
+          const ok = await sendEmail(env, tenantSettings.email_recipient, subject, html);
           if (ok) {
             await env.DB.prepare(`
               INSERT INTO alert_history (tenant_id, alert_id, device_id, rule_key, severity, event, details)
@@ -565,7 +589,7 @@ export async function sendTestEmail(env: AlertEnv, tenantId: number): Promise<{ 
   if (!s || !s.email_recipient) {
     return { ok: false, error: 'Empfänger-E-Mail nicht konfiguriert' };
   }
-  if (!env.RESEND_API_KEY) {
+  if (!env.EMAIL && !env.RESEND_API_KEY) {
     return { ok: false, error: 'RESEND_API_KEY auf dem Worker nicht gesetzt' };
   }
   const t = await env.DB.prepare(`SELECT name FROM tenants WHERE id = ?`).bind(tenantId).first<any>();
@@ -576,6 +600,6 @@ export async function sendTestEmail(env: AlertEnv, tenantId: number): Promise<{ 
 <p style="color:#334155;line-height:1.6;">Ab jetzt erhältst du Alerts auf diese Adresse.</p>
 <a href="https://it-cockpit.pages.dev" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#0891b2;color:#fff;text-decoration:none;border-radius:6px;">Cockpit öffnen</a>
 </div></body></html>`;
-  const ok = await sendEmail(env.RESEND_API_KEY, s.email_recipient, '✅ Hasi IT-Cockpit — Test', html);
+  const ok = await sendEmail(env, s.email_recipient, '✅ Hasi IT-Cockpit — Test', html);
   return { ok, error: ok ? undefined : 'Resend API-Aufruf fehlgeschlagen' };
 }
