@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hasi Content Cockpit Admin</title>
+    <title>Content Cockpit Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -193,35 +193,34 @@
     <div class="layout">
       <aside>
         <div class="brand">
-          <div class="mark"><img src="/hasi-logo.png" alt="Hasi Elektronic"></div>
+          <div class="mark"><img src="/hasi-logo.png" alt="Content Cockpit"></div>
           <div>
-            <strong>Hasi Elektronic</strong>
-            <span>Content Cockpit Admin</span>
+            <strong>Content Cockpit</strong>
+            <span>Interne Verwaltung</span>
           </div>
         </div>
         <nav>
-          <a href="/">Kundenansicht</a>
           <a class="active" href="/admin">Admin</a>
-          <a href="/#queue">Content Queue</a>
-          <a href="/#plan">14 Tage Plan</a>
+          <a href="/">Aktiver Kunde</a>
+          <a href="/logout">Abmelden</a>
         </nav>
       </aside>
       <main>
         <header>
           <div class="title-row">
-            <img class="header-logo" src="/hasi-logo.png" alt="Hasi Elektronic Logo">
+            <img class="header-logo" src="/hasi-logo.png" alt="Content Cockpit Logo">
             <div>
-              <h1>Admin</h1>
+              <h1>Admin Center</h1>
               <p class="subtitle">Kunden anlegen und Stammdaten fuer den Social-Media-Service pflegen.</p>
             </div>
           </div>
-          <a class="btn secondary" href="/">Zur Kundenansicht</a>
+          <a class="btn secondary" href="/">Aktiven Kunden ansehen</a>
         </header>
 
         <section class="grid">
           <div class="card">
             <h2>Kunden</h2>
-            <div class="notice">Diese Liste ist die interne Verwaltung. Die normale Cockpit-Startseite bleibt bewusst schlank und zeigt Hasi wie einen Kunden.</div>
+            <div class="notice">Interne Verwaltung fuer alle Kunden. Hasi Elektronic ist hier nur ein Kunde in der Liste.</div>
             <div class="customer-list" id="customerList">...</div>
           </div>
 
