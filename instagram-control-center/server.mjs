@@ -353,7 +353,8 @@ async function publish(type, file) {
 }
 
 async function serveStatic(req, res, pathname) {
-  const target = resolve(publicRoot, pathname === "/" ? "index.html" : pathname.slice(1));
+  const file = pathname === "/" ? "index.html" : pathname === "/admin" ? "admin.html" : pathname.slice(1);
+  const target = resolve(publicRoot, file);
   if (!target.startsWith(publicRoot) || !(await exists(target))) {
     sendText(res, 404, "Not found");
     return;

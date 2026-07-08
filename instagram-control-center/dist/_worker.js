@@ -199,6 +199,7 @@ export default {
       return Response.redirect(`${url.origin}/login`, 302);
     }
 
+    if (url.pathname === "/admin") return serveAsset(env, "/admin.html", request);
     if (url.pathname === "/api/status") return status(env, request);
     if (url.pathname === "/api/customers" && request.method === "GET") {
       return json({ customers: await customers(env, request) });

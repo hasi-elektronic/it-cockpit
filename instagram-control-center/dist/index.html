@@ -301,9 +301,8 @@
       }
       .customer-layout {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        align-items: start;
+        grid-template-columns: 1fr;
+        gap: 12px;
       }
       .customer-list {
         display: grid;
@@ -325,47 +324,10 @@
         gap: 7px 12px;
         margin-top: 10px;
       }
-      .customer-form {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-      .field.full { grid-column: 1 / -1; }
-      label {
-        display: block;
-        margin-bottom: 6px;
-        color: #344054;
-        font-size: 12px;
-        font-weight: 800;
-      }
-      input, select, textarea {
-        width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 10px 11px;
-        background: #fff;
-        color: var(--ink);
-        outline: none;
-      }
-      textarea {
-        min-height: 84px;
-        resize: vertical;
-      }
-      input:focus, select:focus, textarea:focus {
-        border-color: var(--blue);
-        box-shadow: 0 0 0 4px rgba(58, 186, 223, .14);
-      }
-      .form-actions {
-        grid-column: 1 / -1;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
         aside { position: relative; height: auto; }
-        .stats, .content-grid, .customer-layout, .customer-form { grid-template-columns: 1fr; }
-        .field.full { grid-column: auto; }
+        .stats, .content-grid, .customer-layout { grid-template-columns: 1fr; }
         header { flex-direction: column; }
         .toolbar { justify-content: flex-start; }
         .modal-panel { grid-template-columns: 1fr; }
@@ -385,11 +347,12 @@
         </div>
         <nav>
           <a class="active" href="#dashboard">Dashboard</a>
-          <a href="#customers">Kunden</a>
+          <a href="#customer">Kundenprofil</a>
           <a href="#queue">Content Queue</a>
           <a href="#plan">14 Tage Plan</a>
           <a href="#automations">Automationen</a>
           <a href="#logs">Logs</a>
+          <a href="/admin">Admin</a>
         </nav>
       </aside>
       <main>
@@ -417,8 +380,8 @@
             <div id="readyCount" class="stat-value">...</div>
           </div>
           <div class="card">
-            <div class="stat-label">Kunden</div>
-            <div id="customerCount" class="stat-value">...</div>
+            <div class="stat-label">Aktiver Kunde</div>
+            <div id="activeCustomer" class="stat-value" style="font-size:18px">...</div>
           </div>
           <div class="card">
             <div class="stat-label">Letzter Log</div>
@@ -444,71 +407,13 @@
           </div>
         </section>
 
-        <section class="section card" id="customers">
-          <h2>Kunden</h2>
+        <section class="section card" id="customer">
+          <h2>Kundenprofil</h2>
           <div class="customer-layout">
             <div>
-              <div class="notice" style="margin-bottom:12px">Hier legst Du neue Kunden fuer den Social-Media-Service an. Danach koennen wir pro Kunde eigene Themen, Freigaben und Kanaele aufbauen.</div>
+              <div class="notice" style="margin-bottom:12px">Diese Ansicht ist das aktuelle Kunden-Cockpit. Neue Kunden und Verwaltungsdaten liegen getrennt unter <a href="/admin">/admin</a>.</div>
               <div class="customer-list" id="customerList"></div>
             </div>
-            <form class="customer-form" id="customerForm">
-              <div class="field">
-                <label for="company">Firma *</label>
-                <input id="company" name="company" required placeholder="z.B. Muster GmbH">
-              </div>
-              <div class="field">
-                <label for="owner">Ansprechpartner</label>
-                <input id="owner" name="owner" placeholder="Name">
-              </div>
-              <div class="field">
-                <label for="email">E-Mail</label>
-                <input id="email" name="email" type="email" placeholder="kontakt@firma.de">
-              </div>
-              <div class="field">
-                <label for="phone">Telefon</label>
-                <input id="phone" name="phone" placeholder="0711 / ...">
-              </div>
-              <div class="field">
-                <label for="city">Ort</label>
-                <input id="city" name="city" placeholder="Vaihingen/Enz">
-              </div>
-              <div class="field">
-                <label for="instagram">Instagram</label>
-                <input id="instagram" name="instagram" placeholder="@kunde">
-              </div>
-              <div class="field">
-                <label for="industry">Branche</label>
-                <input id="industry" name="industry" placeholder="Restaurant, Handwerk, Praxis ...">
-              </div>
-              <div class="field">
-                <label for="language">Sprache</label>
-                <select id="language" name="language">
-                  <option value="de">Deutsch</option>
-                  <option value="tr">Türkisch</option>
-                  <option value="en">Englisch</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="primary">Hauptfarbe</label>
-                <input id="primary" name="primary" value="#3ABADF">
-              </div>
-              <div class="field">
-                <label for="accent">Akzentfarbe</label>
-                <input id="accent" name="accent" value="#FF6B00">
-              </div>
-              <div class="field full">
-                <label for="topics">Themen</label>
-                <input id="topics" name="topics" placeholder="Angebote, Team, Tipps, Referenzen">
-              </div>
-              <div class="field full">
-                <label for="positioning">Positionierung</label>
-                <textarea id="positioning" name="positioning" placeholder="Wofuer steht der Kunde? Was soll Social Media verkaufen oder erklaeren?"></textarea>
-              </div>
-              <div class="form-actions">
-                <button class="btn" type="submit">Kunde anlegen</button>
-                <span class="small" id="customerFormStatus"></span>
-              </div>
-            </form>
           </div>
         </section>
 
@@ -695,8 +600,9 @@
       }
 
       function renderCustomers(customers = []) {
-        $("customerCount").textContent = customers.length;
-        $("customerList").innerHTML = customers.map((customer) => `
+        const customer = customers.find((item) => item.id === "hasi-elektronic") || customers[0];
+        $("activeCustomer").textContent = customer?.company || "Kein Kunde";
+        $("customerList").innerHTML = customer ? `
           <article class="customer-card">
             <h3>${escapeHtml(customer.company || customer.name)}</h3>
             <div>
@@ -712,7 +618,7 @@
             </div>
             ${customer.positioning ? `<p class="small" style="margin:12px 0 0">${escapeHtml(customer.positioning)}</p>` : ""}
           </article>
-        `).join("") || `<div class="small">Noch keine Kunden angelegt.</div>`;
+        ` : `<div class="small">Noch kein Kunde angelegt.</div>`;
       }
 
       function render(data) {
@@ -845,37 +751,7 @@
         }
       }
 
-      async function createCustomer(event) {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const status = $("customerFormStatus");
-        const button = form.querySelector("button[type='submit']");
-        status.textContent = "Speichern...";
-        button.disabled = true;
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
-        payload.secondary = payload.primary || "#41AADE";
-        try {
-          await api("/api/customers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          status.textContent = "Kunde angelegt.";
-          form.reset();
-          form.primary.value = "#3ABADF";
-          form.accent.value = "#FF6B00";
-          form.language.value = "de";
-          await refresh();
-        } catch (error) {
-          status.textContent = error.message;
-        } finally {
-          button.disabled = false;
-        }
-      }
-
       $("refreshBtn").addEventListener("click", refresh);
-      $("customerForm").addEventListener("submit", createCustomer);
       document.addEventListener("click", (event) => {
         const previewTarget = event.target.closest(".js-preview, .js-preview-btn");
         if (previewTarget) {
