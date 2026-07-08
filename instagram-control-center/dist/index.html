@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hasi Instagram Control Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --blue: #3abadf;
+        --blue-2: #41aade;
+        --ink: #111827;
+        --muted: #667085;
+        --line: #d8eef5;
+        --bg: #f4f9fc;
+        --panel: #ffffff;
+        --nav: #0d1b2a;
+        --nav-soft: #13283b;
+        --orange: #ff6b00;
+        --green: #12b76a;
+        --red: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          linear-gradient(180deg, rgba(58, 186, 223, .08), transparent 280px),
+          var(--bg);
+      }
+      button, input, textarea { font: inherit; }
+      .layout { min-height: 100vh; display: grid; grid-template-columns: 280px 1fr; }
+      aside {
+        background: linear-gradient(180deg, var(--nav), #081522);
+        color: white;
+        padding: 26px 22px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .brand {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        align-items: center;
+        gap: 13px;
+        margin-bottom: 30px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid rgba(216, 238, 245, .14);
+      }
+      .mark {
+        width: 56px; height: 56px; border-radius: 12px;
+        background: #fff; display: grid; place-items: center;
+        box-shadow: 0 14px 34px rgba(0, 0, 0, .24);
+        overflow: hidden;
+      }
+      .mark img {
+        width: 42px;
+        height: 42px;
+        object-fit: contain;
+      }
+      .brand strong { display: block; font-size: 16px; line-height: 1.15; }
+      .brand span { display: block; color: #a7dff0; font-size: 12px; margin-top: 4px; }
+      nav a {
+        display: flex; align-items: center; gap: 10px;
+        color: #cceefa; text-decoration: none; padding: 11px 12px;
+        border-radius: 8px; margin-bottom: 6px; font-size: 14px;
+      }
+      nav a.active, nav a:hover { background: rgba(58, 186, 223, .18); color: white; }
+      main { padding: 30px 28px 44px; max-width: 1560px; width: 100%; }
+      header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 22px; }
+      .title-row { display: flex; align-items: center; gap: 14px; }
+      .header-logo {
+        width: 58px;
+        height: 58px;
+        border-radius: 12px;
+        background: white;
+        border: 1px solid var(--line);
+        padding: 8px;
+        object-fit: contain;
+        box-shadow: 0 10px 28px rgba(26, 95, 117, .08);
+      }
+      h1 { margin: 0; font-size: 34px; line-height: 1.05; letter-spacing: 0; }
+      .subtitle { margin: 8px 0 0; color: var(--muted); }
+      .toolbar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      .btn {
+        border: 0; border-radius: 8px; padding: 11px 14px;
+        background: var(--blue); color: white; font-weight: 700;
+        cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+      }
+      .btn.secondary { background: white; color: var(--ink); border: 1px solid var(--line); }
+      .btn.orange { background: var(--orange); }
+      .btn:disabled { opacity: .55; cursor: wait; }
+      .grid { display: grid; gap: 16px; }
+      .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .card {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        padding: 18px; box-shadow: 0 10px 26px rgba(26, 95, 117, .07);
+      }
+      .stat-label { color: var(--muted); font-size: 13px; }
+      .stat-value { font-size: 28px; font-weight: 800; margin-top: 8px; }
+      .ok { color: var(--green); }
+      .bad { color: var(--red); }
+      .section { margin-top: 22px; }
+      .section h2 { font-size: 20px; margin: 0 0 12px; }
+      .content-grid { grid-template-columns: 1.2fr .8fr; align-items: start; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eef6f9; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+      .pill {
+        display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 9px;
+        background: #eef9fc; color: #17677f; font-size: 12px; font-weight: 700;
+      }
+      .pill.green { background: #ecfdf3; color: #067647; }
+      .pill.red { background: #fef3f2; color: #b42318; }
+      .pill.orange { background: #fff7ed; color: #c2410c; }
+      .pill.gray { background: #f2f4f7; color: #475467; }
+      .preview {
+        width: 92px; aspect-ratio: 4/5; object-fit: cover; border-radius: 8px;
+        border: 1px solid var(--line); background: #edf7fb;
+        cursor: zoom-in;
+        transition: transform .15s ease, box-shadow .15s ease;
+      }
+      .preview:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(26, 95, 117, .14); }
+      video.preview { aspect-ratio: 9/16; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .small { font-size: 12px; color: var(--muted); }
+      pre {
+        white-space: pre-wrap; margin: 0; background: #0d1b2a; color: #d8eef5;
+        border-radius: 8px; padding: 14px; max-height: 260px; overflow: auto;
+        font-size: 12px;
+      }
+      .plan-row { display: grid; grid-template-columns: 118px 1fr 54px 54px 64px; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef6f9; align-items: center; }
+      .plan-head {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .topic { font-weight: 700; }
+      .notice {
+        border-left: 4px solid var(--orange); background: #fff7ed;
+        padding: 12px 14px; border-radius: 8px; color: #9a3412; font-size: 14px;
+      }
+      .schedule-legend {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .schedule-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 11px 12px;
+        background: #f8fcfe;
+      }
+      .schedule-item strong {
+        display: block;
+        font-size: 18px;
+        line-height: 1;
+        color: #075f78;
+      }
+      .schedule-item span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .queue-groups {
+        display: grid;
+        gap: 18px;
+      }
+      .queue-group {
+        border: 1px solid #eef6f9;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .queue-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 14px;
+        background: #f8fcfe;
+        border-bottom: 1px solid #eef6f9;
+      }
+      .queue-head h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .queue-counts {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+        background: rgba(8, 21, 34, .78);
+      }
+      .modal.open { display: flex; }
+      .modal-panel {
+        width: min(1120px, 100%);
+        max-height: calc(100vh - 56px);
+        display: grid;
+        grid-template-columns: minmax(320px, 480px) 1fr;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 30px 90px rgba(0, 0, 0, .36);
+      }
+      .modal-stage {
+        min-height: 640px;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #0d1b2a;
+      }
+      .modal-stage img,
+      .modal-stage video {
+        max-width: 100%;
+        max-height: calc(100vh - 120px);
+        border-radius: 8px;
+        background: #000;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+      }
+      .modal-stage img { aspect-ratio: 4 / 5; object-fit: contain; }
+      .modal-stage video { aspect-ratio: 9 / 16; object-fit: contain; }
+      .modal-info {
+        padding: 24px;
+        overflow: auto;
+      }
+      .modal-info h3 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      .modal-info p {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .modal-close {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 22px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .url-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .url-list a {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #075f78;
+        font-size: 12px;
+      }
+      .slide-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .slide-nav button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        font-weight: 800;
+      }
+      .slide-nav button:disabled { opacity: .45; cursor: default; }
+      .slide-counter {
+        min-width: 62px;
+        color: #d8eef5;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      @media (max-width: 980px) {
+        .layout { grid-template-columns: 1fr; }
+        aside { position: relative; height: auto; }
+        .stats, .content-grid { grid-template-columns: 1fr; }
+        header { flex-direction: column; }
+        .toolbar { justify-content: flex-start; }
+        .modal-panel { grid-template-columns: 1fr; }
+        .modal-stage { min-height: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside>
+        <div class="brand">
+          <div class="mark"><img src="/hasi-logo.png" alt="Hasi Elektronic"></div>
+          <div>
+            <strong>Hasi Elektronic</strong>
+            <span>Social Media Cockpit</span>
+          </div>
+        </div>
+        <nav>
+          <a class="active" href="#dashboard">Dashboard</a>
+          <a href="#queue">Content Queue</a>
+          <a href="#plan">14 Tage Plan</a>
+          <a href="#automations">Automationen</a>
+          <a href="#logs">Logs</a>
+        </nav>
+      </aside>
+      <main>
+        <header>
+          <div class="title-row">
+            <img class="header-logo" src="/hasi-logo.png" alt="Hasi Elektronic Logo">
+            <div>
+              <h1>Instagram Control Center</h1>
+              <p class="subtitle">Karussell, Reels, Story, Cloudflare und Instagram API an einem Platz.</p>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="btn secondary" id="refreshBtn">Status aktualisieren</button>
+            <a class="btn orange" href="https://www.instagram.com/hasi_elektronic/" target="_blank">Instagram öffnen</a>
+          </div>
+        </header>
+
+        <section id="dashboard" class="grid stats">
+          <div class="card">
+            <div class="stat-label">Instagram API</div>
+            <div id="apiStatus" class="stat-value">...</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Publish-ready Inhalte</div>
+            <div id="readyCount" class="stat-value">...</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Aktive Automation</div>
+            <div id="automationCount" class="stat-value">...</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Letzter Log</div>
+            <div id="lastLog" class="stat-value" style="font-size:18px">...</div>
+          </div>
+        </section>
+
+        <section class="section content-grid grid">
+          <div class="card" id="queue">
+            <h2>Content Queue</h2>
+            <div class="notice" style="margin-bottom:12px">Publish-Buttons senden direkt an Instagram. Story bleibt 24 Stunden sichtbar.</div>
+            <div class="queue-groups" id="manifestGroups"></div>
+          </div>
+
+          <div class="card" id="plan">
+            <h2>14 Tage Plan</h2>
+            <div class="schedule-legend">
+              <div class="schedule-item"><strong>08:00</strong><span>Karussell / Tagespost</span></div>
+              <div class="schedule-item"><strong>08:30</strong><span>Reel</span></div>
+              <div class="schedule-item"><strong>09:00</strong><span>Story Vorbereitung</span></div>
+            </div>
+            <div id="planRows"></div>
+          </div>
+        </section>
+
+        <section class="section content-grid grid">
+          <div class="card" id="automations">
+            <h2>Automationen</h2>
+            <table>
+              <thead><tr><th>Name</th><th>Status</th><th>Zeitplan</th></tr></thead>
+              <tbody id="automationRows"></tbody>
+            </table>
+          </div>
+          <div class="card" id="logs">
+            <h2>Logs</h2>
+            <pre id="logBox">...</pre>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div class="modal" id="previewModal" aria-hidden="true">
+      <button class="modal-close" id="modalClose" type="button" aria-label="Preview schliessen">×</button>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-stage" id="modalStage"></div>
+        <div class="modal-info">
+          <span class="pill" id="modalType">Preview</span>
+          <h3 id="modalTitle">Preview</h3>
+          <p id="modalCaption"></p>
+          <div id="modalStatus"></div>
+          <div class="url-list" id="modalUrls"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = { busy: false, data: null, previewItem: null, previewIndex: 0 };
+      const $ = (id) => document.getElementById(id);
+
+      async function api(path, options) {
+        const response = await fetch(path, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "API Fehler");
+        return data;
+      }
+
+      function setBusy(busy) {
+        state.busy = busy;
+        $("refreshBtn").disabled = busy;
+      }
+
+      function preview(item) {
+        if (!item.preview) return "";
+        if (item.type === "carousel") {
+          return `<img class="preview js-preview" src="${item.preview}" alt="${item.slug}" data-file="${item.file}">`;
+        }
+        return `<video class="preview js-preview" src="${item.preview}" muted playsinline data-file="${item.file}"></video>`;
+      }
+
+      function typeLabel(type) {
+        return {
+          carousel: "Karussell",
+          story: "Story",
+          reel: "Reel",
+        }[type] || type;
+      }
+
+      function formatGermanDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          return match ? `${match[3]}.${match[2]}.${match[1]}` : String(value);
+        }
+        return new Intl.DateTimeFormat("de-DE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(date);
+      }
+
+      function formatGermanDateTime(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return formatGermanDate(value);
+        return new Intl.DateTimeFormat("de-DE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+      }
+
+      function statusPill(item) {
+        if (item.published) {
+          return `<span class="pill green">veröffentlicht</span><div class="small">ID: ${item.instagramId || "unbekannt"}<br>${formatGermanDateTime(item.publishedAt)}</div>`;
+        }
+        if (item.ready) {
+          return `<span class="pill orange">bereit</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
+        }
+        return `<span class="pill red">prüfen</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
+      }
+
+      function publishButton(item) {
+        if (state.data?.cloud) {
+          return `
+            <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
+            <span class="pill gray">Cloud Vorschau</span>
+            <div class="small">Publish nur lokal aktiv</div>
+          `;
+        }
+        if (item.published) {
+          return `
+            <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
+            <span class="pill gray">gesperrt</span>
+            <div class="small">Schon veröffentlicht</div>
+          `;
+        }
+        return `
+          <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
+          <button class="btn js-publish-btn" ${item.ready ? "" : "disabled"} data-type="${item.type}" data-file="${item.file}">Publish</button>
+        `;
+      }
+
+      function renderLogs(logs) {
+        if (!logs.length) return "Noch keine Logs.";
+        return logs.map((entry) => [
+          `${formatGermanDateTime(entry.time)}  ${entry.action || "log"}`,
+          `Status: ${entry.status || (entry.ok ? "ok" : "-")}`,
+          entry.type ? `Typ: ${typeLabel(entry.type)}` : "",
+          entry.topic ? `Thema: ${entry.topic}` : "",
+          entry.slug ? `Slug: ${entry.slug}` : "",
+          entry.instagramId ? `Instagram ID: ${entry.instagramId}` : "",
+          entry.note ? `Notiz: ${entry.note}` : "",
+        ].filter(Boolean).join("\n")).join("\n\n");
+      }
+
+      function renderGroup(type, items) {
+        const published = items.filter((item) => item.published).length;
+        const ready = items.filter((item) => item.ready && !item.published).length;
+        const rows = items.map((item) => `
+          <tr>
+            <td>${preview(item)}</td>
+            <td><span class="pill">${typeLabel(item.type)}</span><div class="small">${item.urlCount} URL</div></td>
+            <td><strong>${item.file}</strong><div class="small">${item.caption ? item.caption.slice(0, 90) + "..." : item.preview}</div></td>
+            <td>${statusPill(item)}</td>
+            <td><div class="actions">${publishButton(item)}</div></td>
+          </tr>
+        `).join("");
+
+        return `
+          <div class="queue-group">
+            <div class="queue-head">
+              <h3>${typeLabel(type)}</h3>
+              <div class="queue-counts">
+                <span class="pill green">${published} veröffentlicht</span>
+                <span class="pill orange">${ready} bereit</span>
+                <span class="pill gray">${items.length} gesamt</span>
+              </div>
+            </div>
+            <div style="overflow:auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Preview</th>
+                    <th>Typ</th>
+                    <th>Manifest</th>
+                    <th>Status</th>
+                    <th>Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>${rows || `<tr><td colspan="5" class="small">Keine Einträge</td></tr>`}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      function render(data) {
+        state.data = data;
+        $("apiStatus").innerHTML = data.instagram.ok ? '<span class="ok">OK</span>' : '<span class="bad">Fehler</span>';
+        $("readyCount").textContent = data.manifests.filter((item) => item.ready && !item.published).length;
+        $("automationCount").textContent = data.automations.filter((item) => item.status !== "PAUSED").length;
+        $("lastLog").textContent = data.log[0] ? `${data.log[0].action}` : "Noch leer";
+
+        $("manifestGroups").innerHTML = ["carousel", "story", "reel"]
+          .map((type) => renderGroup(type, data.manifests.filter((item) => item.type === type)))
+          .join("");
+
+        $("planRows").innerHTML = `
+          <div class="plan-row plan-head">
+            <div>Datum</div>
+            <div>Thema</div>
+            <div>Karussell</div>
+            <div>Reel</div>
+            <div>Story</div>
+          </div>
+        ` + data.plan.map((row) => `
+          <div class="plan-row">
+            <div class="small">${formatGermanDate(row.date)}</div>
+            <div class="topic">${row.topic}</div>
+            <div class="pill">${row.carousel}</div>
+            <div class="pill">${row.reel}</div>
+            <div class="pill">${row.story}</div>
+          </div>
+        `).join("");
+
+        $("automationRows").innerHTML = data.automations.map((item) => `
+          <tr>
+            <td><strong>${item.name}</strong><div class="small">${item.id}</div></td>
+            <td><span class="pill ${item.status === "ACTIVE" ? "green" : "red"}">${item.status || "?"}</span></td>
+            <td class="small">${item.schedule.replaceAll("\\n", "<br>")}</td>
+          </tr>
+        `).join("");
+
+        $("logBox").textContent = renderLogs(data.log);
+      }
+
+      function findManifest(file) {
+        return state.data?.manifests.find((item) => item.file === file);
+      }
+
+      function renderPreviewStage() {
+        const item = state.previewItem;
+        if (!item) return;
+        const stage = $("modalStage");
+        const url = item.urls[state.previewIndex] || item.preview;
+        if (item.type === "carousel") {
+          const hasMany = item.urls.length > 1;
+          stage.innerHTML = `
+            <div>
+              <img src="${url}" alt="${item.slug} Slide ${state.previewIndex + 1}">
+              ${hasMany ? `
+                <div class="slide-nav">
+                  <button type="button" class="js-slide-prev" ${state.previewIndex === 0 ? "disabled" : ""}>Zurück</button>
+                  <span class="slide-counter">${state.previewIndex + 1}/${item.urls.length}</span>
+                  <button type="button" class="js-slide-next" ${state.previewIndex === item.urls.length - 1 ? "disabled" : ""}>Weiter</button>
+                </div>
+              ` : ""}
+            </div>
+          `;
+        } else {
+          stage.innerHTML = `<video src="${url}" controls autoplay playsinline></video>`;
+        }
+      }
+
+      function openPreview(file) {
+        const item = findManifest(file);
+        if (!item) return;
+        const modal = $("previewModal");
+        state.previewItem = item;
+        state.previewIndex = 0;
+        $("modalType").textContent = typeLabel(item.type);
+        $("modalTitle").textContent = item.file;
+        $("modalCaption").textContent = item.caption || item.slug;
+        $("modalStatus").innerHTML = statusPill(item);
+        $("modalUrls").innerHTML = item.urls.map((url, index) => (
+          `<a href="${url}" target="_blank" rel="noreferrer">URL ${index + 1}: ${url}</a>`
+        )).join("");
+
+        renderPreviewStage();
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+      }
+
+      function closePreview() {
+        const modal = $("previewModal");
+        $("modalStage").innerHTML = "";
+        state.previewItem = null;
+        state.previewIndex = 0;
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+
+      function shiftPreviewSlide(delta) {
+        if (!state.previewItem || state.previewItem.type !== "carousel") return;
+        const nextIndex = Math.max(0, Math.min(state.previewItem.urls.length - 1, state.previewIndex + delta));
+        if (nextIndex === state.previewIndex) return;
+        state.previewIndex = nextIndex;
+        renderPreviewStage();
+      }
+
+      async function refresh() {
+        setBusy(true);
+        try {
+          render(await api("/api/status"));
+        } catch (error) {
+          $("logBox").textContent = error.message;
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function publishItem(type, file) {
+        if (!confirm(`${type} wirklich veröffentlichen?\\n${file}`)) return;
+        setBusy(true);
+        $("logBox").textContent = "Publishing läuft...";
+        try {
+          const result = await api(`/api/publish/${type}/${encodeURIComponent(file)}`, { method: "POST" });
+          $("logBox").textContent = JSON.stringify(result, null, 2);
+          await refresh();
+        } catch (error) {
+          $("logBox").textContent = error.message;
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      $("refreshBtn").addEventListener("click", refresh);
+      document.addEventListener("click", (event) => {
+        const previewTarget = event.target.closest(".js-preview, .js-preview-btn");
+        if (previewTarget) {
+          openPreview(previewTarget.dataset.file);
+          return;
+        }
+        const publishTarget = event.target.closest(".js-publish-btn");
+        if (publishTarget) {
+          publishItem(publishTarget.dataset.type, publishTarget.dataset.file);
+          return;
+        }
+        if (event.target.closest(".js-slide-prev")) {
+          shiftPreviewSlide(-1);
+          return;
+        }
+        if (event.target.closest(".js-slide-next")) {
+          shiftPreviewSlide(1);
+        }
+      });
+      $("modalClose").addEventListener("click", closePreview);
+      $("previewModal").addEventListener("click", (event) => {
+        if (event.target.id === "previewModal") closePreview();
+      });
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closePreview();
+        if (event.key === "ArrowLeft") shiftPreviewSlide(-1);
+        if (event.key === "ArrowRight") shiftPreviewSlide(1);
+      });
+      refresh();
+    </script>
+  </body>
+</html>

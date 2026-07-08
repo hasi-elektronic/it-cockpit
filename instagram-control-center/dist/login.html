@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hasi Content Cockpit Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --blue: #3abadf;
+        --ink: #0d1b2a;
+        --muted: #667085;
+        --line: #d8eef5;
+        --orange: #ff6b00;
+      }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 78% 20%, rgba(58, 186, 223, .24), transparent 28%),
+          linear-gradient(145deg, #081522 0%, #0d1b2a 45%, #1a5f75 100%);
+      }
+      .shell {
+        width: min(980px, 100%);
+        display: grid;
+        grid-template-columns: 1.1fr .9fr;
+        overflow: hidden;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 30px 90px rgba(0, 0, 0, .36);
+      }
+      .intro {
+        padding: 42px;
+        color: #fff;
+        background:
+          radial-gradient(circle at 88% 86%, rgba(255,255,255,.17), transparent 30%),
+          linear-gradient(155deg, #0d1b2a, #3abadf);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 54px;
+      }
+      .logo {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        background: #fff;
+        padding: 9px;
+        object-fit: contain;
+      }
+      h1 {
+        margin: 0;
+        font-size: 42px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+      .intro p {
+        max-width: 460px;
+        color: rgba(255,255,255,.82);
+        font-size: 17px;
+        line-height: 1.45;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 28px;
+      }
+      .chip {
+        padding: 8px 11px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.18);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .login {
+        padding: 42px;
+      }
+      .login h2 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .login p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      label {
+        display: block;
+        margin: 16px 0 7px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      input {
+        width: 100%;
+        height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 13px;
+        font: inherit;
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 4px rgba(58, 186, 223, .14);
+      }
+      button {
+        width: 100%;
+        height: 50px;
+        margin-top: 22px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--orange);
+        color: #fff;
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .error {
+        min-height: 20px;
+        margin-top: 14px;
+        color: #b42318;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .small {
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 820px) {
+        .shell { grid-template-columns: 1fr; }
+        .intro, .login { padding: 28px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro">
+        <div class="brand">
+          <img class="logo" src="/hasi-logo.png" alt="Hasi Elektronic" />
+          <div>
+            <strong>Hasi Elektronic</strong><br />
+            <span>Content Cockpit</span>
+          </div>
+        </div>
+        <h1>Social Media<br />Control Center</h1>
+        <p>Planung, Vorschau und Status fuer Karussell, Reel und Story. Erst pruefen, dann veroeffentlichen.</p>
+        <div class="chips">
+          <span class="chip">Web-App</span>
+          <span class="chip">iOS</span>
+          <span class="chip">Android</span>
+          <span class="chip">Automatisierung</span>
+        </div>
+      </section>
+      <section class="login">
+        <h2>Anmelden</h2>
+        <p>Bitte mit dem Hasi Zugang anmelden, bevor das Cockpit geoeffnet wird.</p>
+        <form id="loginForm">
+          <label for="email">E-Mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" required />
+          <label for="password">Passwort</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <button type="submit">Control Center oeffnen</button>
+          <div class="error" id="error"></div>
+        </form>
+        <div class="small">Geschuetzter Bereich fuer Hasi Elektronic.</div>
+      </section>
+    </main>
+    <script>
+      document.querySelector("#loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const error = document.querySelector("#error");
+        error.textContent = "";
+        const body = {
+          email: document.querySelector("#email").value,
+          password: document.querySelector("#password").value,
+        };
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (response.ok) {
+          window.location.href = "/";
+          return;
+        }
+        error.textContent = "Login fehlgeschlagen. Bitte Zugangsdaten pruefen.";
+      });
+    </script>
+  </body>
+</html>

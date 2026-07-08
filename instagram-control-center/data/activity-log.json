@@ -1,0 +1,46 @@
+[
+  {
+    "time": "2026-07-08T10:04:42+02:00",
+    "action": "publish-carousel",
+    "status": "published",
+    "type": "carousel",
+    "topic": "Hasi Safe Stick",
+    "slug": "hasi-safe-stick-2026-07-08",
+    "manifest": "hasi-safe-stick-2026-07-08.manifest.json",
+    "instagramId": "18060291389739396",
+    "note": "Automatischer/fortgesetzter Tagespost-Lauf; Dry Run 7/7 image/png OK."
+  },
+  {
+    "time": "2026-07-08T09:18:34+02:00",
+    "action": "publish-carousel",
+    "status": "published",
+    "type": "carousel",
+    "topic": "PC-Reparatur",
+    "slug": "pc-reparatur-2026-07-08",
+    "manifest": "pc-reparatur-2026-07-08.manifest.json",
+    "instagramId": "17979586548058524",
+    "note": "Manuell nachgeholt, weil 08:00-Lauf nicht sichtbar war; Dry Run 7/7 image/png OK."
+  },
+  {
+    "time": "2026-07-08T10:10:00+02:00",
+    "action": "check-story",
+    "status": "pending",
+    "type": "story",
+    "topic": "Heute noch nicht gelaufen",
+    "slug": "",
+    "manifest": "",
+    "instagramId": "",
+    "note": "Story-Automation ist ACTIVE und fuer 15:30 Europe/Berlin geplant."
+  },
+  {
+    "time": "2026-07-08T10:10:00+02:00",
+    "action": "check-reel",
+    "status": "paused",
+    "type": "reel",
+    "topic": "Kein heutiger Reel",
+    "slug": "",
+    "manifest": "",
+    "instagramId": "",
+    "note": "Reels-Automation ist PAUSED; letzter Reel war WLAN-Probleme am 2026-07-07."
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "id": "hasi-elektronic",
+  "name": "Hasi Elektronic",
+  "company": "Hasi Elektronic",
+  "owner": "Hamdi Guencavdi",
+  "email": "h.guencavdi@hasi-elektronic.de",
+  "phone": "07042 / 16391",
+  "city": "Vaihingen/Enz",
+  "address": "Grabenstrasse 18, 71665 Vaihingen/Enz",
+  "industry": "IT, Web-App, iOS-App, Android-App und Automatisierung",
+  "brand": {
+    "primary": "#3ABADF",
+    "secondary": "#41AADE",
+    "accent": "#FF6B00",
+    "font": "Space Grotesk",
+    "logo": "/hasi-logo.png"
+  },
+  "positioning": "Lokaler IT-Partner fuer Web-Apps, iOS Apps, Android Apps, Automatisierung und moderne Geschaeftssoftware."
+}

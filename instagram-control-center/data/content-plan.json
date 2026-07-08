@@ -1,0 +1,23 @@
+{
+  "topics": [
+    "Web-App fuer lokale Firmen",
+    "iOS App Entwicklung",
+    "Android App Entwicklung",
+    "App + Website Paket",
+    "Online Terminbuchung",
+    "Warteliste Pro",
+    "Kundenportal",
+    "Digitale Formulare",
+    "Supabase Backend",
+    "Cloudflare Hosting",
+    "App Store und Google Play",
+    "Automatisierung fuer kleine Betriebe",
+    "Webdesign mit App-Anbindung",
+    "Digitaler Hausmeister"
+  ],
+  "cadence": {
+    "carousel": "08:00",
+    "reel": "08:30",
+    "story": "09:00"
+  }
+}
