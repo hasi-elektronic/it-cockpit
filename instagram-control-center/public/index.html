@@ -446,7 +446,13 @@
     </div>
 
     <script>
-      const requestedCustomerId = new URLSearchParams(window.location.search).get("customer") || "hasi-elektronic";
+      function requestedCustomerFromUrl() {
+        const match = window.location.pathname.match(/^\/kunde\/([^/?#]+)/);
+        if (match) return decodeURIComponent(match[1]);
+        return new URLSearchParams(window.location.search).get("customer") || "hasi-elektronic";
+      }
+
+      const requestedCustomerId = requestedCustomerFromUrl();
       const state = { busy: false, data: null, activeCustomer: null, previewItem: null, previewIndex: 0 };
       const $ = (id) => document.getElementById(id);
 

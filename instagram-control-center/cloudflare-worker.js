@@ -222,6 +222,7 @@ export default {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
+    if (url.pathname.startsWith("/kunde/")) return serveAsset(env, "/index.html", request);
     if (url.pathname === "/api/status") return status(env, request);
     if (url.pathname === "/api/customers" && request.method === "GET") {
       return json({ customers: await customers(env, request) });

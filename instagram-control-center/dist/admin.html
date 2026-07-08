@@ -326,7 +326,7 @@
               <div><strong>Ort</strong><br>${escapeHtml(customer.city || "-")}</div>
             </div>
             ${customer.positioning ? `<p class="small" style="margin:12px 0 0">${escapeHtml(customer.positioning)}</p>` : ""}
-            <a class="btn secondary small" href="/?customer=${encodeURIComponent(customer.id)}">Cockpit öffnen</a>
+            <a class="btn secondary small" href="/kunde/${encodeURIComponent(customer.id)}">Cockpit öffnen</a>
           </article>
         `).join("") || `<div class="small">Noch keine Kunden angelegt.</div>`;
       }
