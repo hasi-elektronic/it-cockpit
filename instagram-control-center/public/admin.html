@@ -218,7 +218,6 @@
               <p class="subtitle">Kunden anlegen und Stammdaten fuer den Social-Media-Service pflegen.</p>
             </div>
           </div>
-          <a class="btn secondary" href="/">Hasi Cockpit öffnen</a>
         </header>
 
         <section class="grid">
@@ -327,7 +326,7 @@
               <div><strong>Ort</strong><br>${escapeHtml(customer.city || "-")}</div>
             </div>
             ${customer.positioning ? `<p class="small" style="margin:12px 0 0">${escapeHtml(customer.positioning)}</p>` : ""}
-            ${customer.id === "hasi-elektronic" ? `<a class="btn secondary small" href="/">Hasi Cockpit öffnen</a>` : ""}
+            <a class="btn secondary small" href="/?customer=${encodeURIComponent(customer.id)}">Cockpit öffnen</a>
           </article>
         `).join("") || `<div class="small">Noch keine Kunden angelegt.</div>`;
       }

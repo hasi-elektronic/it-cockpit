@@ -359,13 +359,13 @@
           <div class="title-row">
             <img class="header-logo" src="/hasi-logo.png" alt="Hasi Elektronic Logo">
             <div>
-              <h1>Instagram Control Center</h1>
-              <p class="subtitle">Karussell, Reels, Story, Cloudflare und Instagram API an einem Platz.</p>
+              <h1 id="pageTitle">Instagram Control Center</h1>
+              <p class="subtitle" id="pageSubtitle">Karussell, Reels, Story, Cloudflare und Instagram API an einem Platz.</p>
             </div>
           </div>
           <div class="toolbar">
             <button class="btn secondary" id="refreshBtn">Status aktualisieren</button>
-            <a class="btn orange" href="https://www.instagram.com/hasi_elektronic/" target="_blank">Instagram öffnen</a>
+            <a class="btn orange" id="instagramLink" href="https://www.instagram.com/hasi_elektronic/" target="_blank">Instagram öffnen</a>
           </div>
         </header>
 
@@ -379,7 +379,7 @@
             <div id="readyCount" class="stat-value">...</div>
           </div>
           <div class="card">
-            <div class="stat-label">Aktiver Kunde</div>
+            <div class="stat-label">Kunde</div>
             <div id="activeCustomer" class="stat-value" style="font-size:18px">...</div>
           </div>
           <div class="card">
@@ -446,7 +446,8 @@
     </div>
 
     <script>
-      const state = { busy: false, data: null, previewItem: null, previewIndex: 0 };
+      const requestedCustomerId = new URLSearchParams(window.location.search).get("customer") || "hasi-elektronic";
+      const state = { busy: false, data: null, activeCustomer: null, previewItem: null, previewIndex: 0 };
       const $ = (id) => document.getElementById(id);
 
       async function api(path, options) {
@@ -599,8 +600,21 @@
       }
 
       function renderCustomers(customers = []) {
-        const customer = customers.find((item) => item.id === "hasi-elektronic") || customers[0];
+        const customer =
+          customers.find((item) => item.id === requestedCustomerId) ||
+          customers.find((item) => item.id === "hasi-elektronic") ||
+          customers[0];
+        state.activeCustomer = customer || null;
         $("activeCustomer").textContent = customer?.company || "Kein Kunde";
+        $("pageTitle").textContent = customer ? `${customer.company || customer.name} Cockpit` : "Content Cockpit";
+        $("pageSubtitle").textContent = customer?.positioning || "Karussell, Reels, Story und Freigaben an einem Platz.";
+        if (customer?.instagram) {
+          const handle = customer.instagram.replace(/^@/, "");
+          $("instagramLink").href = `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+          $("instagramLink").style.display = "";
+        } else {
+          $("instagramLink").style.display = "none";
+        }
         $("customerList").innerHTML = customer ? `
           <article class="customer-card">
             <h3>${escapeHtml(customer.company || customer.name)}</h3>
@@ -620,16 +634,23 @@
         ` : `<div class="small">Noch kein Kunde angelegt.</div>`;
       }
 
+      function isHasiCustomer() {
+        return state.activeCustomer?.id === "hasi-elektronic";
+      }
+
       function render(data) {
         state.data = data;
         $("apiStatus").innerHTML = data.instagram.ok ? '<span class="ok">OK</span>' : '<span class="bad">Fehler</span>';
-        $("readyCount").textContent = data.manifests.filter((item) => item.ready && !item.published).length;
         renderCustomers(data.customers || []);
-        $("lastLog").textContent = data.log[0] ? `${data.log[0].action}` : "Noch leer";
+        const visibleManifests = isHasiCustomer() ? data.manifests : [];
+        const visiblePlan = isHasiCustomer() ? data.plan : [];
+        const visibleLog = isHasiCustomer() ? data.log : [];
+        $("readyCount").textContent = visibleManifests.filter((item) => item.ready && !item.published).length;
+        $("lastLog").textContent = visibleLog[0] ? `${visibleLog[0].action}` : "Noch leer";
 
         $("manifestGroups").innerHTML = ["carousel", "story", "reel"]
-          .map((type) => renderGroup(type, data.manifests.filter((item) => item.type === type)))
-          .join("");
+          .map((type) => renderGroup(type, visibleManifests.filter((item) => item.type === type)))
+          .join("") + (!isHasiCustomer() ? `<div class="notice">Fuer diesen Kunden ist noch keine Content-Produktion eingerichtet. Lege zuerst Themen, Brand Assets und einen Plan an.</div>` : "");
 
         $("planRows").innerHTML = `
           <div class="plan-row plan-head">
@@ -639,7 +660,7 @@
             <div>Reel</div>
             <div>Story</div>
           </div>
-        ` + data.plan.map((row) => `
+        ` + (visiblePlan.length ? visiblePlan.map((row) => `
           <div class="plan-row">
             <div class="small">${formatGermanDate(row.date)}</div>
             <div class="topic">${row.topic}</div>
@@ -647,7 +668,7 @@
             <div class="pill">${row.reel}</div>
             <div class="pill">${row.story}</div>
           </div>
-        `).join("");
+        `).join("") : `<div class="notice" style="margin-top:12px">Noch kein 14-Tage-Plan fuer diesen Kunden eingerichtet.</div>`);
 
         $("automationRows").innerHTML = data.automations.map((item) => `
           <tr>
@@ -657,7 +678,7 @@
           </tr>
         `).join("");
 
-        $("logBox").textContent = renderLogs(data.log);
+        $("logBox").textContent = renderLogs(visibleLog);
       }
 
       function findManifest(file) {
