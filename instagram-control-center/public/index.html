@@ -677,6 +677,23 @@
         `;
       }
 
+      function customerPlan(customer) {
+        const topics = customer?.topics?.length ? customer.topics : ["Content Thema"];
+        const cadence = customer?.cadence || {};
+        const now = new Date();
+        return Array.from({ length: 14 }).map((_, index) => {
+          const date = new Date(now);
+          date.setDate(now.getDate() + index);
+          return {
+            date: date.toISOString().slice(0, 10),
+            topic: topics[index % topics.length],
+            carousel: cadence.carousel || "08:00",
+            reel: cadence.reel || "08:30",
+            story: cadence.story || "09:00",
+          };
+        });
+      }
+
       function renderCustomers(customers = []) {
         const customer =
           customers.find((item) => item.id === requestedCustomerId) ||
@@ -717,13 +734,17 @@
         return state.activeCustomer?.id === "hasi-elektronic" && customerReady(state.activeCustomer);
       }
 
+      function canShowPlan() {
+        return Boolean(state.activeCustomer?.onboarding?.contentPlan);
+      }
+
       function render(data) {
         state.data = data;
         $("apiStatus").innerHTML = data.instagram.ok ? '<span class="ok">OK</span>' : '<span class="bad">Fehler</span>';
         renderCustomers(data.customers || []);
         const showContent = canShowContent();
         const visibleManifests = showContent ? data.manifests : [];
-        const visiblePlan = showContent ? data.plan : [];
+        const visiblePlan = canShowPlan() ? customerPlan(state.activeCustomer) : [];
         const visibleLog = showContent ? data.log : [];
         $("readyCount").textContent = visibleManifests.filter((item) => item.ready && !item.published).length;
         $("lastLog").textContent = visibleLog[0] ? `${visibleLog[0].action}` : "Noch leer";

@@ -318,6 +318,18 @@
                 <label for="topics">Themen</label>
                 <input id="topics" name="topics" placeholder="Angebote, Team, Tipps, Referenzen">
               </div>
+              <div class="field">
+                <label for="carouselTime">Karussell Zeit</label>
+                <input id="carouselTime" name="carouselTime" value="08:00">
+              </div>
+              <div class="field">
+                <label for="reelTime">Reel Zeit</label>
+                <input id="reelTime" name="reelTime" value="08:30">
+              </div>
+              <div class="field">
+                <label for="storyTime">Story Zeit</label>
+                <input id="storyTime" name="storyTime" value="09:00">
+              </div>
               <div class="field full">
                 <label for="positioning">Positionierung</label>
                 <textarea id="positioning" name="positioning" placeholder="Wofuer steht der Kunde? Was soll Social Media verkaufen oder erklaeren?"></textarea>
@@ -436,6 +448,9 @@
         $("primary").value = "#3ABADF";
         $("accent").value = "#FF6B00";
         $("language").value = "de";
+        $("carouselTime").value = "08:00";
+        $("reelTime").value = "08:30";
+        $("storyTime").value = "09:00";
         $("publishPermission").value = "missing";
         $("formTitle").textContent = "Kunde anlegen";
         $("submitCustomer").textContent = "Kunde anlegen";
@@ -459,6 +474,9 @@
         $("primary").value = customer.brand?.primary || "#3ABADF";
         $("accent").value = customer.brand?.accent || "#FF6B00";
         $("topics").value = (customer.topics || []).join(", ");
+        $("carouselTime").value = customer.cadence?.carousel || "08:00";
+        $("reelTime").value = customer.cadence?.reel || "08:30";
+        $("storyTime").value = customer.cadence?.story || "09:00";
         $("positioning").value = customer.positioning || "";
         $("profileComplete").checked = Boolean(ob.profileComplete);
         $("brandComplete").checked = Boolean(ob.brandComplete);

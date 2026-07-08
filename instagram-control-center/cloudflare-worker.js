@@ -147,6 +147,14 @@ function normalizeOnboarding(input = {}, existing = {}) {
   };
 }
 
+function normalizeCadence(input = {}, existing = {}) {
+  return {
+    carousel: String(input.carouselTime || input.carousel || existing.carousel || "08:00").trim(),
+    reel: String(input.reelTime || input.reel || existing.reel || "08:30").trim(),
+    story: String(input.storyTime || input.story || existing.story || "09:00").trim(),
+  };
+}
+
 function normalizeCustomer(input, existing = null) {
   const company = String(input.company || input.name || "").trim();
   if (!company) throw new Error("Firma fehlt");
@@ -154,6 +162,7 @@ function normalizeCustomer(input, existing = null) {
   if (!id) throw new Error("Kunden-ID fehlt");
   const onboardingInput = input.onboarding || input;
   const brandInput = input.brand || {};
+  const cadenceInput = input.cadence || input;
   return {
     id,
     name: company,
@@ -175,6 +184,7 @@ function normalizeCustomer(input, existing = null) {
       logo: String(input.logo || brandInput.logo || "").trim(),
     },
     topics: parseTopics(input.topics),
+    cadence: normalizeCadence(cadenceInput, existing?.cadence),
     positioning: String(input.positioning || "").trim(),
     onboarding: normalizeOnboarding(onboardingInput, existing?.onboarding),
     createdAt: existing?.createdAt || new Date().toISOString(),

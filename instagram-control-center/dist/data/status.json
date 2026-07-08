@@ -43,6 +43,11 @@
       "topics": [
         "Werbung"
       ],
+      "cadence": {
+        "carousel": "08:00",
+        "reel": "08:30",
+        "story": "09:00"
+      },
       "positioning": "",
       "onboarding": {
         "profileComplete": true,
@@ -86,6 +91,11 @@
         "Automatisierung",
         "IT-Service"
       ],
+      "cadence": {
+        "carousel": "08:00",
+        "reel": "08:30",
+        "story": "09:00"
+      },
       "positioning": "Lokaler IT-Partner fuer Web-Apps, iOS Apps, Android Apps, Automatisierung und moderne Geschaeftssoftware.",
       "onboarding": {
         "profileComplete": true,
