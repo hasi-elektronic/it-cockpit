@@ -1,5 +1,31 @@
 [
   {
+    "id": "keby-shop",
+    "name": "Keby Shop",
+    "company": "Keby Shop",
+    "owner": "Kader Kayihan",
+    "email": "info@keby.shop",
+    "phone": "",
+    "city": "Vaihingen Enz",
+    "address": "",
+    "instagram": "@kebyshop",
+    "industry": "Olivenöl",
+    "language": "de",
+    "status": "active",
+    "brand": {
+      "primary": "#2a4a1a",
+      "secondary": "#2a4a1a",
+      "accent": "#f7f4ee",
+      "font": "Space Grotesk",
+      "logo": ""
+    },
+    "topics": [
+      "Werbung"
+    ],
+    "positioning": "",
+    "createdAt": "2026-07-08T10:57:55.982Z"
+  },
+  {
     "id": "hasi-elektronic",
     "name": "Hasi Elektronic",
     "company": "Hasi Elektronic",
