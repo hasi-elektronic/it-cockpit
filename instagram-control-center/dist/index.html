@@ -145,6 +145,35 @@
         border-left: 4px solid var(--orange); background: #fff7ed;
         padding: 12px 14px; border-radius: 8px; color: #9a3412; font-size: 14px;
       }
+      .today-panel {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .today-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+      .today-head strong { font-size: 15px; }
+      .today-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .today-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #f8fcfe;
+      }
+      .today-item strong {
+        display: block;
+        margin: 8px 0 4px;
+        font-size: 14px;
+      }
+      .today-item .small { line-height: 1.4; }
       .schedule-legend {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -353,7 +382,7 @@
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
         aside { position: relative; height: auto; }
-        .stats, .content-grid, .customer-layout { grid-template-columns: 1fr; }
+        .stats, .content-grid, .customer-layout, .today-grid, .schedule-legend { grid-template-columns: 1fr; }
         header { flex-direction: column; }
         .toolbar { justify-content: flex-start; }
         .modal-panel { grid-template-columns: 1fr; }
@@ -401,6 +430,10 @@
             <div id="apiStatus" class="stat-value">...</div>
           </div>
           <div class="card">
+            <div class="stat-label">Heute erledigt</div>
+            <div id="todayCount" class="stat-value">...</div>
+          </div>
+          <div class="card">
             <div class="stat-label">Publish-ready Inhalte</div>
             <div id="readyCount" class="stat-value">...</div>
           </div>
@@ -408,15 +441,12 @@
             <div class="stat-label">Kunde</div>
             <div id="activeCustomer" class="stat-value" style="font-size:18px">...</div>
           </div>
-          <div class="card">
-            <div class="stat-label">Letzter Log</div>
-            <div id="lastLog" class="stat-value" style="font-size:18px">...</div>
-          </div>
         </section>
 
         <section class="section content-grid grid">
           <div class="card" id="queue">
             <h2>Beitraege und Freigaben</h2>
+            <div id="todaySummary"></div>
             <div class="notice" style="margin-bottom:12px">Publish-Buttons senden direkt an Instagram. Story bleibt 24 Stunden sichtbar.</div>
             <div class="queue-groups" id="manifestGroups"></div>
           </div>
@@ -546,6 +576,28 @@
         }).format(date);
       }
 
+      function localDateKey(value = new Date()) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function manifestDateKey(item) {
+        const slugDate = String(item.slug || item.file || "").match(/(\d{4}-\d{2}-\d{2})/);
+        return slugDate?.[1] || localDateKey(item.sortAt || item.updatedAt || item.publishedAt);
+      }
+
+      function newestFirst(items) {
+        return [...items].sort((a, b) => {
+          const aTime = new Date(a.sortAt || a.updatedAt || a.publishedAt || 0).getTime() || 0;
+          const bTime = new Date(b.sortAt || b.updatedAt || b.publishedAt || 0).getTime() || 0;
+          return bTime - aTime;
+        });
+      }
+
       function statusPill(item) {
         if (item.published) {
           return `<span class="pill green">veröffentlicht</span><div class="small">ID: ${item.instagramId || "unbekannt"}<br>${formatGermanDateTime(item.publishedAt)}</div>`;
@@ -554,6 +606,64 @@
           return `<span class="pill orange">bereit</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
         }
         return `<span class="pill red">prüfen</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
+      }
+
+      function shortStatus(item) {
+        if (!item) return { cls: "red", label: "fehlt", detail: "Heute noch nicht erstellt." };
+        if (item.published) return { cls: "green", label: "veröffentlicht", detail: formatGermanDateTime(item.publishedAt) || formatGermanDateTime(item.updatedAt) };
+        if (item.ready) return { cls: "orange", label: "bereit", detail: `Noch nicht veröffentlicht · ${formatGermanDateTime(item.updatedAt)}` };
+        return { cls: "red", label: "prüfen", detail: `Fehler oder unvollständig · ${formatGermanDateTime(item.updatedAt)}` };
+      }
+
+      function renderTodaySummary(items) {
+        const today = localDateKey();
+        const definitions = [
+          ["carousel", "08:00", "Karussell"],
+          ["reel", "08:30", "Reel"],
+          ["story", "09:00", "Story"],
+        ];
+        const completed = definitions.filter(([type]) => items.some((item) => item.type === type && manifestDateKey(item) === today && (item.ready || item.published))).length;
+        const rows = definitions.map(([type, time, label]) => {
+          const item = newestFirst(items).find((entry) => entry.type === type && manifestDateKey(entry) === today);
+          const status = shortStatus(item);
+          return `
+            <div class="today-item">
+              <span class="pill ${status.cls}">${status.label}</span>
+              <strong>${time} ${label}</strong>
+              <div class="small">${item ? escapeHtml(item.file) : "Kein heutiger Inhalt gefunden."}</div>
+              <div class="small">${escapeHtml(status.detail)}</div>
+            </div>
+          `;
+        }).join("");
+        return `
+          <div class="today-panel">
+            <div class="today-head">
+              <strong>Heute (${formatGermanDate(today)})</strong>
+              <span class="pill ${completed === 3 ? "green" : "red"}">${completed}/3 erledigt</span>
+            </div>
+            <div class="today-grid">${rows}</div>
+          </div>
+        `;
+      }
+
+      function todayCompletedCount(items) {
+        const today = localDateKey();
+        return ["carousel", "reel", "story"].filter((type) => items.some((item) => item.type === type && manifestDateKey(item) === today && (item.ready || item.published))).length;
+      }
+
+      function automationScheduleLabel(item) {
+        if (!item.schedule) return "-";
+        if (!item.schedule.includes("RRULE")) return escapeHtml(item.schedule);
+        const hour = item.schedule.match(/BYHOUR=(\d{1,2})/)?.[1]?.padStart(2, "0");
+        const minute = item.schedule.match(/BYMINUTE=(\d{1,2})/)?.[1]?.padStart(2, "0") || "00";
+        const time = hour ? `${hour}:${minute}` : "Zeit offen";
+        const name = `${item.name || ""} ${item.id || ""}`.toLowerCase();
+        let job = "Automation";
+        if (name.includes("wochenpost") || name.includes("tagespost")) job = "Karussell / Tagespost";
+        if (name.includes("reel")) job = "Reel";
+        if (name.includes("story")) job = "Story Vorbereitung";
+        if (name.includes("tageskontrolle")) job = "Kontrolle / Nachholen";
+        return `${time} ${job}`;
       }
 
       function publishButton(item) {
@@ -591,13 +701,14 @@
       }
 
       function renderGroup(type, items) {
+        const sortedItems = newestFirst(items);
         const published = items.filter((item) => item.published).length;
         const ready = items.filter((item) => item.ready && !item.published).length;
-        const rows = items.map((item) => `
+        const rows = sortedItems.map((item) => `
           <tr>
             <td>${preview(item)}</td>
             <td><span class="pill">${typeLabel(item.type)}</span><div class="small">${item.urlCount} URL</div></td>
-            <td><strong>${item.file}</strong><div class="small">${item.caption ? item.caption.slice(0, 90) + "..." : item.preview}</div></td>
+            <td><strong>${item.file}</strong><div class="small">Aktualisiert: ${formatGermanDateTime(item.updatedAt || item.sortAt)}</div><div class="small">${item.caption ? item.caption.slice(0, 90) + "..." : item.preview}</div></td>
             <td>${statusPill(item)}</td>
             <td><div class="actions">${publishButton(item)}</div></td>
           </tr>
@@ -743,13 +854,15 @@
         $("apiStatus").innerHTML = data.instagram.ok ? '<span class="ok">OK</span>' : '<span class="bad">Fehler</span>';
         renderCustomers(data.customers || []);
         const showContent = canShowContent();
-        const visibleManifests = showContent ? data.manifests : [];
+        const visibleManifests = showContent ? newestFirst(data.manifests || []) : [];
         const visiblePlan = canShowPlan() ? customerPlan(state.activeCustomer) : [];
         const visibleLog = showContent ? data.log : [];
+        const completedToday = todayCompletedCount(visibleManifests);
+        $("todayCount").textContent = showContent ? `${completedToday}/3` : "-";
         $("readyCount").textContent = visibleManifests.filter((item) => item.ready && !item.published).length;
-        $("lastLog").textContent = visibleLog[0] ? `${visibleLog[0].action}` : "Noch leer";
+        $("todaySummary").innerHTML = showContent ? renderTodaySummary(visibleManifests) : "";
 
-        $("manifestGroups").innerHTML = ["carousel", "story", "reel"]
+        $("manifestGroups").innerHTML = ["carousel", "reel", "story"]
           .map((type) => renderGroup(type, visibleManifests.filter((item) => item.type === type)))
           .join("") + (!showContent && state.activeCustomer ? renderOnboardingPanel(state.activeCustomer) : "");
 
@@ -771,11 +884,11 @@
           </div>
         `).join("") : `<div class="notice" style="margin-top:12px">Noch kein 14-Tage-Plan fuer diesen Kunden eingerichtet.</div>`);
 
-        $("automationRows").innerHTML = data.automations.map((item) => `
+        $("automationRows").innerHTML = [...data.automations].sort((a, b) => automationScheduleLabel(a).localeCompare(automationScheduleLabel(b))).map((item) => `
           <tr>
             <td><strong>${item.name}</strong><div class="small">${item.id}</div></td>
             <td><span class="pill ${item.status === "ACTIVE" ? "green" : "red"}">${item.status || "?"}</span></td>
-            <td class="small">${item.schedule.replaceAll("\\n", "<br>")}</td>
+            <td><strong>${automationScheduleLabel(item)}</strong><div class="small">${escapeHtml(item.schedule).replaceAll("\\n", "<br>")}</div></td>
           </tr>
         `).join("");
 

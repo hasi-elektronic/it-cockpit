@@ -119,52 +119,82 @@
   },
   "manifests": [
     {
-      "file": "datenrettung-2026-07-06.story.manifest.json",
-      "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/datenrettung-2026-07-06.story.manifest.json",
-      "slug": "datenrettung-2026-07-06",
-      "caption": "",
+      "file": "online-terminbuchung-umlaut-2026-07-08.reel.manifest.json",
+      "type": "reel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/online-terminbuchung-umlaut-2026-07-08.reel.manifest.json",
+      "slug": "online-terminbuchung-umlaut-2026-07-08",
+      "caption": "Kunden wollen Termine sofort buchen. Nicht erst morgen am Telefon.\n\nWir bauen Online-Terminbuchung, Website, Web-App und App-Anbindung für lokale Betriebe: sauber, mobil und direkt nutzbar.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #terminbuchung #webapp #appentwicklung #automatisierung #digitalisierung #webdesign #itservice",
       "urlCount": 1,
       "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/datenrettung-2026-07-06/datenrettung-2026-07-06.mp4"
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-umlaut-2026-07-08/online-terminbuchung-umlaut-2026-07-08.mp4"
       ],
       "checks": [
         {
           "ok": true,
           "status": 200,
           "type": "video/mp4",
-          "length": "1682016"
+          "length": "2935751"
         }
       ],
       "ready": true,
       "published": false,
       "publishedAt": "",
       "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/datenrettung-2026-07-06/datenrettung-2026-07-06.mp4"
+      "updatedAt": "2026-07-08T19:44:30.099Z",
+      "sortAt": "2026-07-08T19:44:30.099Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-umlaut-2026-07-08/online-terminbuchung-umlaut-2026-07-08.mp4"
     },
     {
-      "file": "hasi-safe-stick-2026-07-07.story.manifest.json",
+      "file": "online-terminbuchung-umlaut-2026-07-08.story.manifest.json",
       "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/hasi-safe-stick-2026-07-07.story.manifest.json",
-      "slug": "hasi-safe-stick-2026-07-07",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/online-terminbuchung-umlaut-2026-07-08.story.manifest.json",
+      "slug": "online-terminbuchung-umlaut-2026-07-08",
       "caption": "",
       "urlCount": 1,
       "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/hasi-safe-stick-2026-07-07/hasi-safe-stick-2026-07-07.mp4"
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-umlaut-2026-07-08/online-terminbuchung-umlaut-2026-07-08.mp4"
       ],
       "checks": [
         {
           "ok": true,
           "status": 200,
           "type": "video/mp4",
-          "length": "2608939"
+          "length": "2935751"
         }
       ],
       "ready": true,
       "published": false,
       "publishedAt": "",
       "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/hasi-safe-stick-2026-07-07/hasi-safe-stick-2026-07-07.mp4"
+      "updatedAt": "2026-07-08T19:42:45.677Z",
+      "sortAt": "2026-07-08T19:42:45.677Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-umlaut-2026-07-08/online-terminbuchung-umlaut-2026-07-08.mp4"
+    },
+    {
+      "file": "online-terminbuchung-2026-07-08.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/online-terminbuchung-2026-07-08.story.manifest.json",
+      "slug": "online-terminbuchung-2026-07-08",
+      "caption": "",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-08/online-terminbuchung-2026-07-08.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2934746"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-08T09:04:07.990Z",
+      "sortAt": "2026-07-08T09:04:07.990Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-08/online-terminbuchung-2026-07-08.mp4"
     },
     {
       "file": "hasi-safe-stick-2026-07-08.manifest.json",
@@ -230,79 +260,9 @@
       "published": true,
       "publishedAt": "2026-07-08T10:04:42+02:00",
       "instagramId": "18060291389739396",
+      "updatedAt": "2026-07-08T08:03:22.950Z",
+      "sortAt": "2026-07-08T10:04:42+02:00",
       "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/hasi-safe-stick-2026-07-08/slide_1.png"
-    },
-    {
-      "file": "nextcloud-creative-logo-2026-07-07.story.manifest.json",
-      "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/nextcloud-creative-logo-2026-07-07.story.manifest.json",
-      "slug": "nextcloud-creative-logo-2026-07-07",
-      "caption": "",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/nextcloud-creative-logo-2026-07-07/nextcloud-creative-logo-2026-07-07.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2193640"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/nextcloud-creative-logo-2026-07-07/nextcloud-creative-logo-2026-07-07.mp4"
-    },
-    {
-      "file": "online-terminbuchung-2026-07-08.story.manifest.json",
-      "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/online-terminbuchung-2026-07-08.story.manifest.json",
-      "slug": "online-terminbuchung-2026-07-08",
-      "caption": "",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-08/online-terminbuchung-2026-07-08.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2934746"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-08/online-terminbuchung-2026-07-08.mp4"
-    },
-    {
-      "file": "pc-reparatur-2026-07-07.story.manifest.json",
-      "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/pc-reparatur-2026-07-07.story.manifest.json",
-      "slug": "pc-reparatur-2026-07-07",
-      "caption": "",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/pc-reparatur-2026-07-07/pc-reparatur-2026-07-07.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2722183"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/pc-reparatur-2026-07-07/pc-reparatur-2026-07-07.mp4"
     },
     {
       "file": "pc-reparatur-2026-07-08.manifest.json",
@@ -368,31 +328,259 @@
       "published": true,
       "publishedAt": "2026-07-08T09:18:34+02:00",
       "instagramId": "17979586548058524",
+      "updatedAt": "2026-07-08T07:16:22.689Z",
+      "sortAt": "2026-07-08T09:18:34+02:00",
       "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/pc-reparatur-2026-07-08/slide_1.png"
     },
     {
-      "file": "virus-entfernung-reel.manifest.json",
-      "type": "reel",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/virus-entfernung-reel.manifest.json",
-      "slug": "virus-entfernung-reel",
-      "caption": "Dein PC läuft langsam, zeigt Pop-ups oder verhält sich komisch? Wir prüfen dein Gerät sauber durch und entfernen Viren, Adware und unnötige Hintergrundprogramme.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #pcreparatur #virenschutz #computerhilfe #reels",
+      "file": "nextcloud-creative-logo-2026-07-07.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/nextcloud-creative-logo-2026-07-07.story.manifest.json",
+      "slug": "nextcloud-creative-logo-2026-07-07",
+      "caption": "",
       "urlCount": 1,
       "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/virus-entfernung-reel/virus-entfernung-reel.mp4"
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/nextcloud-creative-logo-2026-07-07/nextcloud-creative-logo-2026-07-07.mp4"
       ],
       "checks": [
         {
           "ok": true,
           "status": 200,
           "type": "video/mp4",
-          "length": "2010243"
+          "length": "2193640"
         }
       ],
       "ready": true,
       "published": false,
       "publishedAt": "",
       "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/virus-entfernung-reel/virus-entfernung-reel.mp4"
+      "updatedAt": "2026-07-07T20:50:27.309Z",
+      "sortAt": "2026-07-07T20:50:27.309Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/nextcloud-creative-logo-2026-07-07/nextcloud-creative-logo-2026-07-07.mp4"
+    },
+    {
+      "file": "web-app-ios-android-2026-07-07.reel.manifest.json",
+      "type": "reel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/web-app-ios-android-2026-07-07.reel.manifest.json",
+      "slug": "web-app-ios-android-2026-07-07",
+      "caption": "Du brauchst eine digitale Lösung für dein Unternehmen?\n\nWir entwickeln Web-Apps, iOS-Apps und Android-Apps: Kundenportal, Buchungssystem, Firmen-App, Hosting und Wartung aus einer Hand.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #webapp #iosapp #androidapp #appentwicklung #webentwicklung #itservice #digitalisierung",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2483612"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T20:44:52.363Z",
+      "sortAt": "2026-07-07T20:44:52.363Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
+    },
+    {
+      "file": "web-app-ios-android-2026-07-07.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/web-app-ios-android-2026-07-07.story.manifest.json",
+      "slug": "web-app-ios-android-2026-07-07",
+      "caption": "",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2483612"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T20:41:01.399Z",
+      "sortAt": "2026-07-07T20:41:01.399Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
+    },
+    {
+      "file": "hasi-safe-stick-2026-07-07.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/hasi-safe-stick-2026-07-07.story.manifest.json",
+      "slug": "hasi-safe-stick-2026-07-07",
+      "caption": "",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/hasi-safe-stick-2026-07-07/hasi-safe-stick-2026-07-07.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2608939"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T15:33:57.894Z",
+      "sortAt": "2026-07-07T15:33:57.894Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/hasi-safe-stick-2026-07-07/hasi-safe-stick-2026-07-07.mp4"
+    },
+    {
+      "file": "pc-reparatur-2026-07-07.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/pc-reparatur-2026-07-07.story.manifest.json",
+      "slug": "pc-reparatur-2026-07-07",
+      "caption": "",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/pc-reparatur-2026-07-07/pc-reparatur-2026-07-07.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2722183"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T15:08:36.196Z",
+      "sortAt": "2026-07-07T15:08:36.196Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/pc-reparatur-2026-07-07/pc-reparatur-2026-07-07.mp4"
+    },
+    {
+      "file": "wlan-probleme-2026-07-07.reel.manifest.json",
+      "type": "reel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/wlan-probleme-2026-07-07.reel.manifest.json",
+      "slug": "wlan-probleme-2026-07-07",
+      "caption": "Schlechtes WLAN nervt? Wenn Video-Calls ruckeln, Geräte abbrechen oder einzelne Räume kaum Empfang haben, liegt es oft an Planung, Kanalwahl oder falscher Mesh-Position.\n\nWir prüfen dein Netzwerk vor Ort und richten Router, Mesh, Gastnetz und Geräte sauber ein.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #wlan #meshwifi #netzwerk #homeoffice #router #computerhilfe",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/wlan-probleme-2026-07-07/wlan-probleme-2026-07-07.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2632395"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T09:04:28.797Z",
+      "sortAt": "2026-07-07T09:04:28.797Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/wlan-probleme-2026-07-07/wlan-probleme-2026-07-07.mp4"
+    },
+    {
+      "file": "wlan-probleme-2026-07-07.manifest.json",
+      "type": "carousel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/wlan-probleme-2026-07-07.manifest.json",
+      "slug": "wlan-probleme-2026-07-07",
+      "caption": "Schlechtes WLAN nervt? Wenn Video-Calls ruckeln, Geräte abbrechen oder einzelne Räume kaum Empfang haben, liegt es oft an Planung, Kanalwahl oder falscher Mesh-Position.\n\nWir prüfen dein Netzwerk vor Ort und richten Router, Mesh, Gastnetz und Geräte sauber ein.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #wlan #meshwifi #netzwerk #homeoffice #router #computerhilfe",
+      "urlCount": 7,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_1.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_2.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_3.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_4.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_5.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_6.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_7.png"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "115579"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "134792"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "668641"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "138678"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "150410"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "113673"
+        },
+        {
+          "ok": true,
+          "status": 200,
+          "type": "image/png",
+          "length": "572096"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-07T08:04:35.826Z",
+      "sortAt": "2026-07-07T08:04:35.826Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_1.png"
+    },
+    {
+      "file": "datenrettung-2026-07-06.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/datenrettung-2026-07-06.story.manifest.json",
+      "slug": "datenrettung-2026-07-06",
+      "caption": "",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/datenrettung-2026-07-06/datenrettung-2026-07-06.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "1682016"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-06T15:34:33.961Z",
+      "sortAt": "2026-07-06T15:34:33.961Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/datenrettung-2026-07-06/datenrettung-2026-07-06.mp4"
     },
     {
       "file": "virus-entfernung-story.manifest.json",
@@ -416,6 +604,34 @@
       "published": false,
       "publishedAt": "",
       "instagramId": "",
+      "updatedAt": "2026-07-06T12:03:02.457Z",
+      "sortAt": "2026-07-06T12:03:02.457Z",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/virus-entfernung-reel/virus-entfernung-reel.mp4"
+    },
+    {
+      "file": "virus-entfernung-reel.manifest.json",
+      "type": "reel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/virus-entfernung-reel.manifest.json",
+      "slug": "virus-entfernung-reel",
+      "caption": "Dein PC läuft langsam, zeigt Pop-ups oder verhält sich komisch? Wir prüfen dein Gerät sauber durch und entfernen Viren, Adware und unnötige Hintergrundprogramme.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #pcreparatur #virenschutz #computerhilfe #reels",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/virus-entfernung-reel/virus-entfernung-reel.mp4"
+      ],
+      "checks": [
+        {
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "length": "2010243"
+        }
+      ],
+      "ready": true,
+      "published": false,
+      "publishedAt": "",
+      "instagramId": "",
+      "updatedAt": "2026-07-06T06:29:22.405Z",
+      "sortAt": "2026-07-06T06:29:22.405Z",
       "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/virus-entfernung-reel/virus-entfernung-reel.mp4"
     },
     {
@@ -482,145 +698,9 @@
       "published": false,
       "publishedAt": "",
       "instagramId": "",
+      "updatedAt": "2026-07-06T06:10:21.439Z",
+      "sortAt": "2026-07-06T06:10:21.439Z",
       "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/virus-entfernung/slide_1.png"
-    },
-    {
-      "file": "web-app-ios-android-2026-07-07.reel.manifest.json",
-      "type": "reel",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/web-app-ios-android-2026-07-07.reel.manifest.json",
-      "slug": "web-app-ios-android-2026-07-07",
-      "caption": "Du brauchst eine digitale Lösung für dein Unternehmen?\n\nWir entwickeln Web-Apps, iOS-Apps und Android-Apps: Kundenportal, Buchungssystem, Firmen-App, Hosting und Wartung aus einer Hand.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #webapp #iosapp #androidapp #appentwicklung #webentwicklung #itservice #digitalisierung",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2483612"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
-    },
-    {
-      "file": "web-app-ios-android-2026-07-07.story.manifest.json",
-      "type": "story",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/web-app-ios-android-2026-07-07.story.manifest.json",
-      "slug": "web-app-ios-android-2026-07-07",
-      "caption": "",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2483612"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/web-app-ios-android-2026-07-07/web-app-ios-android-2026-07-07.mp4"
-    },
-    {
-      "file": "wlan-probleme-2026-07-07.manifest.json",
-      "type": "carousel",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/wlan-probleme-2026-07-07.manifest.json",
-      "slug": "wlan-probleme-2026-07-07",
-      "caption": "Schlechtes WLAN nervt? Wenn Video-Calls ruckeln, Geräte abbrechen oder einzelne Räume kaum Empfang haben, liegt es oft an Planung, Kanalwahl oder falscher Mesh-Position.\n\nWir prüfen dein Netzwerk vor Ort und richten Router, Mesh, Gastnetz und Geräte sauber ein.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #wlan #meshwifi #netzwerk #homeoffice #router #computerhilfe",
-      "urlCount": 7,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_1.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_2.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_3.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_4.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_5.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_6.png",
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_7.png"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "115579"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "134792"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "668641"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "138678"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "150410"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "113673"
-        },
-        {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "572096"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/wlan-probleme-2026-07-07/slide_1.png"
-    },
-    {
-      "file": "wlan-probleme-2026-07-07.reel.manifest.json",
-      "type": "reel",
-      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/wlan-probleme-2026-07-07.reel.manifest.json",
-      "slug": "wlan-probleme-2026-07-07",
-      "caption": "Schlechtes WLAN nervt? Wenn Video-Calls ruckeln, Geräte abbrechen oder einzelne Räume kaum Empfang haben, liegt es oft an Planung, Kanalwahl oder falscher Mesh-Position.\n\nWir prüfen dein Netzwerk vor Ort und richten Router, Mesh, Gastnetz und Geräte sauber ein.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #itservice #wlan #meshwifi #netzwerk #homeoffice #router #computerhilfe",
-      "urlCount": 1,
-      "urls": [
-        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/wlan-probleme-2026-07-07/wlan-probleme-2026-07-07.mp4"
-      ],
-      "checks": [
-        {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2632395"
-        }
-      ],
-      "ready": true,
-      "published": false,
-      "publishedAt": "",
-      "instagramId": "",
-      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/wlan-probleme-2026-07-07/wlan-probleme-2026-07-07.mp4"
     }
   ],
   "automations": [
@@ -641,102 +721,108 @@
       "name": "Hasi Instagram Story Hazirlik",
       "status": "ACTIVE",
       "schedule": "09:00 Story Vorbereitung"
+    },
+    {
+      "id": "hasi-social-media-tageskontrolle",
+      "name": "Hasi Social Media Tageskontrolle",
+      "status": "ACTIVE",
+      "schedule": "09:15 Kontrolle / fehlende Inhalte nachholen"
     }
   ],
   "plan": [
     {
-      "date": "2026-07-08",
+      "date": "2026-07-09",
       "topic": "Web-App fuer lokale Firmen",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-09",
+      "date": "2026-07-10",
       "topic": "iOS App Entwicklung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-10",
+      "date": "2026-07-11",
       "topic": "Android App Entwicklung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-11",
+      "date": "2026-07-12",
       "topic": "App + Website Paket",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-12",
+      "date": "2026-07-13",
       "topic": "Online Terminbuchung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-13",
+      "date": "2026-07-14",
       "topic": "Warteliste Pro",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-14",
+      "date": "2026-07-15",
       "topic": "Kundenportal",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-15",
+      "date": "2026-07-16",
       "topic": "Digitale Formulare",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-16",
+      "date": "2026-07-17",
       "topic": "Supabase Backend",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-17",
+      "date": "2026-07-18",
       "topic": "Cloudflare Hosting",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-18",
+      "date": "2026-07-19",
       "topic": "App Store und Google Play",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-19",
+      "date": "2026-07-20",
       "topic": "Automatisierung fuer kleine Betriebe",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-20",
+      "date": "2026-07-21",
       "topic": "Webdesign mit App-Anbindung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-21",
+      "date": "2026-07-22",
       "topic": "Digitaler Hausmeister",
       "carousel": "08:00",
       "reel": "08:30",

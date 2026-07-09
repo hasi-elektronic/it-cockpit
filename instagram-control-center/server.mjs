@@ -287,6 +287,7 @@ async function manifests() {
   const items = [];
   for (const file of files) {
     const fullPath = join(toolsRoot, file);
+    const fileStat = await stat(fullPath);
     const manifest = await readJson(fullPath, {});
     const type = classifyManifest(file, manifest);
     const urls = manifest.imageUrls || [manifest.videoUrl || manifest.imageUrl].filter(Boolean);
@@ -308,10 +309,12 @@ async function manifests() {
       published: Boolean(published),
       publishedAt: published?.time || "",
       instagramId: published?.instagramId || "",
+      updatedAt: fileStat.mtime.toISOString(),
+      sortAt: published?.time || fileStat.mtime.toISOString(),
       preview: type === "carousel" ? urls[0] : manifest.videoUrl || manifest.imageUrl || "",
     });
   }
-  return items;
+  return items.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
 }
 
 async function automations() {

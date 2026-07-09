@@ -62,6 +62,7 @@ async function manifests(log) {
   const items = [];
   for (const file of files) {
     const fullPath = join(toolsRoot, file);
+    const fileStat = await stat(fullPath);
     const manifest = await readJson(fullPath, {});
     const type = classifyManifest(file, manifest);
     const urls = manifest.imageUrls || [manifest.videoUrl || manifest.imageUrl].filter(Boolean);
@@ -84,10 +85,12 @@ async function manifests(log) {
       published: Boolean(published),
       publishedAt: published?.time || "",
       instagramId: published?.instagramId || "",
+      updatedAt: fileStat.mtime.toISOString(),
+      sortAt: published?.time || fileStat.mtime.toISOString(),
       preview: type === "carousel" ? urls[0] : manifest.videoUrl || manifest.imageUrl || "",
     });
   }
-  return items;
+  return items.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
 }
 
 function nextPlan(plan) {
@@ -123,6 +126,7 @@ const status = {
     { id: "hasi-instagram-wochenpost", name: "Hasi Instagram Tagespost", status: "ACTIVE", schedule: "08:00 Karussell / Tagespost" },
     { id: "hasi-instagram-reels-tagespost", name: "Hasi Instagram Reels Tagespost", status: "ACTIVE", schedule: "08:30 Reel" },
     { id: "hasi-instagram-story-hazirlik", name: "Hasi Instagram Story Hazirlik", status: "ACTIVE", schedule: "09:00 Story Vorbereitung" },
+    { id: "hasi-social-media-tageskontrolle", name: "Hasi Social Media Tageskontrolle", status: "ACTIVE", schedule: "09:15 Kontrolle / fehlende Inhalte nachholen" },
   ],
   plan: nextPlan(plan),
   log: log.slice(0, 50),
