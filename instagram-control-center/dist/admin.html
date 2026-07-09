@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Content Cockpit Admin</title>
+    <title>Hasi Social Media Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -237,9 +237,9 @@
     <div class="layout">
       <aside>
         <div class="brand">
-          <div class="mark"><img src="/hasi-logo.png" alt="Content Cockpit"></div>
+          <div class="mark"><img src="/hasi-logo.png" alt="Hasi Social Media"></div>
           <div>
-            <strong>Content Cockpit</strong>
+            <strong>Hasi Social Media</strong>
             <span>Interne Verwaltung</span>
           </div>
         </div>
@@ -251,10 +251,10 @@
       <main>
         <header>
           <div class="title-row">
-            <img class="header-logo" src="/hasi-logo.png" alt="Content Cockpit Logo">
+            <img class="header-logo" src="/hasi-logo.png" alt="Hasi Social Media Logo">
             <div>
-              <h1>Admin Center</h1>
-              <p class="subtitle">Kunden anlegen und Stammdaten fuer den Social-Media-Service pflegen.</p>
+              <h1>Hasi Social Media Admin</h1>
+              <p class="subtitle">Kunden anlegen, Onboarding pruefen und Social-Media-Planung vorbereiten.</p>
             </div>
           </div>
         </header>
@@ -436,7 +436,7 @@
             ${customer.onboarding?.notes ? `<p class="small" style="margin:12px 0 0"><strong>Notiz:</strong> ${escapeHtml(customer.onboarding.notes)}</p>` : ""}
             ${customer.positioning ? `<p class="small" style="margin:12px 0 0">${escapeHtml(customer.positioning)}</p>` : ""}
             <button class="btn secondary small js-edit-customer" type="button" data-id="${escapeHtml(customer.id)}">Bearbeiten</button>
-            <a class="btn secondary small" href="/kunde/${encodeURIComponent(customer.id)}">Cockpit öffnen</a>
+            <a class="btn secondary small" href="/kunde/${encodeURIComponent(customer.id)}">Kundenseite öffnen</a>
           </article>
         `).join("") || `<div class="small">Noch keine Kunden angelegt.</div>`;
       }

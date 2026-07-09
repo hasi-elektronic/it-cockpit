@@ -464,5 +464,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Hasi Instagram Control Center: http://localhost:${port}`);
+  console.log(`Hasi Social Media: http://localhost:${port}`);
 });

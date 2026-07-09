@@ -1,6 +1,6 @@
-# Hasi Content Cockpit
+# Hasi Social Media
 
-Steuerzentrum fuer Social-Media-Inhalte, Kundenprofile und Hasi Instagram Automationen.
+Steuerzentrum fuer Beitraege, Storys, Reels, Kundenprofile und Hasi Instagram Automationen.
 
 ## Cloudflare Pages
 
@@ -8,6 +8,13 @@ Projekt:
 
 ```text
 hasi-content-cockpit
+```
+
+Produktname und Domain:
+
+```text
+Hasi Social Media
+https://hasi.live
 ```
 
 Build und Deploy:

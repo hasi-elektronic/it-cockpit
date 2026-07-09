@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hasi Instagram Control Center</title>
+    <title>Hasi Social Media</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -368,13 +368,13 @@
           <div class="mark"><img src="/hasi-logo.png" alt="Hasi Elektronic"></div>
           <div>
             <strong>Hasi Elektronic</strong>
-            <span>Social Media Cockpit</span>
+            <span>Hasi Social Media</span>
           </div>
         </div>
         <nav>
           <a class="active" href="#dashboard">Dashboard</a>
           <a href="#customer">Kundenprofil</a>
-          <a href="#queue">Content Queue</a>
+          <a href="#queue">Beitraege</a>
           <a href="#plan">14 Tage Plan</a>
           <a href="#automations">Automationen</a>
           <a href="#logs">Logs</a>
@@ -385,8 +385,8 @@
           <div class="title-row">
             <img class="header-logo" src="/hasi-logo.png" alt="Hasi Elektronic Logo">
             <div>
-              <h1 id="pageTitle">Instagram Control Center</h1>
-              <p class="subtitle" id="pageSubtitle">Karussell, Reels, Story, Cloudflare und Instagram API an einem Platz.</p>
+              <h1 id="pageTitle">Hasi Social Media</h1>
+              <p class="subtitle" id="pageSubtitle">Beitraege, Storys und Reels planen, pruefen und freigeben.</p>
             </div>
           </div>
           <div class="toolbar">
@@ -416,7 +416,7 @@
 
         <section class="section content-grid grid">
           <div class="card" id="queue">
-            <h2>Content Queue</h2>
+            <h2>Beitraege und Freigaben</h2>
             <div class="notice" style="margin-bottom:12px">Publish-Buttons senden direkt an Instagram. Story bleibt 24 Stunden sichtbar.</div>
             <div class="queue-groups" id="manifestGroups"></div>
           </div>
@@ -665,7 +665,7 @@
         const status = onboardingStatus(customer);
         return `
           <div class="onboarding-panel">
-            <div class="notice">Dieser Kunde ist noch nicht bereit fuer automatische Content-Produktion. Erst die offenen Onboarding-Punkte abschliessen, dann koennen Freigabe und Publishing aktiviert werden.</div>
+            <div class="notice">Dieser Kunde ist noch nicht bereit fuer automatische Beitragsplanung. Erst die offenen Onboarding-Punkte abschliessen, dann koennen Freigabe und Publishing aktiviert werden.</div>
             <div class="customer-card">
               <h3>Onboarding Status</h3>
               <span class="pill ${status.cls}">${status.label}</span>
@@ -701,8 +701,8 @@
           customers[0];
         state.activeCustomer = customer || null;
         $("activeCustomer").textContent = customer?.company || "Kein Kunde";
-        $("pageTitle").textContent = customer ? `${customer.company || customer.name} Cockpit` : "Content Cockpit";
-        $("pageSubtitle").textContent = customer?.positioning || "Karussell, Reels, Story und Freigaben an einem Platz.";
+        $("pageTitle").textContent = customer ? `${customer.company || customer.name} Social Media` : "Hasi Social Media";
+        $("pageSubtitle").textContent = customer?.positioning || "Beitraege, Storys und Reels planen, pruefen und freigeben.";
         if (customer?.instagram) {
           const handle = customer.instagram.replace(/^@/, "");
           $("instagramLink").href = `https://www.instagram.com/${encodeURIComponent(handle)}/`;

@@ -284,7 +284,7 @@ export default {
       return updateCustomer(request, env, id);
     }
     if (url.pathname.startsWith("/api/publish/")) {
-      return json({ ok: false, error: "Cloud publish is disabled. Bitte lokal im Hasi Cockpit veroeffentlichen." }, 403);
+      return json({ ok: false, error: "Cloud publish is disabled. Bitte lokal in Hasi Social Media veroeffentlichen." }, 403);
     }
     return env.ASSETS.fetch(request);
   },
