@@ -676,18 +676,18 @@
       }
 
       function publishButton(item) {
-        if (state.data?.cloud) {
-          return `
-            <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
-            <span class="pill gray">Cloud Vorschau</span>
-            <div class="small">Publish nur lokal aktiv</div>
-          `;
-        }
         if (item.published) {
           return `
             <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
             <span class="pill gray">gesperrt</span>
             <div class="small">Schon veröffentlicht</div>
+          `;
+        }
+        if (state.data?.cloud && item.type === "story") {
+          return `
+            <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
+            <span class="pill gray">Freigabe</span>
+            <div class="small">Story bleibt publish-ready</div>
           `;
         }
         return `
@@ -980,7 +980,9 @@
       }
 
       async function publishItem(type, file) {
-        if (!confirm(`${type} wirklich veröffentlichen?\\n${file}`)) return;
+        const item = findManifest(file);
+        const label = item ? displayManifestName(item) : file;
+        if (!confirm(`${typeLabel(type)} wirklich auf Instagram veröffentlichen?\\n${label}`)) return;
         setBusy(true);
         $("logBox").textContent = "Publishing läuft...";
         try {
