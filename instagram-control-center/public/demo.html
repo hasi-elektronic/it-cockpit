@@ -278,6 +278,229 @@
         gap: 12px;
         padding: 0 18px 70px;
       }
+      .product-demo {
+        display: grid;
+        grid-template-columns: minmax(280px, .86fr) minmax(0, 1.14fr);
+        gap: 22px;
+        align-items: start;
+        padding: 24px clamp(18px, 5vw, 70px) 72px;
+      }
+      .demo-card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255,255,255,.96);
+        box-shadow: 0 24px 60px rgba(16, 24, 40, .1);
+      }
+      .demo-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        border-bottom: 1px solid #edf4f7;
+      }
+      .demo-card-head b { font-size: 18px; }
+      .demo-preview {
+        padding: 18px;
+      }
+      .ig-shell {
+        width: min(360px, 100%);
+        margin: 0 auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #fff;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(16, 24, 40, .12);
+      }
+      .ig-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid #eef2f4;
+        font-weight: 900;
+      }
+      .ig-user {
+        display: grid;
+        grid-template-columns: 38px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 14px;
+      }
+      .ig-user img {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid var(--orange);
+        padding: 4px;
+        object-fit: contain;
+      }
+      .ig-user b { display: block; font-size: 13px; }
+      .ig-user span { color: var(--muted); font-size: 11px; }
+      .ig-slide {
+        position: relative;
+        aspect-ratio: 4 / 5;
+        background: #f8fcfe;
+      }
+      .ig-slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .ig-count {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        padding: 6px 9px;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, .78);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .ig-actions {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 14px 2px;
+        font-size: 22px;
+      }
+      .ig-actions div { display: flex; gap: 13px; }
+      .ig-caption {
+        padding: 8px 14px 16px;
+        font-size: 13px;
+        line-height: 1.42;
+      }
+      .ig-caption span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .demo-control {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .status-box {
+        min-height: 94px;
+        padding: 13px;
+        border: 1px solid #edf4f7;
+        border-radius: 8px;
+        background: #f8fcfe;
+      }
+      .status-box small {
+        display: block;
+        color: var(--muted);
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+      .status-box b { display: block; font-size: 20px; }
+      .check-list {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border: 1px solid #edf4f7;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .check-line {
+        display: grid;
+        grid-template-columns: 22px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        font-size: 14px;
+      }
+      .check-line i {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #e9fbf3;
+        color: var(--green);
+        font-style: normal;
+        font-weight: 900;
+      }
+      .check-line em {
+        color: var(--muted);
+        font-style: normal;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .caption-box {
+        padding: 14px;
+        border: 1px solid #edf4f7;
+        border-radius: 8px;
+        background: #fff;
+        color: #344054;
+        line-height: 1.5;
+      }
+      .publish-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+      .publish-button {
+        min-height: 52px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 22px;
+        background: var(--orange);
+        color: #fff;
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 12px 26px rgba(255, 107, 0, .24);
+      }
+      .publish-button:disabled {
+        cursor: default;
+        background: #12b76a;
+        box-shadow: 0 12px 26px rgba(18, 183, 106, .2);
+      }
+      .publish-log {
+        min-height: 52px;
+        flex: 1;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #f8fcfe;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .activity-feed {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid #edf4f7;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .activity-feed li {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 12px;
+        padding: 12px 14px;
+        border-top: 1px solid #edf4f7;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .activity-feed li:first-child { border-top: 0; }
+      .activity-feed time { color: var(--ink); font-weight: 900; }
+      .activity-feed b { color: var(--ink); }
+      .activity-feed li.demo-new {
+        background: #ecfdf3;
+        animation: publishFlash 1.4s ease-out 1;
+      }
+      @keyframes publishFlash {
+        0% { background: #fff7ed; }
+        100% { background: #ecfdf3; }
+      }
       @keyframes lineFill {
         0% { transform: scaleX(.06); }
         18% { transform: scaleX(.25); }
@@ -299,8 +522,10 @@
       }
       @media (max-width: 1100px) {
         .demo-stage { grid-template-columns: 1fr; }
+        .product-demo { grid-template-columns: 1fr; }
         .machine { min-height: 620px; }
         .timeline { grid-template-columns: 1fr 1fr; }
+        .status-grid { grid-template-columns: 1fr; }
       }
       @media (max-width: 720px) {
         .topbar { flex-direction: column; align-items: flex-start; }
@@ -326,54 +551,77 @@
 
     <main>
       <section class="hero">
-        <div class="eyebrow">Animierte Beispielstrecke</div>
-        <h1>So wird aus Kundendaten ein veröffentlichter Beitrag.</h1>
-        <p class="lead">Die Demo zeigt den geplanten Ablauf für neue Kunden: Onboarding, Content-Plan, Vorschau, Freigabe und Publish-Log.</p>
+        <div class="eyebrow">Live-Demo mit echtem Hasi Inhalt</div>
+        <h1>Teste einen fertigen Beitrag, bevor er veröffentlicht wird.</h1>
+        <p class="lead">Diese Demo zeigt einen real vorbereiteten Hasi-Karussell-Post inklusive Instagram-Vorschau, Caption, Prüfstatus und sicherem Publish-Test.</p>
       </section>
 
-      <section class="demo-stage" aria-label="Animierter Workflow">
-        <aside class="panel">
-          <div class="panel-head">Kundenprofil <span class="pill">Demo</span></div>
-          <div class="customer-card">
-            <h2>Restaurant Sonne</h2>
-            <p>Lokales Restaurant mit Mittagstisch, Events und Wochenkarte.</p>
+      <section class="product-demo" aria-label="Hasi Social Media Produktdemo">
+        <article class="demo-card">
+          <div class="demo-card-head">
+            <b>Instagram-Vorschau</b>
+            <span class="pill">Karussell · 7 Slides</span>
           </div>
-          <div class="check"><span>Logo & Farben</span><span class="dot">✓</span></div>
-          <div class="check"><span>Produkte & Angebote</span><span class="dot">✓</span></div>
-          <div class="check"><span>Meta Zugriff</span><span class="dot">✓</span></div>
-          <div class="check"><span>Freigabe-Regel</span><span class="dot">✓</span></div>
-        </aside>
+          <div class="demo-preview">
+            <div class="ig-shell">
+              <div class="ig-bar">
+                <span>Instagram</span>
+                <span>♡ ◌ ↗</span>
+              </div>
+              <div class="ig-user">
+                <img src="/hasi-logo.png" alt="Hasi Elektronic" />
+                <div><b>hasi_elektronic</b><span>Vaihingen/Enz</span></div>
+                <span>•••</span>
+              </div>
+              <div class="ig-slide">
+                <img id="demoSlide" src="https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_1.png" alt="Hasi Karussell Slide 1" />
+                <span class="ig-count" id="slideCount">1/7</span>
+              </div>
+              <div class="ig-actions">
+                <div><span>♡</span><span>◌</span><span>↗</span></div>
+                <span>▱</span>
+              </div>
+              <p class="ig-caption"><b>hasi_elektronic</b> Excel-Listen, Papierformulare und manuelle Rückfragen kosten lokalen Betrieben jeden Tag Zeit. <span>Geplanter Beitrag · 09.07.2026 · 08:00</span></p>
+            </div>
+          </div>
+        </article>
 
-        <section class="panel machine">
-          <div class="panel-head">Automatischer Ablauf <span class="pill">live animiert</span></div>
-          <div class="track"></div>
-          <div class="bubble b1">Profil<small>Daten sammeln</small></div>
-          <div class="bubble b2">Plan<small>14 Tage</small></div>
-          <div class="bubble b3">Design<small>Post bauen</small></div>
-          <div class="bubble b4">Freigabe<small>Kunde prüft</small></div>
-          <div class="bubble b5">Publish<small>Log speichern</small></div>
-          <article class="content-preview">
-            <img src="/hasi-logo.png" alt="" />
-            <h3>Heute frisch gekocht.</h3>
-            <p>Mittagstisch, Angebot und klare Handlungsaufforderung für Instagram.</p>
-          </article>
-        </section>
+        <article class="demo-card">
+          <div class="demo-card-head">
+            <b>Hasi-Kunden-Cockpit</b>
+            <span class="pill">publish-ready</span>
+          </div>
+          <div class="demo-control">
+            <div class="status-grid">
+              <div class="status-box"><small>Kunde</small><b>Hasi Elektronic</b></div>
+              <div class="status-box"><small>Manifest</small><b>web-app-lokale-firmen</b></div>
+              <div class="status-box"><small>Status</small><b id="demoStatus">bereit</b></div>
+            </div>
 
-        <aside class="panel queue">
-          <div class="panel-head">Beiträge <span class="pill">publish-ready</span></div>
-          <div class="queue-row">
-            <div class="thumb"></div>
-            <div><b>Karussell</b><span>7 Slides · 08:00 · wartet auf Freigabe</span><span class="publish">Vorschau</span></div>
+            <div class="check-list" aria-label="Prüfliste">
+              <div class="check-line"><i>✓</i><span>7 Bild-URLs geprüft</span><em>HTTP 200</em></div>
+              <div class="check-line"><i>✓</i><span>Dateityp korrekt</span><em>image/png</em></div>
+              <div class="check-line"><i>✓</i><span>Caption vorhanden</span><em>Deutsch</em></div>
+              <div class="check-line"><i>✓</i><span>Publish-Regel</span><em>Demo-Modus</em></div>
+            </div>
+
+            <div class="caption-box">
+              <b>Caption</b><br />
+              Hasi Elektronic baut moderne Web-Apps, Kundenportale, Online-Formulare und Terminlösungen, die genau zu deinem Betrieb passen. Schlank, sicher gehostet und mit persönlicher Betreuung aus Vaihingen/Enz.
+            </div>
+
+            <div class="publish-row">
+              <button class="publish-button" id="demoPublish" type="button">Publish testen</button>
+              <div class="publish-log" id="publishLog">Noch nicht veröffentlicht. Der Button simuliert den Ablauf ohne Instagram API.</div>
+            </div>
+
+            <ul class="activity-feed" id="activityFeed">
+              <li><time>08:00</time><span><b>Karussell vorbereitet</b><br />7 Slides aus R2 geladen.</span></li>
+              <li><time>08:01</time><span><b>Dry Run erfolgreich</b><br />Alle Bild-URLs liefern image/png.</span></li>
+              <li><time>08:02</time><span><b>Wartet auf Freigabe</b><br />Kunde prüft Vorschau und Caption.</span></li>
+            </ul>
           </div>
-          <div class="queue-row">
-            <div class="thumb"></div>
-            <div><b>Reel</b><span>Video · 08:30 · Caption vorbereitet</span><span class="publish">Vorschau</span></div>
-          </div>
-          <div class="queue-row">
-            <div class="thumb"></div>
-            <div><b>Story</b><span>Bild · 09:00 · 24 Stunden sichtbar</span><span class="publish">Vorschau</span></div>
-          </div>
-        </aside>
+        </article>
       </section>
 
       <section class="timeline">
@@ -389,5 +637,40 @@
         <a class="button" href="mailto:info@hasi-elektronic.de?subject=Hasi%20Social%20Media%20Demo">Demo besprechen</a>
       </div>
     </main>
+    <script>
+      const demoSlides = [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_1.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_2.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_3.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_4.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_5.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_6.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_7.png",
+      ];
+      let currentSlide = 0;
+      const slideImage = document.querySelector("#demoSlide");
+      const slideCount = document.querySelector("#slideCount");
+      setInterval(() => {
+        currentSlide = (currentSlide + 1) % demoSlides.length;
+        slideImage.src = demoSlides[currentSlide];
+        slideImage.alt = `Hasi Karussell Slide ${currentSlide + 1}`;
+        slideCount.textContent = `${currentSlide + 1}/7`;
+      }, 2600);
+
+      document.querySelector("#demoPublish").addEventListener("click", () => {
+        const button = document.querySelector("#demoPublish");
+        const log = document.querySelector("#publishLog");
+        const status = document.querySelector("#demoStatus");
+        const feed = document.querySelector("#activityFeed");
+        button.disabled = true;
+        button.textContent = "Veröffentlicht";
+        status.textContent = "veröffentlicht";
+        log.textContent = "Demo-Publish erfolgreich: Media-ID DEMO-17901066363463022 wurde simuliert. Es wurde nichts an Instagram gesendet.";
+        const item = document.createElement("li");
+        item.className = "demo-new";
+        item.innerHTML = "<time>Jetzt</time><span><b>Publish-Test abgeschlossen</b><br />Status, Media-ID und Log wurden im Demo-Modus gesetzt.</span>";
+        feed.prepend(item);
+      });
+    </script>
   </body>
 </html>
