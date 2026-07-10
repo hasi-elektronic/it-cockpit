@@ -91,13 +91,33 @@ async function loginLocal(req) {
   const password = String(input.password || "");
   const expectedEmail = String(process.env.COCKPIT_EMAIL || "").trim().toLowerCase();
   const expectedPassword = String(process.env.COCKPIT_PASSWORD || "");
+  const redirectTo = safeRedirectTarget(input.next, "/app");
   if ((expectedEmail || expectedPassword) && (email !== expectedEmail || password !== expectedPassword)) {
+    if (isFormPost) {
+      return {
+        status: 303,
+        body: "",
+        headers: {
+          Location: `/login?next=${encodeURIComponent(redirectTo)}&error=1`,
+          "Set-Cookie": `${sessionCookie}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+        },
+      };
+    }
     return { status: 401, body: { ok: false }, headers: {} };
   }
   if (!email || !password) {
+    if (isFormPost) {
+      return {
+        status: 303,
+        body: "",
+        headers: {
+          Location: `/login?next=${encodeURIComponent(redirectTo)}&error=1`,
+          "Set-Cookie": `${sessionCookie}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+        },
+      };
+    }
     return { status: 400, body: { ok: false, error: "E-Mail und Passwort fehlen" }, headers: {} };
   }
-  const redirectTo = safeRedirectTarget(input.next, "/app");
   if (isFormPost) {
     return {
       status: 303,

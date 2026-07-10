@@ -198,64 +198,45 @@
           return fallback;
         }
 
-      document.querySelector("#loginForm").addEventListener("submit", async (event) => {
+      const params = new URLSearchParams(window.location.search);
+      const nextInput = document.querySelector("#next");
+      const initialNext = safeRedirectTarget(params.get("next"));
+      nextInput.value = initialNext;
+
+      if (params.get("error") === "1") {
+        document.querySelector("#error").textContent = "Login fehlgeschlagen. Bitte Zugangsdaten prüfen.";
+      }
+
+      document.querySelector("#loginForm").addEventListener("submit", (event) => {
         event.preventDefault();
-          const error = document.querySelector("#error");
-          const button = document.querySelector("#loginButton");
-          const emailInput = document.querySelector("#email");
-          const passwordInput = document.querySelector("#password");
-          error.textContent = "";
-          const email = emailInput.value.trim();
-          const password = passwordInput.value;
-          if (!email) {
-            error.textContent = "Bitte E-Mail-Adresse eingeben.";
-            emailInput.focus();
-            return;
-          }
-          if (!emailInput.checkValidity()) {
-            error.textContent = "Bitte eine gültige E-Mail-Adresse eingeben.";
-            emailInput.focus();
-            return;
-          }
+        const form = event.currentTarget;
+        const error = document.querySelector("#error");
+        const button = document.querySelector("#loginButton");
+        const emailInput = document.querySelector("#email");
+        const passwordInput = document.querySelector("#password");
+        error.textContent = "";
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        if (!email) {
+          error.textContent = "Bitte E-Mail-Adresse eingeben.";
+          emailInput.focus();
+          return;
+        }
+        if (!emailInput.checkValidity()) {
+          error.textContent = "Bitte eine gültige E-Mail-Adresse eingeben.";
+          emailInput.focus();
+          return;
+        }
         if (!password) {
           error.textContent = "Bitte Passwort eingeben.";
           passwordInput.focus();
           return;
         }
-        const requestedNext = safeRedirectTarget(new URLSearchParams(window.location.search).get("next"));
-        document.querySelector("#next").value = requestedNext;
-        const body = {
-          email,
-          password,
-            next: requestedNext,
-          };
-          button.disabled = true;
-          button.textContent = "Anmeldung läuft...";
-          const controller = new AbortController();
-          const timeout = window.setTimeout(() => controller.abort(), 15000);
-          try {
-            const response = await fetch("/api/login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-              signal: controller.signal,
-            });
-            if (response.ok) {
-              const result = await response.json().catch(() => ({}));
-              window.location.assign(safeRedirectTarget(result.redirectTo || requestedNext));
-              return;
-            }
-            error.textContent = "Login fehlgeschlagen. Bitte Zugangsdaten prüfen.";
-          } catch (loginError) {
-            error.textContent = loginError.name === "AbortError"
-              ? "Anmeldung dauert zu lange. Bitte erneut versuchen."
-              : "Login konnte nicht gesendet werden. Bitte Verbindung prüfen.";
-          } finally {
-            window.clearTimeout(timeout);
-            button.disabled = false;
-            button.textContent = "Hasi Social Media öffnen";
-          }
-        });
+        nextInput.value = initialNext;
+        button.disabled = true;
+        button.textContent = "Anmeldung läuft...";
+        form.submit();
+      });
     </script>
   </body>
 </html>

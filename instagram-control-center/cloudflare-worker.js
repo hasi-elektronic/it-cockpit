@@ -76,6 +76,13 @@ function clearSessionCookie() {
   return `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
 }
 
+function noStoreHeaders(extra = {}) {
+  return {
+    "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+    ...extra,
+  };
+}
+
 function safeRedirectTarget(value, fallback = "/app") {
   const target = String(value || "").trim();
   if (!target || !target.startsWith("/") || target.startsWith("//")) return fallback;
@@ -104,26 +111,35 @@ async function handleLogin(request, env) {
   const hash = await sha256Hex(`${salt}:${password}`);
   const hashMatches = env.COCKPIT_PASSWORD_HASH && hash === env.COCKPIT_PASSWORD_HASH;
   const secretMatches = env.COCKPIT_PASSWORD && password === env.COCKPIT_PASSWORD;
-    if (!expectedEmail || email !== expectedEmail || (!hashMatches && !secretMatches)) {
-      return json({ ok: false }, 401);
+  const redirectTo = safeRedirectTarget(body.next, "/app");
+  if (!expectedEmail || email !== expectedEmail || (!hashMatches && !secretMatches)) {
+    if (isFormPost) {
+      return new Response(null, {
+        status: 303,
+        headers: noStoreHeaders({
+          Location: `/login?next=${encodeURIComponent(redirectTo)}&error=1`,
+          "Set-Cookie": clearSessionCookie(),
+        }),
+      });
+    }
+    return json({ ok: false }, 401);
   }
   const session = await createSession(email, env);
-  const redirectTo = safeRedirectTarget(body.next, "/app");
   const cookie = `${SESSION_COOKIE}=${session}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_SECONDS}`;
   if (isFormPost) {
     return new Response(null, {
       status: 303,
-      headers: {
+      headers: noStoreHeaders({
         Location: redirectTo,
         "Set-Cookie": cookie,
-      },
+      }),
     });
   }
   return new Response(JSON.stringify({ ok: true, redirectTo }), {
-    headers: {
+    headers: noStoreHeaders({
       "Content-Type": "application/json; charset=utf-8",
       "Set-Cookie": cookie,
-    },
+    }),
   });
 }
 
@@ -460,31 +476,28 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/home") {
       return new Response(HOME_HTML, {
-        headers: {
+        headers: noStoreHeaders({
           "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
+        }),
       });
     }
     if (url.pathname === "/demo" || url.pathname === "/demo.html") {
       return new Response(DEMO_HTML, {
-        headers: {
+        headers: noStoreHeaders({
           "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
+        }),
       });
     }
-      if (url.pathname === "/login" || url.pathname === "/login.html") {
-        if (await verifySession(request, env)) {
-          return Response.redirect(`${url.origin}${safeRedirectTarget(url.searchParams.get("next"), "/app")}`, 302);
-        }
-        return new Response(LOGIN_HTML, {
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "no-store",
-          },
-        });
+    if (url.pathname === "/login" || url.pathname === "/login.html") {
+      if (await verifySession(request, env)) {
+        return Response.redirect(`${url.origin}${safeRedirectTarget(url.searchParams.get("next"), "/app")}`, 302);
       }
+      return new Response(LOGIN_HTML, {
+        headers: noStoreHeaders({
+          "Content-Type": "text/html; charset=utf-8",
+        }),
+      });
+    }
     if (url.pathname === "/api/login" && request.method === "POST") {
       return handleLogin(request, env);
     }
@@ -494,30 +507,29 @@ export default {
     if (url.pathname === "/logout") {
       return new Response(null, {
         status: 302,
-        headers: {
+        headers: noStoreHeaders({
           Location: "/login",
           "Set-Cookie": clearSessionCookie(),
-        },
+        }),
       });
     }
 
     if (!(await verifySession(request, env))) {
       if (url.pathname.startsWith("/api/")) return json({ error: "Unauthorized" }, 401);
-        const next = safeRedirectTarget(`${url.pathname}${url.search}`, "/app");
-        return Response.redirect(`${url.origin}/login?next=${encodeURIComponent(next)}`, 302);
-      }
+      const next = safeRedirectTarget(`${url.pathname}${url.search}`, "/app");
+      return Response.redirect(`${url.origin}/login?next=${encodeURIComponent(next)}`, 302);
+    }
 
     if (url.pathname === "/admin" || url.pathname === "/admin.html") {
       return new Response(ADMIN_HTML, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: noStoreHeaders({ "Content-Type": "text/html; charset=utf-8" }),
       });
     }
     if (url.pathname === "/app" || url.pathname === "/app.html" || url.pathname.startsWith("/kunde/")) {
       return new Response(APP_HTML, {
-        headers: {
+        headers: noStoreHeaders({
           "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
+        }),
       });
     }
     if (url.pathname === "/api/status") return status(env, request);
