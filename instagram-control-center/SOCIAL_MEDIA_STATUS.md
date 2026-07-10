@@ -21,15 +21,15 @@ Hasi Social Media wird stärker auf Web-Apps, iOS Apps, Android Apps, Automatisi
 | Karussell | veröffentlicht | Hasi Safe Stick | `hasi-safe-stick-2026-07-08` | `18060291389739396` |
 | Karussell | veröffentlicht | PC-Reparatur | `pc-reparatur-2026-07-08` | `17979586548058524` |
 | Story | geplant | Vorbereitung um 09:00 | - | - |
-| Reel | aktiviert | taeglich 08:30 | - | - |
+| Reel | aktiviert | täglich 08:30 | - | - |
 
 ## Automationen
 
 | Automation | Status | Zeit | Workspace |
 |---|---|---|---|
-| Hasi Instagram Tagespost | ACTIVE | taeglich 08:00 | `/Users/hguencavdi/Desktop/it-cockpit` |
-| Hasi Instagram Reels Tagespost | ACTIVE | taeglich 08:30 | `/Users/hguencavdi/Desktop/it-cockpit` |
-| Hasi Instagram Story Hazirlik | ACTIVE | taeglich 09:00 | `/Users/hguencavdi/Desktop/it-cockpit` |
+| Hasi Instagram Tagespost | ACTIVE | täglich 08:00 | `/Users/hguencavdi/Desktop/it-cockpit` |
+| Hasi Instagram Reels Tagespost | ACTIVE | täglich 08:30 | `/Users/hguencavdi/Desktop/it-cockpit` |
+| Hasi Instagram Story Vorbereitung | ACTIVE | täglich 09:00 | `/Users/hguencavdi/Desktop/it-cockpit` |
 
 ## So siehst du es selbst
 
@@ -40,7 +40,7 @@ cd /Users/hguencavdi/Desktop/it-cockpit/instagram-control-center
 npm start
 ```
 
-Dann Browser oeffnen:
+Dann Browser öffnen:
 
 ```text
 http://localhost:8787

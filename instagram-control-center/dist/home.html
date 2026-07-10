@@ -412,11 +412,11 @@
         color: var(--muted);
         line-height: 1.5;
       }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 16px;
-      }
+            .grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 16px;
+            }
       .card {
         min-height: 210px;
         padding: 22px;
@@ -435,13 +435,125 @@
         color: var(--blue-dark);
         font-weight: 900;
       }
-      .card h3 { margin: 0 0 10px; font-size: 21px; }
-      .card p { margin: 0; color: var(--muted); line-height: 1.5; }
-      .workflow {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 12px;
-      }
+            .card h3 { margin: 0 0 10px; font-size: 21px; }
+            .card p { margin: 0; color: var(--muted); line-height: 1.5; }
+            .business-grid {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: 14px;
+            }
+            .business-card {
+              min-height: 176px;
+              padding: 20px;
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              background: #fff;
+            }
+            .business-card strong {
+              display: block;
+              margin-bottom: 12px;
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-size: 18px;
+            }
+            .business-card span {
+              color: var(--muted);
+              line-height: 1.45;
+            }
+            .onboarding-layout {
+              display: grid;
+              grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+              gap: 18px;
+              align-items: stretch;
+            }
+            .checklist-board,
+            .week-board {
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              background: #fff;
+              overflow: hidden;
+            }
+            .board-head {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+              padding: 18px 20px;
+              border-bottom: 1px solid #edf4f7;
+            }
+            .board-head b {
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-size: 20px;
+            }
+            .board-head span,
+            .board-note {
+              color: var(--muted);
+              font-size: 13px;
+              font-weight: 800;
+            }
+            .check-row,
+            .week-row {
+              display: grid;
+              gap: 12px;
+              align-items: start;
+              padding: 15px 20px;
+              border-top: 1px solid #edf4f7;
+            }
+            .check-row:first-of-type,
+            .week-row:first-of-type { border-top: 0; }
+            .check-row {
+              grid-template-columns: 28px 1fr;
+            }
+            .check-row i {
+              display: grid;
+              place-items: center;
+              width: 28px;
+              height: 28px;
+              border-radius: 8px;
+              background: var(--soft);
+              color: var(--blue-dark);
+              font-style: normal;
+              font-weight: 900;
+            }
+            .check-row b,
+            .week-row b { display: block; margin-bottom: 4px; }
+            .check-row span,
+            .week-row span { color: var(--muted); line-height: 1.45; }
+            .week-row {
+              grid-template-columns: 92px 1fr;
+            }
+            .week-day {
+              display: inline-flex;
+              justify-content: center;
+              padding: 8px 10px;
+              border-radius: 8px;
+              background: var(--soft);
+              color: var(--blue-dark);
+              font-weight: 900;
+            }
+            .trust-strip {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 14px;
+              margin-top: 18px;
+            }
+            .trust-strip div {
+              padding: 16px;
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              background: #f8fcfe;
+              color: var(--muted);
+              line-height: 1.45;
+            }
+            .trust-strip b {
+              display: block;
+              color: var(--ink);
+              margin-bottom: 6px;
+            }
+            .workflow {
+              display: grid;
+              grid-template-columns: repeat(5, minmax(0, 1fr));
+              gap: 12px;
+            }
       .step {
         position: relative;
         min-height: 150px;
@@ -458,21 +570,43 @@
       .step small { color: var(--blue-dark); font-weight: 900; }
       .step b { display: block; margin-top: 22px; font-size: 18px; }
       .step span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.4; }
-      .cta-band {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 24px;
-        align-items: center;
-        padding: 34px;
-        border-radius: 10px;
-        background: var(--navy);
-        color: #fff;
-      }
-      .cta-band p { margin: 8px 0 0; color: rgba(255,255,255,.72); }
-      footer {
-        display: flex;
-        justify-content: space-between;
-        gap: 24px;
+            .cta-band {
+              display: grid;
+              grid-template-columns: 1fr auto;
+              gap: 24px;
+              align-items: center;
+              padding: 34px;
+              border-radius: 10px;
+              background: var(--navy);
+              color: #fff;
+            }
+            .cta-band p { margin: 8px 0 0; color: rgba(255,255,255,.72); }
+            .faq-grid {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 12px;
+            }
+            details {
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              background: #fff;
+            }
+            summary {
+              cursor: pointer;
+              padding: 18px 20px;
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-weight: 800;
+            }
+            details p {
+              margin: 0;
+              padding: 0 20px 18px;
+              color: var(--muted);
+              line-height: 1.5;
+            }
+            footer {
+              display: flex;
+              justify-content: space-between;
+              gap: 24px;
         padding: 28px clamp(18px, 5vw, 72px);
         color: var(--muted);
         background: #fff;
@@ -497,24 +631,25 @@
         35% { border-color: rgba(58, 186, 223, .7); box-shadow: 0 18px 38px rgba(17, 115, 146, .11); }
       }
       @media (max-width: 1020px) {
-        .hero { grid-template-columns: 1fr; }
-        .stage { min-height: 620px; }
-        .dashboard { left: 120px; right: auto; }
-        .grid, .tour-grid { grid-template-columns: 1fr 1fr; }
-        .workflow { grid-template-columns: 1fr 1fr; }
-      }
-      @media (max-width: 760px) {
-        .topbar { position: static; align-items: flex-start; flex-direction: column; }
-        .nav { display: none; }
-        .actions { width: 100%; }
-        .actions .button { flex: 1; }
-        .hero { min-height: auto; padding-top: 38px; }
-        .proof, .grid, .workflow, .cta-band, .tour-grid { grid-template-columns: 1fr; }
-        .stage { min-height: 760px; }
-        .dashboard, .phone, .progress { position: relative; inset: auto; width: 100%; margin-top: 16px; }
-        .phone { max-width: 280px; margin-inline: auto; }
-        footer { flex-direction: column; }
-      }
+              .hero { grid-template-columns: 1fr; }
+              .stage { min-height: 620px; }
+              .dashboard { left: 120px; right: auto; }
+              .grid, .tour-grid, .business-grid, .onboarding-layout, .faq-grid { grid-template-columns: 1fr 1fr; }
+              .workflow { grid-template-columns: 1fr 1fr; }
+            }
+            @media (max-width: 760px) {
+              .topbar { position: static; align-items: flex-start; flex-direction: column; }
+              .nav { display: none; }
+              .actions { width: 100%; }
+              .actions .button { flex: 1; }
+              .hero { min-height: auto; padding-top: 38px; }
+              .proof, .grid, .workflow, .cta-band, .tour-grid, .business-grid, .onboarding-layout, .trust-strip, .faq-grid { grid-template-columns: 1fr; }
+              .stage { min-height: 760px; }
+              .dashboard, .phone, .progress { position: relative; inset: auto; width: 100%; margin-top: 16px; }
+              .phone { max-width: 280px; margin-inline: auto; }
+              .week-row { grid-template-columns: 1fr; }
+              footer { flex-direction: column; }
+            }
     </style>
   </head>
   <body>
@@ -523,11 +658,13 @@
         <img src="/hasi-logo.png" alt="Hasi Elektronic Logo" />
         <span><strong>Hasi Social Media</strong><span>by Hasi Elektronic</span></span>
       </a>
-      <nav class="nav" aria-label="Hauptnavigation">
-        <a href="#leistung">Leistung</a>
-        <a href="#ablauf">Ablauf</a>
-        <a href="/demo">Demo</a>
-      </nav>
+            <nav class="nav" aria-label="Hauptnavigation">
+              <a href="#leistung">Leistung</a>
+              <a href="#ablauf">Ablauf</a>
+              <a href="#start">Start</a>
+              <a href="#faq">FAQ</a>
+              <a href="/demo">Demo</a>
+            </nav>
       <div class="actions">
         <a class="button" href="/login?next=%2Fapp">Anmelden</a>
         <a class="button primary" href="/demo">Demo erleben</a>
@@ -626,21 +763,64 @@
         </div>
       </section>
 
-      <section class="section" id="leistung">
-        <div class="section-head">
-          <h2>Was Kunden bekommen</h2>
-          <p>Keine unklare Dateiablage und kein Hin und Her per Chat. Das System zeigt, was geplant ist, was freigegeben wurde und was bereits online ist.</p>
-        </div>
+            <section class="section" id="leistung">
+              <div class="section-head">
+                <h2>Was Kunden bekommen</h2>
+                <p>Keine unklare Dateiablage und kein Hin und Her per Chat. Das System zeigt, was geplant ist, was freigegeben wurde und was bereits online ist.</p>
+              </div>
         <div class="grid">
           <article class="card"><span class="num">1</span><h3>Marke sauber erfassen</h3><p>Logo, Farben, Angebot, Zielgruppe und Tonalität werden im Kundenprofil gesammelt.</p></article>
           <article class="card"><span class="num">2</span><h3>Inhalte vorbereiten</h3><p>Karussells, Reels und Storys entstehen aus einem wiederholbaren Produktionsprozess.</p></article>
           <article class="card"><span class="num">3</span><h3>Freigabe einfach machen</h3><p>Der Kunde sieht Vorschau, Caption, Datum und Status vor der Veröffentlichung.</p></article>
-        </div>
-      </section>
+              </div>
+            </section>
 
-      <section class="section soft">
-        <div class="section-head">
-          <h2>Vom Kundenprofil bis Instagram</h2>
+            <section class="section soft">
+              <div class="section-head">
+                <h2>Für welche Betriebe ist das gedacht?</h2>
+                <p>Der Service passt zu lokalen Unternehmen, die regelmäßig sichtbar sein wollen, aber keine eigene Marketingabteilung haben.</p>
+              </div>
+              <div class="business-grid">
+                <article class="business-card"><strong>Gastronomie</strong><span>Wochenangebote, Mittagstisch, Events, neue Gerichte und Stammkunden-Kommunikation.</span></article>
+                <article class="business-card"><strong>Handwerk</strong><span>Vorher-Nachher-Beispiele, Leistungen, Baustellen-Einblicke und lokale Vertrauenssignale.</span></article>
+                <article class="business-card"><strong>Praxis & Beratung</strong><span>Terminhinweise, Erklärbeiträge, Teamvorstellung und einfache Service-Kommunikation.</span></article>
+                <article class="business-card"><strong>Einzelhandel</strong><span>Produkte, Aktionen, Saisonware, Öffnungszeiten und persönliche Empfehlungen.</span></article>
+              </div>
+            </section>
+
+            <section class="section" id="start">
+              <div class="section-head">
+                <h2>Was wir zum Start brauchen</h2>
+                <p>Je vollständiger das Onboarding ist, desto ruhiger läuft die Produktion. Fehlende Punkte bleiben im Portal sichtbar, bis sie erledigt sind.</p>
+              </div>
+              <div class="onboarding-layout">
+                <article class="checklist-board">
+                  <div class="board-head"><b>Onboarding-Checkliste</b><span>für neue Kunden</span></div>
+                  <div class="check-row"><i>1</i><div><b>Marke</b><span>Logo, Farben, Schriftwunsch und Beispiele, die dir gefallen.</span></div></div>
+                  <div class="check-row"><i>2</i><div><b>Angebote</b><span>Leistungen, Produkte, Preise, Aktionen und wichtige Saisontermine.</span></div></div>
+                  <div class="check-row"><i>3</i><div><b>Material</b><span>Fotos, kurze Videos, Speisekarte, Flyer oder vorhandene Website-Inhalte.</span></div></div>
+                  <div class="check-row"><i>4</i><div><b>Zugang</b><span>Instagram, Facebook Page und Meta Business müssen sauber verbunden sein.</span></div></div>
+                  <div class="check-row"><i>5</i><div><b>Freigabe-Regel</b><span>Du entscheidest: erst prüfen lassen oder nach klarer Regel direkt veröffentlichen.</span></div></div>
+                </article>
+                <article class="week-board">
+                  <div class="board-head"><b>Die ersten 7 Tage</b><span>realistischer Startablauf</span></div>
+                  <div class="week-row"><span class="week-day">Tag 1</span><div><b>Kundenprofil anlegen</b><span>Firma, Branche, Zielgruppe, Tonalität und Ansprechpartner werden erfasst.</span></div></div>
+                  <div class="week-row"><span class="week-day">Tag 2</span><div><b>Marke und Zugang prüfen</b><span>Logo, Farben, Bilder und Meta-Verbindung werden kontrolliert.</span></div></div>
+                  <div class="week-row"><span class="week-day">Tag 3</span><div><b>14-Tage-Plan erstellen</b><span>Themen, Formate und Uhrzeiten werden sichtbar vorbereitet.</span></div></div>
+                  <div class="week-row"><span class="week-day">Tag 4-5</span><div><b>Erste Inhalte produzieren</b><span>Karussell, Reel und Story entstehen als echte Vorschau im Portal.</span></div></div>
+                  <div class="week-row"><span class="week-day">Tag 6-7</span><div><b>Freigabe und Start</b><span>Du prüfst die Beiträge. Danach wird veröffentlicht und dokumentiert.</span></div></div>
+                </article>
+              </div>
+              <div class="trust-strip">
+                <div><b>Kein Blindflug</b>Du siehst Bild, Text, Datum und Status, bevor ein Beitrag live geht.</div>
+                <div><b>Kein Passwort-Chaos</b>Zugänge werden über Meta Business und klare Rollen geregelt.</div>
+                <div><b>Kein Rätselraten</b>Nach dem Veröffentlichen bleiben Uhrzeit, Status und Nachweis im Log.</div>
+              </div>
+            </section>
+
+            <section class="section soft">
+              <div class="section-head">
+                <h2>Vom Kundenprofil bis Instagram</h2>
           <p>Der Ablauf bleibt immer gleich. Dadurch weißt du genau, wo ein Beitrag gerade steht.</p>
         </div>
         <div class="workflow">
@@ -649,11 +829,36 @@
           <div class="step"><small>03</small><b>Vorschau bauen</b><span>Slides, Text und Instagram-Ansicht vorbereiten.</span></div>
           <div class="step"><small>04</small><b>Freigeben</b><span>Du prüfst Bild, Text und Datum.</span></div>
           <div class="step"><small>05</small><b>Veröffentlichen</b><span>Status, Uhrzeit und Nachweis dokumentieren.</span></div>
-        </div>
-      </section>
+              </div>
+            </section>
 
-      <section class="section">
-        <div class="cta-band">
+            <section class="section" id="faq">
+              <div class="section-head">
+                <h2>Häufige Fragen</h2>
+                <p>Die wichtigsten Punkte für Kunden, die Social Media abgeben möchten, aber trotzdem Kontrolle behalten wollen.</p>
+              </div>
+              <div class="faq-grid">
+                <details open>
+                  <summary>Muss ich mein Instagram-Passwort abgeben?</summary>
+                  <p>Nein. Sauber ist der Weg über Meta Business, Facebook Page und passende Rollen. Dadurch bleibt der Zugriff nachvollziehbar.</p>
+                </details>
+                <details>
+                  <summary>Kann ich einen Beitrag vor der Veröffentlichung ändern?</summary>
+                  <p>Ja. Bild, Text und Datum werden im Portal sichtbar. Wenn etwas nicht passt, geht der Beitrag zurück in die Vorbereitung.</p>
+                </details>
+                <details>
+                  <summary>Was passiert, wenn Material fehlt?</summary>
+                  <p>Dann zeigt das Onboarding den fehlenden Punkt. Wir starten erst sauber, wenn Marke, Angebot und Zugang ausreichend geklärt sind.</p>
+                </details>
+                <details>
+                  <summary>Wird in der Demo wirklich veröffentlicht?</summary>
+                  <p>Nein. Die Demo simuliert den Ablauf nur im Browser. Echte Veröffentlichung passiert ausschließlich im geschützten Kundenportal.</p>
+                </details>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="cta-band">
           <div>
             <h2>Bereit für einen sauberen Social-Media-Prozess?</h2>
             <p>Die Demo zeigt den Ablauf, bevor ein echter Kundenzugang eingerichtet wird.</p>

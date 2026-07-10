@@ -42,7 +42,7 @@ cd /Users/hguencavdi/Desktop/it-cockpit/instagram-control-center
 npm start
 ```
 
-Danach im Browser oeffnen:
+Danach im Browser öffnen:
 
 ```text
 http://localhost:8787
@@ -63,5 +63,5 @@ http://localhost:8787
 
 - Instagram Token wird aus `instagram-karussells/tools/.env` gelesen.
 - Token wird nicht in UI oder Logs ausgegeben.
-- Lokal senden Publish-Buttons direkt an Instagram. Doppelte Veroeffentlichungen sind moeglich, wenn derselbe Manifest erneut gepublished wird.
+- Lokal senden Publish-Buttons direkt an Instagram. Doppelte Veröffentlichungen sind möglich, wenn derselbe Manifest erneut gepublished wird.
 - In Cloudflare Pages ist Publish bewusst deaktiviert. Cloud-Panel zeigt Status, Plan, Vorschau und Inhalte; echte Publish-Aktionen bleiben lokal, bis Instagram-Secrets sauber serverseitig angebunden sind.

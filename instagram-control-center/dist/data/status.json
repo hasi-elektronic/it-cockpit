@@ -4,7 +4,7 @@
     "id": "hasi-elektronic",
     "name": "Hasi Elektronic",
     "company": "Hasi Elektronic",
-    "owner": "Hamdi Guencavdi",
+    "owner": "Hamdi Güncavdı",
     "email": "h.guencavdi@hasi-elektronic.de",
     "phone": "07042 / 16391",
     "city": "Vaihingen/Enz",
@@ -59,7 +59,7 @@
         "metaAccess": false,
         "contentPlan": false,
         "publishPermission": "missing",
-        "notes": "Keby Pilotkunde. Benoetigt Logo/Brand Assets, Produktfotos, Produktliste, Meta Business Zugriff und Freigabe-Regel.",
+        "notes": "Keby Pilotkunde. Benötigt Logo/Brand Assets, Produktfotos, Produktliste, Meta Business Zugriff und Freigabe-Regel.",
         "updatedAt": "2026-07-08T12:01:14.478Z"
       },
       "createdAt": "2026-07-08T10:57:55.982Z"
@@ -68,7 +68,7 @@
       "id": "hasi-elektronic",
       "name": "Hasi Elektronic",
       "company": "Hasi Elektronic",
-      "owner": "Hamdi Guencavdi",
+      "owner": "Hamdi Güncavdı",
       "email": "h.guencavdi@hasi-elektronic.de",
       "phone": "07042 / 16391",
       "city": "Vaihingen/Enz",
@@ -839,98 +839,98 @@
   ],
   "plan": [
     {
-      "date": "2026-07-09",
+      "date": "2026-07-10",
       "topic": "Web-App für lokale Firmen",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-10",
+      "date": "2026-07-11",
       "topic": "iOS App Entwicklung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-11",
+      "date": "2026-07-12",
       "topic": "Android App Entwicklung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-12",
+      "date": "2026-07-13",
       "topic": "App + Website Paket",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-13",
+      "date": "2026-07-14",
       "topic": "Online Terminbuchung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-14",
+      "date": "2026-07-15",
       "topic": "Warteliste Pro",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-15",
+      "date": "2026-07-16",
       "topic": "Kundenportal",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-16",
+      "date": "2026-07-17",
       "topic": "Digitale Formulare",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-17",
+      "date": "2026-07-18",
       "topic": "Supabase Backend",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-18",
+      "date": "2026-07-19",
       "topic": "Cloudflare Hosting",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-19",
+      "date": "2026-07-20",
       "topic": "App Store und Google Play",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-20",
+      "date": "2026-07-21",
       "topic": "Automatisierung für kleine Betriebe",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-21",
+      "date": "2026-07-22",
       "topic": "Webdesign mit App-Anbindung",
       "carousel": "08:00",
       "reel": "08:30",
       "story": "09:00"
     },
     {
-      "date": "2026-07-22",
+      "date": "2026-07-23",
       "topic": "Digitaler Hausmeister",
       "carousel": "08:00",
       "reel": "08:30",
