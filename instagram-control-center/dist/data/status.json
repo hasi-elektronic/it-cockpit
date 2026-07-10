@@ -115,9 +115,135 @@
   ],
   "instagram": {
     "ok": true,
-    "output": "Cloud preview mode. Publishing is disabled in this protected build."
+    "output": "Cloud-Freigabe und Veröffentlichung sind aktiv."
   },
   "manifests": [
+    {
+      "file": "online-terminbuchung-2026-07-10.story.manifest.json",
+      "type": "story",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/online-terminbuchung-2026-07-10.story.manifest.json",
+      "slug": "online-terminbuchung-2026-07-10",
+      "caption": "Telefonstress bei Terminen? Online-Terminbuchung bringt Ruhe in den Ablauf. Hasi Elektronic baut Web-App, App und Backend passend für lokale Firmen.",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-10/online-terminbuchung-2026-07-10.mp4"
+      ],
+      "checks": [
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        }
+      ],
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
+      "published": true,
+      "publishedAt": "2026-07-10T19:18:00+02:00",
+      "instagramId": "17963151168132939",
+      "updatedAt": "2026-07-10T12:53:57.722Z",
+      "sortAt": "2026-07-10T19:18:00+02:00",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/online-terminbuchung-2026-07-10/online-terminbuchung-2026-07-10.mp4"
+    },
+    {
+      "file": "automatisierung-kmu-2026-07-10.reel.manifest.json",
+      "type": "reel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/automatisierung-kmu-2026-07-10.reel.manifest.json",
+      "slug": "automatisierung-kmu-2026-07-10",
+      "caption": "Wiederkehrende Aufgaben sollten nicht jeden Tag Zeit fressen.\n\nHasi Elektronic automatisiert Anfragen, Formulare, Statusmeldungen und interne Abläufe für kleine Betriebe. Web-App, Backend, Cloudflare Hosting und klare Prozesse aus einer Hand.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #automatisierung #webapp #digitalisierung #kmu #cloudflare #supabase #iosapp #androidapp",
+      "urlCount": 1,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/automatisierung-kmu-2026-07-10/automatisierung-kmu-2026-07-10.mp4"
+      ],
+      "checks": [
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        }
+      ],
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
+      "published": true,
+      "publishedAt": "2026-07-10T14:59:00+02:00",
+      "instagramId": "18102410519135347",
+      "updatedAt": "2026-07-10T12:53:55.974Z",
+      "sortAt": "2026-07-10T14:59:00+02:00",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/reels/automatisierung-kmu-2026-07-10/automatisierung-kmu-2026-07-10.mp4"
+    },
+    {
+      "file": "app-website-paket-2026-07-10.manifest.json",
+      "type": "carousel",
+      "path": "/Users/hguencavdi/Desktop/it-cockpit/instagram-karussells/tools/app-website-paket-2026-07-10.manifest.json",
+      "slug": "app-website-paket-2026-07-10",
+      "caption": "Viele lokale Firmen haben eine Website, aber keine digitale Strecke dahinter.\n\nMit dem App + Website Paket von Hasi Elektronic verbinden wir Website, Kundenlogin, mobile App und Automatisierung in einer Lösung. So bekommen Deine Kunden Anfragen, Status, Termine und Formulare sauber digital. Und Du hast einen Ansprechpartner für Konzept, Entwicklung, Hosting und laufende Betreuung aus Vaihingen/Enz.\n\nHasi Elektronic\nGrabenstraße 18, 71665 Vaihingen/Enz\nTel. 07042 / 16391\n\n#hasi #hasielektronic #vaihingenenz #webapp #appentwicklung #iosapp #androidapp #digitalisierung #automatisierung #kundenportal #cloudflare #supabase #kmu",
+      "urlCount": 7,
+      "urls": [
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_1.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_2.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_3.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_4.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_5.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_6.png",
+        "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_7.png"
+      ],
+      "checks": [
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        },
+        {
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
+        }
+      ],
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
+      "published": true,
+      "publishedAt": "2026-07-10T14:54:00+02:00",
+      "instagramId": "17977195434061537",
+      "updatedAt": "2026-07-10T12:53:53.901Z",
+      "sortAt": "2026-07-10T14:54:00+02:00",
+      "preview": "https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/app-website-paket-2026-07-10/slide_1.png"
+    },
     {
       "file": "warteliste-pro-2026-07-09.story.manifest.json",
       "type": "story",
@@ -130,13 +256,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "4340428"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -156,13 +284,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "4066668"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": true,
       "publishedAt": "2026-07-09T10:35:27+02:00",
       "instagramId": "17969749943922519",
@@ -188,49 +318,51 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "118338"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "130454"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "662840"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "139581"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "145089"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "103339"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "574162"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": true,
       "publishedAt": "2026-07-09T10:00:00+02:00",
       "instagramId": "17901066363463022",
@@ -250,13 +382,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2935751"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -276,13 +410,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2935751"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -302,13 +438,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2934746"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -334,49 +472,51 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "126376"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "118319"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "666370"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "142957"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "137188"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "105384"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "573301"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": true,
       "publishedAt": "2026-07-08T10:04:42+02:00",
       "instagramId": "18060291389739396",
@@ -402,49 +542,51 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "118015"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "127212"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "664798"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "137352"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "137759"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "106857"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "570457"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": true,
       "publishedAt": "2026-07-08T09:18:34+02:00",
       "instagramId": "17979586548058524",
@@ -464,13 +606,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2193640"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -490,13 +634,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2483612"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -516,13 +662,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2483612"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -542,13 +690,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2608939"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -568,13 +718,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2722183"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -594,13 +746,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2632395"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -626,49 +780,51 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "115579"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "134792"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "668641"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "138678"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "150410"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "113673"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "572096"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -688,13 +844,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "1682016"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -714,13 +872,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2010243"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -740,13 +900,15 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "video/mp4",
-          "length": "2010243"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -772,49 +934,51 @@
       ],
       "checks": [
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "104628"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "119100"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "660620"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "137271"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "142307"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "109930"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         },
         {
-          "ok": true,
-          "status": 200,
-          "type": "image/png",
-          "length": "562900"
+          "ok": false,
+          "status": 0,
+          "type": "",
+          "error": "fetch failed"
         }
       ],
-      "ready": true,
+      "ready": false,
+      "approved": false,
+      "approvedAt": "",
       "published": false,
       "publishedAt": "",
       "instagramId": "",
@@ -938,6 +1102,50 @@
     }
   ],
   "log": [
+    {
+      "time": "2026-07-10T19:18:00+02:00",
+      "action": "publish-story",
+      "status": "published",
+      "type": "story",
+      "topic": "Online-Terminbuchung",
+      "slug": "online-terminbuchung-2026-07-10",
+      "manifest": "online-terminbuchung-2026-07-10.story.manifest.json",
+      "instagramId": "17963151168132939",
+      "note": "Auf ausdrücklichen Nutzerwunsch veröffentlicht; R2 URL vorher erneut als HTTP 200 video/mp4 geprüft."
+    },
+    {
+      "time": "2026-07-10T15:00:00+02:00",
+      "action": "prepare-story",
+      "status": "ready",
+      "type": "story",
+      "topic": "Online-Terminbuchung",
+      "slug": "online-terminbuchung-2026-07-10",
+      "manifest": "online-terminbuchung-2026-07-10.story.manifest.json",
+      "instagramId": "",
+      "note": "Story veröffentlichungsbereit; R2 URL HTTP 200 video/mp4. Nicht automatisch veröffentlicht."
+    },
+    {
+      "time": "2026-07-10T14:59:00+02:00",
+      "action": "publish-reel",
+      "status": "published",
+      "type": "reel",
+      "topic": "Automatisierung für kleine Betriebe",
+      "slug": "automatisierung-kmu-2026-07-10",
+      "manifest": "automatisierung-kmu-2026-07-10.reel.manifest.json",
+      "instagramId": "18102410519135347",
+      "note": "Tagesproduktion nachgeholt; R2 URL HTTP 200 video/mp4; Instagram Reel veröffentlicht."
+    },
+    {
+      "time": "2026-07-10T14:54:00+02:00",
+      "action": "publish-carousel",
+      "status": "published",
+      "type": "carousel",
+      "topic": "App + Website Paket",
+      "slug": "app-website-paket-2026-07-10",
+      "manifest": "app-website-paket-2026-07-10.manifest.json",
+      "instagramId": "17977195434061537",
+      "note": "Tagesproduktion nachgeholt; R2 Upload erfolgreich; Dry Run 7/7 image/png OK."
+    },
     {
       "time": "2026-07-09T11:04:16+02:00",
       "action": "prepare-story",

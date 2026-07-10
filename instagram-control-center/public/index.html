@@ -30,6 +30,7 @@
         background:
           linear-gradient(180deg, rgba(58, 186, 223, .08), transparent 280px),
           var(--bg);
+        overflow-x: hidden;
       }
       button, input, textarea { font: inherit; }
       h1, h2, h3, h4, .brand b {
@@ -78,7 +79,7 @@
         background: rgba(255, 107, 0, .16);
       }
       nav a.logout-link:hover { background: rgba(255, 107, 0, .28); }
-      main { padding: 30px 28px 44px; max-width: 1560px; width: 100%; }
+      main { padding: 30px 28px 44px; max-width: 1560px; width: 100%; min-width: 0; }
       header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 22px; }
       .title-row { display: flex; align-items: center; gap: 14px; }
       .header-logo {
@@ -107,6 +108,7 @@
       .card {
         background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
         padding: 18px; box-shadow: 0 10px 26px rgba(26, 95, 117, .07);
+        min-width: 0;
       }
       .stat-label { color: var(--muted); font-size: 13px; }
       .stat-value { font-size: 28px; font-weight: 800; margin-top: 8px; }
@@ -388,6 +390,9 @@
         flex: 0 0 auto;
       }
       .check-dot.ok { background: var(--green); }
+      @media (max-width: 1500px) {
+        .content-grid { grid-template-columns: 1fr; }
+      }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
         aside { position: relative; height: auto; }
@@ -396,6 +401,37 @@
         .toolbar { justify-content: flex-start; }
         .modal-panel { grid-template-columns: 1fr; }
         .modal-stage { min-height: auto; }
+      }
+      @media (max-width: 720px) {
+        main { padding: 20px 14px 36px; }
+        aside { padding: 20px 14px; }
+        h1 { font-size: 28px; }
+        header, .title-row, .toolbar { width: 100%; min-width: 0; }
+        .title-row { align-items: flex-start; }
+        .title-row > div { min-width: 0; }
+        h1, .subtitle { overflow-wrap: anywhere; }
+        .header-logo { width: 50px; height: 50px; }
+        .toolbar .btn { flex: 1 1 140px; justify-content: center; text-align: center; white-space: normal; }
+        .card { padding: 14px; }
+        .queue-head { align-items: flex-start; flex-direction: column; }
+        .queue-group > div[style] { overflow: visible !important; }
+        .queue-group table,
+        .queue-group tbody,
+        .queue-group tr,
+        .queue-group td { display: block; width: 100%; }
+        .queue-group thead { display: none; }
+        .queue-group tr { padding: 14px; border-bottom: 1px solid #eef6f9; }
+        .queue-group tr:last-child { border-bottom: 0; }
+        .queue-group td { padding: 5px 0; border: 0; }
+        .queue-group td:first-child { float: left; width: 82px; margin-right: 12px; }
+        .queue-group td:nth-child(2),
+        .queue-group td:nth-child(3) { margin-left: 94px; width: calc(100% - 94px); }
+        .queue-group td:nth-child(4) { clear: both; padding-top: 12px; }
+        .queue-group .preview { width: 82px; }
+        .queue-group .actions { margin-top: 4px; }
+        .queue-group .actions .btn { justify-content: center; flex: 1 1 130px; }
+        .plan-row { grid-template-columns: 88px minmax(120px, 1fr); }
+        .plan-row > :nth-child(n+3) { display: none; }
       }
     </style>
   </head>
@@ -458,7 +494,7 @@
           <div class="card" id="queue">
             <h2>Beiträge und Freigaben</h2>
             <div id="todaySummary"></div>
-            <div class="notice" style="margin-bottom:12px">Publish-Buttons senden direkt an Instagram. Story bleibt 24 Stunden sichtbar.</div>
+            <div class="notice" style="margin-bottom:12px">Zuerst Vorschau und Text prüfen, dann freigeben. Erst danach wird die Veröffentlichung freigeschaltet. Storys bleiben 24 Stunden sichtbar.</div>
             <div class="queue-groups" id="manifestGroups"></div>
           </div>
 
@@ -534,7 +570,7 @@
       async function api(path, options) {
         const response = await fetch(path, options);
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "API Fehler");
+        if (!response.ok || data.ok === false) throw new Error(data.error || "API Fehler");
         return data;
       }
 
@@ -629,8 +665,11 @@
         if (item.published) {
           return `<span class="pill green">veröffentlicht</span><div class="small">ID: ${item.instagramId || "unbekannt"}<br>${formatGermanDateTime(item.publishedAt)}</div>`;
         }
+        if (item.approved) {
+          return `<span class="pill green">freigegeben</span><div class="small">${formatGermanDateTime(item.approvedAt) || "Bereit zur Veröffentlichung"}</div>`;
+        }
         if (item.ready) {
-          return `<span class="pill orange">bereit</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
+          return `<span class="pill orange">Freigabe offen</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
         }
         return `<span class="pill red">prüfen</span><div class="small">${item.checks.map((c) => `${c.status} ${c.type}`).join("<br>")}</div>`;
       }
@@ -638,6 +677,7 @@
       function shortStatus(item) {
         if (!item) return { cls: "red", label: "fehlt", detail: "Heute noch nicht erstellt." };
         if (item.published) return { cls: "green", label: "veröffentlicht", detail: formatGermanDateTime(item.publishedAt) || formatGermanDateTime(item.updatedAt) };
+        if (item.approved) return { cls: "green", label: "freigegeben", detail: `${formatGermanDateTime(item.approvedAt)} · Bereit zur Veröffentlichung` };
         if (item.ready) return { cls: "orange", label: "bereit", detail: `Noch nicht veröffentlicht · ${formatGermanDateTime(item.updatedAt)}` };
         return { cls: "red", label: "prüfen", detail: `Fehler oder unvollständig · ${formatGermanDateTime(item.updatedAt)}` };
       }
@@ -702,16 +742,16 @@
             <div class="small">Schon veröffentlicht</div>
           `;
         }
-        if (state.data?.cloud && item.type === "story") {
-          return `
-            <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
-            <span class="pill gray">Freigabe</span>
-            <div class="small">Story bleibt publish-ready</div>
-          `;
-        }
+        const approvalAction = item.approved
+          ? `<span class="pill green">Freigegeben</span>`
+          : `<button class="btn js-approve-btn" ${item.ready ? "" : "disabled"} data-type="${item.type}" data-file="${item.file}">Freigeben</button>`;
+        const publishAction = item.approved
+          ? `<button class="btn orange js-publish-btn" data-type="${item.type}" data-file="${item.file}">Veröffentlichen</button>`
+          : `<div class="small">Veröffentlichung erst nach Freigabe</div>`;
         return `
           <button class="btn secondary js-preview-btn" type="button" data-file="${item.file}">Ansehen</button>
-          <button class="btn js-publish-btn" ${item.ready ? "" : "disabled"} data-type="${item.type}" data-file="${item.file}">Publish</button>
+          ${approvalAction}
+          ${publishAction}
         `;
       }
 
@@ -1015,6 +1055,23 @@
         }
       }
 
+      async function approveItem(type, file) {
+        const item = findManifest(file);
+        const label = item ? displayManifestName(item) : file;
+        if (!confirm(`${typeLabel(type)} freigeben?\n${label}\n\nDanach kann der Inhalt veröffentlicht werden.`)) return;
+        setBusy(true);
+        $("logBox").textContent = "Freigabe wird gespeichert...";
+        try {
+          const result = await api(`/api/approve/${type}/${encodeURIComponent(file)}`, { method: "POST" });
+          $("logBox").textContent = result.skipped ? "Dieser Inhalt war bereits freigegeben." : "Freigabe wurde erfolgreich gespeichert.";
+          await refresh();
+        } catch (error) {
+          $("logBox").textContent = `Freigabe fehlgeschlagen: ${error.message}`;
+        } finally {
+          setBusy(false);
+        }
+      }
+
       $("refreshBtn").addEventListener("click", refresh);
       document.addEventListener("click", (event) => {
         const previewTarget = event.target.closest(".js-preview, .js-preview-btn");
@@ -1025,6 +1082,11 @@
         const publishTarget = event.target.closest(".js-publish-btn");
         if (publishTarget) {
           publishItem(publishTarget.dataset.type, publishTarget.dataset.file);
+          return;
+        }
+        const approveTarget = event.target.closest(".js-approve-btn");
+        if (approveTarget) {
+          approveItem(approveTarget.dataset.type, approveTarget.dataset.file);
           return;
         }
         if (event.target.closest(".js-slide-prev")) {

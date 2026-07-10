@@ -190,19 +190,25 @@ async function appendActivityLog(env, request, entry) {
   await env.CUSTOMERS.put("activity-log", JSON.stringify(next, null, 2));
 }
 
-function applyPublishedLog(snapshot, log) {
+function applyActivityLog(snapshot, log) {
   const items = Array.isArray(snapshot.manifests) ? snapshot.manifests : [];
   snapshot.manifests = items.map((item) => {
     const published = log.find((entry) => {
       if (entry.status !== "published" && !entry.instagramId) return false;
       return entry.manifest === item.file || entry.slug === item.slug || entry.slug === manifestSlug(item.file);
     });
-    return published ? {
+    const approved = log.find((entry) => {
+      if (entry.status !== "approved") return false;
+      return entry.manifest === item.file || entry.slug === item.slug || entry.slug === manifestSlug(item.file);
+    });
+    return {
       ...item,
-      published: true,
-      publishedAt: published.time || item.publishedAt || "",
-      instagramId: published.instagramId || item.instagramId || "",
-    } : item;
+      approved: Boolean(approved) || Boolean(published) || Boolean(item.approved),
+      approvedAt: approved?.time || item.approvedAt || "",
+      published: Boolean(published) || Boolean(item.published),
+      publishedAt: published?.time || item.publishedAt || "",
+      instagramId: published?.instagramId || item.instagramId || "",
+    };
   });
   snapshot.log = log.slice(0, 50);
   return snapshot;
@@ -213,7 +219,7 @@ async function status(env, request) {
   if (!response.ok) return json({ error: "Status snapshot not found" }, 404);
   const snapshot = await response.json();
   snapshot.customers = await customers(env, request);
-  return json(applyPublishedLog(snapshot, await activityLog(env, request)));
+  return json(applyActivityLog(snapshot, await activityLog(env, request)));
 }
 
 function slugify(value) {
@@ -405,6 +411,9 @@ async function verifyPublishItem(item) {
   if (item.type === "reel" && !checks.every((check) => check.ok && contentTypeOk(check.type, "video/mp4"))) {
     throw new Error("Reel ist nicht publish-ready: Video-URL liefert kein video/mp4.");
   }
+  if (item.type === "story" && !checks.every((check) => check.ok && (contentTypeOk(check.type, "video/mp4") || contentTypeOk(check.type, "image/")))) {
+    throw new Error("Story ist nicht veröffentlichungsbereit: Die URL liefert kein unterstütztes Bild oder MP4-Video.");
+  }
 }
 
 async function publishCarousel(env, item) {
@@ -438,9 +447,48 @@ async function publishReel(env, item) {
   return graphPost(env, `/${graphConfig(env).igUserId}/media_publish`, { creation_id: container.id });
 }
 
+async function publishStory(env, item) {
+  const mediaUrl = item.urls[0];
+  const isVideo = String(item.checks?.[0]?.type || "").includes("video/mp4") || /\.mp4(?:$|\?)/i.test(mediaUrl);
+  const container = await graphPost(env, `/${graphConfig(env).igUserId}/media`, {
+    media_type: "STORIES",
+    ...(isVideo ? { video_url: mediaUrl } : { image_url: mediaUrl }),
+  });
+  await waitForContainer(env, container.id, 60);
+  return graphPost(env, `/${graphConfig(env).igUserId}/media_publish`, { creation_id: container.id });
+}
+
+async function approveFromCloud(request, env, type, file) {
+  if (!["carousel", "reel", "story"].includes(type)) {
+    return json({ ok: false, error: "Unbekannter Inhaltstyp." }, 400);
+  }
+  const safeFile = safePublishFile(file);
+  const item = await findManifest(env, request, safeFile);
+  if (!item || item.type !== type) return json({ ok: false, error: "Manifest nicht gefunden oder falscher Typ." }, 404);
+  if (!item.ready) return json({ ok: false, error: "Der Inhalt ist noch nicht vollständig geprüft." }, 409);
+
+  const log = await activityLog(env, request);
+  const existing = log.find((entry) => entry.status === "approved" && (entry.manifest === safeFile || entry.slug === item.slug));
+  if (existing) return json({ ok: true, skipped: true, entry: existing, message: "Bereits freigegeben." });
+
+  const entry = {
+    time: new Date().toISOString(),
+    action: "approve-content",
+    status: "approved",
+    type,
+    topic: item.slug || manifestSlug(safeFile),
+    slug: item.slug || manifestSlug(safeFile),
+    manifest: safeFile,
+    instagramId: "",
+    note: "Im Kundenportal freigegeben.",
+  };
+  await appendActivityLog(env, request, entry);
+  return json({ ok: true, entry });
+}
+
 async function publishFromCloud(request, env, type, file) {
-  if (!["carousel", "reel"].includes(type)) {
-    return json({ ok: false, error: "Cloud Publish v1 erlaubt nur Karussell und Reel. Story bleibt publish-ready." }, 403);
+  if (!["carousel", "reel", "story"].includes(type)) {
+    return json({ ok: false, error: "Unbekannter Inhaltstyp." }, 400);
   }
   const safeFile = safePublishFile(file);
   const item = await findManifest(env, request, safeFile);
@@ -451,10 +499,18 @@ async function publishFromCloud(request, env, type, file) {
   if (already) {
     return json({ ok: true, skipped: true, instagramId: already.instagramId || "", message: "Schon veröffentlicht." });
   }
+  const approved = log.find((entry) => entry.status === "approved" && (entry.manifest === safeFile || entry.slug === item.slug));
+  if (!approved) {
+    return json({ ok: false, error: "Vor der Veröffentlichung ist eine Freigabe erforderlich." }, 409);
+  }
 
   try {
     await verifyPublishItem(item);
-    const published = type === "carousel" ? await publishCarousel(env, item) : await publishReel(env, item);
+    const published = type === "carousel"
+      ? await publishCarousel(env, item)
+      : type === "reel"
+        ? await publishReel(env, item)
+        : await publishStory(env, item);
     const entry = {
       time: new Date().toISOString(),
       action: `publish-${type}`,
@@ -464,7 +520,7 @@ async function publishFromCloud(request, env, type, file) {
       slug: item.slug || manifestSlug(safeFile),
       manifest: safeFile,
       instagramId: published.id || "",
-      note: "Cloud Publish v1 über Hasi Social Media.",
+      note: "Nach Kundenfreigabe über Hasi Social Media veröffentlicht.",
     };
     await appendActivityLog(env, request, entry);
     return json({ ok: true, instagramId: published.id || "", entry });
@@ -559,6 +615,10 @@ export default {
     if (url.pathname.startsWith("/api/publish/") && request.method === "POST") {
       const [, , , type, ...fileParts] = url.pathname.split("/");
       return publishFromCloud(request, env, type, decodeURIComponent(fileParts.join("/") || ""));
+    }
+    if (url.pathname.startsWith("/api/approve/") && request.method === "POST") {
+      const [, , , type, ...fileParts] = url.pathname.split("/");
+      return approveFromCloud(request, env, type, decodeURIComponent(fileParts.join("/") || ""));
     }
     return env.ASSETS.fetch(request);
   },

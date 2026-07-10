@@ -1,5 +1,49 @@
 [
   {
+    "time": "2026-07-10T19:18:00+02:00",
+    "action": "publish-story",
+    "status": "published",
+    "type": "story",
+    "topic": "Online-Terminbuchung",
+    "slug": "online-terminbuchung-2026-07-10",
+    "manifest": "online-terminbuchung-2026-07-10.story.manifest.json",
+    "instagramId": "17963151168132939",
+    "note": "Auf ausdrücklichen Nutzerwunsch veröffentlicht; R2 URL vorher erneut als HTTP 200 video/mp4 geprüft."
+  },
+  {
+    "time": "2026-07-10T15:00:00+02:00",
+    "action": "prepare-story",
+    "status": "ready",
+    "type": "story",
+    "topic": "Online-Terminbuchung",
+    "slug": "online-terminbuchung-2026-07-10",
+    "manifest": "online-terminbuchung-2026-07-10.story.manifest.json",
+    "instagramId": "",
+    "note": "Story veröffentlichungsbereit; R2 URL HTTP 200 video/mp4. Nicht automatisch veröffentlicht."
+  },
+  {
+    "time": "2026-07-10T14:59:00+02:00",
+    "action": "publish-reel",
+    "status": "published",
+    "type": "reel",
+    "topic": "Automatisierung für kleine Betriebe",
+    "slug": "automatisierung-kmu-2026-07-10",
+    "manifest": "automatisierung-kmu-2026-07-10.reel.manifest.json",
+    "instagramId": "18102410519135347",
+    "note": "Tagesproduktion nachgeholt; R2 URL HTTP 200 video/mp4; Instagram Reel veröffentlicht."
+  },
+  {
+    "time": "2026-07-10T14:54:00+02:00",
+    "action": "publish-carousel",
+    "status": "published",
+    "type": "carousel",
+    "topic": "App + Website Paket",
+    "slug": "app-website-paket-2026-07-10",
+    "manifest": "app-website-paket-2026-07-10.manifest.json",
+    "instagramId": "17977195434061537",
+    "note": "Tagesproduktion nachgeholt; R2 Upload erfolgreich; Dry Run 7/7 image/png OK."
+  },
+  {
     "time": "2026-07-09T11:04:16+02:00",
     "action": "prepare-story",
     "status": "ready",

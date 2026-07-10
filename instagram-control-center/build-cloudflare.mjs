@@ -72,6 +72,10 @@ async function manifests(log) {
       if (entry.status !== "published" && !entry.instagramId) return false;
       return entry.manifest === file || entry.slug === slug;
     });
+    const approved = log.find((entry) => {
+      if (entry.status !== "approved") return false;
+      return entry.manifest === file || entry.slug === slug;
+    });
     items.push({
       file,
       type,
@@ -82,6 +86,8 @@ async function manifests(log) {
       urls,
       checks,
       ready: checks.length > 0 && checks.every((check) => check.ok),
+      approved: Boolean(approved),
+      approvedAt: approved?.time || "",
       published: Boolean(published),
       publishedAt: published?.time || "",
       instagramId: published?.instagramId || "",
@@ -119,7 +125,7 @@ const status = {
   customers,
   instagram: {
     ok: true,
-    output: "Cloud preview mode. Publishing is disabled in this protected build.",
+    output: "Cloud-Freigabe und Veröffentlichung sind aktiv.",
   },
   manifests: await manifests(log),
   automations: [

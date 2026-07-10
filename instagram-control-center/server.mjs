@@ -371,6 +371,10 @@ async function manifests() {
       if (entry.status !== "published" && !entry.instagramId) return false;
       return entry.manifest === file || entry.slug === file.replace(/\.manifest\.json$/, "").replace(/\.(reel|story)$/, "");
     });
+    const approved = log.find((entry) => {
+      if (entry.status !== "approved") return false;
+      return entry.manifest === file || entry.slug === file.replace(/\.manifest\.json$/, "").replace(/\.(reel|story)$/, "");
+    });
     items.push({
       file,
       type,
@@ -381,6 +385,8 @@ async function manifests() {
       urls,
       checks,
       ready: checks.length > 0 && checks.every((check) => check.ok),
+      approved: Boolean(approved) || Boolean(published),
+      approvedAt: approved?.time || "",
       published: Boolean(published),
       publishedAt: published?.time || "",
       instagramId: published?.instagramId || "",
@@ -466,6 +472,13 @@ async function publish(type, file) {
   const script = scriptByType[type];
   if (!script) return { ok: false, error: "Unknown publish type" };
 
+  const log = await readJson(logPath, []);
+  const slug = safeFile.replace(/\.manifest\.json$/, "").replace(/\.(reel|story)$/, "");
+  const already = log.find((entry) => (entry.status === "published" || entry.instagramId) && (entry.manifest === safeFile || entry.slug === slug));
+  if (already) return { ok: true, skipped: true, instagramId: already.instagramId || "", message: "Schon veröffentlicht." };
+  const approved = log.find((entry) => entry.status === "approved" && (entry.manifest === safeFile || entry.slug === slug));
+  if (!approved) return { ok: false, error: "Vor der Veröffentlichung ist eine Freigabe erforderlich." };
+
   const result = await runNodeScript(join(toolsRoot, script), [manifestPath]);
   const output = result.stdout.trim() || result.stderr.trim();
   const idMatch =
@@ -483,6 +496,34 @@ async function publish(type, file) {
     output,
   });
   return result;
+}
+
+async function approve(type, file) {
+  if (!["carousel", "reel", "story"].includes(type)) return { ok: false, error: "Unbekannter Inhaltstyp." };
+  const safeFile = file.replace(/[^a-zA-Z0-9._-]/g, "");
+  const manifestPath = join(toolsRoot, safeFile);
+  if (!(await exists(manifestPath))) return { ok: false, error: "Manifest nicht gefunden." };
+
+  const item = (await manifests()).find((entry) => entry.file === safeFile && entry.type === type);
+  if (!item) return { ok: false, error: "Manifest nicht gefunden oder falscher Typ." };
+  if (!item.ready) return { ok: false, error: "Der Inhalt ist noch nicht vollständig geprüft." };
+
+  const log = await readJson(logPath, []);
+  const existing = log.find((entry) => entry.status === "approved" && (entry.manifest === safeFile || entry.slug === item.slug));
+  if (existing) return { ok: true, skipped: true, entry: existing, message: "Bereits freigegeben." };
+
+  const entry = {
+    action: "approve-content",
+    status: "approved",
+    type,
+    topic: item.slug,
+    slug: item.slug,
+    manifest: safeFile,
+    instagramId: "",
+    note: "Im Kundenportal freigegeben.",
+  };
+  await appendLog(entry);
+  return { ok: true, entry };
 }
 
 async function serveStatic(req, res, pathname) {
@@ -547,6 +588,11 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/publish/") && req.method === "POST") {
       const [, , , type, file] = url.pathname.split("/");
       send(res, 200, await publish(type, decodeURIComponent(file || "")));
+      return;
+    }
+    if (url.pathname.startsWith("/api/approve/") && req.method === "POST") {
+      const [, , , type, file] = url.pathname.split("/");
+      send(res, 200, await approve(type, decodeURIComponent(file || "")));
       return;
     }
     if (url.pathname.startsWith("/media/")) {
