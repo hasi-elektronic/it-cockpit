@@ -83,6 +83,13 @@ function noStoreHeaders(extra = {}) {
   };
 }
 
+function redirectNoStore(location, status = 302) {
+  return new Response(null, {
+    status,
+    headers: noStoreHeaders({ Location: location }),
+  });
+}
+
 function safeRedirectTarget(value, fallback = "/app") {
   const target = String(value || "").trim();
   if (!target || !target.startsWith("/") || target.startsWith("//")) return fallback;
@@ -490,7 +497,7 @@ export default {
     }
     if (url.pathname === "/login" || url.pathname === "/login.html") {
       if (await verifySession(request, env)) {
-        return Response.redirect(`${url.origin}${safeRedirectTarget(url.searchParams.get("next"), "/app")}`, 302);
+        return redirectNoStore(`${url.origin}${safeRedirectTarget(url.searchParams.get("next"), "/app")}`);
       }
       return new Response(LOGIN_HTML, {
         headers: noStoreHeaders({
@@ -517,7 +524,7 @@ export default {
     if (!(await verifySession(request, env))) {
       if (url.pathname.startsWith("/api/")) return json({ error: "Unauthorized" }, 401);
       const next = safeRedirectTarget(`${url.pathname}${url.search}`, "/app");
-      return Response.redirect(`${url.origin}/login?next=${encodeURIComponent(next)}`, 302);
+      return redirectNoStore(`${url.origin}/login?next=${encodeURIComponent(next)}`);
     }
 
     if (url.pathname === "/admin" || url.pathname === "/admin.html") {
