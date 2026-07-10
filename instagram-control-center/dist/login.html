@@ -119,17 +119,21 @@
         border-color: var(--blue);
         box-shadow: 0 0 0 4px rgba(58, 186, 223, .14);
       }
-      button {
-        width: 100%;
-        height: 50px;
-        margin-top: 22px;
-        border: 0;
-        border-radius: 8px;
-        background: var(--orange);
-        color: #fff;
-        font: inherit;
-        font-weight: 900;
-        cursor: pointer;
+        button {
+          width: 100%;
+          height: 50px;
+          margin-top: 22px;
+          border: 0;
+          border-radius: 8px;
+          background: var(--orange);
+          color: #fff;
+          font: inherit;
+          font-weight: 900;
+          cursor: pointer;
+        }
+      button:disabled {
+        cursor: wait;
+        opacity: .72;
       }
       .error {
         min-height: 20px;
@@ -171,12 +175,12 @@
       <section class="login">
         <h2>Anmelden</h2>
         <p>Bitte mit dem Hasi Zugang anmelden, bevor die Social-Media-Zentrale geöffnet wird.</p>
-        <form id="loginForm">
+        <form id="loginForm" novalidate>
           <label for="email">E-Mail</label>
           <input id="email" name="email" type="email" autocomplete="username" required />
           <label for="password">Passwort</label>
           <input id="password" name="password" type="password" autocomplete="current-password" required />
-          <button type="submit">Hasi Social Media öffnen</button>
+          <button id="loginButton" type="submit">Hasi Social Media öffnen</button>
           <div class="error" id="error"></div>
         </form>
         <div class="small">Geschützter Bereich für Social-Media-Kunden.</div>
@@ -196,25 +200,60 @@
         document.querySelector("#loginForm").addEventListener("submit", async (event) => {
           event.preventDefault();
           const error = document.querySelector("#error");
+          const button = document.querySelector("#loginButton");
+          const emailInput = document.querySelector("#email");
+          const passwordInput = document.querySelector("#password");
           error.textContent = "";
-          const requestedNext = safeRedirectTarget(new URLSearchParams(window.location.search).get("next"));
-          const body = {
-            email: document.querySelector("#email").value,
-            password: document.querySelector("#password").value,
-            next: requestedNext,
-          };
-          const response = await fetch("/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
-          if (response.ok) {
-            const result = await response.json().catch(() => ({}));
-            window.location.assign(safeRedirectTarget(result.redirectTo || requestedNext));
+          const email = emailInput.value.trim();
+          const password = passwordInput.value;
+          if (!email) {
+            error.textContent = "Bitte E-Mail-Adresse eingeben.";
+            emailInput.focus();
             return;
           }
-        error.textContent = "Login fehlgeschlagen. Bitte Zugangsdaten prüfen.";
-      });
+          if (!emailInput.checkValidity()) {
+            error.textContent = "Bitte eine gültige E-Mail-Adresse eingeben.";
+            emailInput.focus();
+            return;
+          }
+          if (!password) {
+            error.textContent = "Bitte Passwort eingeben.";
+            passwordInput.focus();
+            return;
+          }
+          const requestedNext = safeRedirectTarget(new URLSearchParams(window.location.search).get("next"));
+          const body = {
+            email,
+            password,
+            next: requestedNext,
+          };
+          button.disabled = true;
+          button.textContent = "Anmeldung läuft...";
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 15000);
+          try {
+            const response = await fetch("/api/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+            });
+            if (response.ok) {
+              const result = await response.json().catch(() => ({}));
+              window.location.assign(safeRedirectTarget(result.redirectTo || requestedNext));
+              return;
+            }
+            error.textContent = "Login fehlgeschlagen. Bitte Zugangsdaten prüfen.";
+          } catch (loginError) {
+            error.textContent = loginError.name === "AbortError"
+              ? "Anmeldung dauert zu lange. Bitte erneut versuchen."
+              : "Login konnte nicht gesendet werden. Bitte Verbindung prüfen.";
+          } finally {
+            window.clearTimeout(timeout);
+            button.disabled = false;
+            button.textContent = "Hasi Social Media öffnen";
+          }
+        });
     </script>
   </body>
 </html>

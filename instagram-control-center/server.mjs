@@ -14,6 +14,7 @@ const envPath = join(toolsRoot, ".env");
 const logPath = join(appRoot, "data", "activity-log.json");
 const planPath = join(appRoot, "data", "content-plan.json");
 const customersPath = join(appRoot, "data", "customers.json");
+const sessionCookie = "hasi_cockpit_session";
 
 const port = Number(process.env.PORT || 8787);
 
@@ -66,6 +67,37 @@ function slugify(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
+}
+
+function safeRedirectTarget(value, fallback = "/app") {
+  const target = String(value || "").trim();
+  if (!target || !target.startsWith("/") || target.startsWith("//")) return fallback;
+  if (target === "/app" || target.startsWith("/app?") || target.startsWith("/app#")) return target;
+  if (target === "/admin" || target.startsWith("/admin?") || target.startsWith("/admin#")) return target;
+  if (/^\/kunde\/[a-z0-9-]+([/?#].*)?$/i.test(target)) return target;
+  return fallback;
+}
+
+async function loginLocal(req) {
+  const body = await readRequestBody(req);
+  const input = body ? JSON.parse(body) : {};
+  const email = String(input.email || "").trim().toLowerCase();
+  const password = String(input.password || "");
+  const expectedEmail = String(process.env.COCKPIT_EMAIL || "").trim().toLowerCase();
+  const expectedPassword = String(process.env.COCKPIT_PASSWORD || "");
+  if ((expectedEmail || expectedPassword) && (email !== expectedEmail || password !== expectedPassword)) {
+    return { status: 401, body: { ok: false }, headers: {} };
+  }
+  if (!email || !password) {
+    return { status: 400, body: { ok: false, error: "E-Mail und Passwort fehlen" }, headers: {} };
+  }
+  return {
+    status: 200,
+    body: { ok: true, redirectTo: safeRedirectTarget(input.next, "/app") },
+    headers: {
+      "Set-Cookie": `${sessionCookie}=local-dev; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`,
+    },
+  };
 }
 
 function readRequestBody(req) {
@@ -415,11 +447,13 @@ async function serveStatic(req, res, pathname) {
     ? "home.html"
     : pathname === "/demo"
       ? "demo.html"
-      : pathname === "/app" || pathname.startsWith("/kunde/")
-        ? "index.html"
-        : pathname === "/admin"
-          ? "admin.html"
-          : pathname.slice(1);
+      : pathname === "/login"
+        ? "login.html"
+        : pathname === "/app" || pathname.startsWith("/kunde/")
+          ? "index.html"
+          : pathname === "/admin"
+            ? "admin.html"
+            : pathname.slice(1);
   const target = resolve(publicRoot, file);
   if (!target.startsWith(publicRoot) || !(await exists(target))) {
     sendText(res, 404, "Not found");
@@ -432,6 +466,19 @@ async function serveStatic(req, res, pathname) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${port}`);
   try {
+    if (url.pathname === "/logout") {
+      res.writeHead(302, {
+        Location: "/login",
+        "Set-Cookie": `${sessionCookie}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      });
+      res.end();
+      return;
+    }
+    if (url.pathname === "/api/login" && req.method === "POST") {
+      const result = await loginLocal(req);
+      send(res, result.status, result.body, result.headers);
+      return;
+    }
     if (url.pathname === "/api/status") {
       send(res, 200, await status());
       return;
