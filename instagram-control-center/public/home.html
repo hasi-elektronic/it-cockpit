@@ -549,6 +549,269 @@
               color: var(--ink);
               margin-bottom: 6px;
             }
+            .portal-showcase {
+              display: grid;
+              grid-template-columns: 220px 1fr;
+              overflow: hidden;
+              border: 1px solid var(--line);
+              border-radius: 12px;
+              background: #fff;
+              box-shadow: 0 28px 70px rgba(16, 24, 40, .12);
+            }
+            .portal-side {
+              padding: 22px;
+              background: linear-gradient(180deg, var(--navy), #092132);
+              color: #fff;
+            }
+            .portal-brand {
+              display: grid;
+              grid-template-columns: 46px 1fr;
+              gap: 11px;
+              align-items: center;
+              padding-bottom: 20px;
+              border-bottom: 1px solid rgba(216, 238, 245, .18);
+            }
+            .portal-brand img {
+              width: 46px;
+              height: 46px;
+              border-radius: 8px;
+              padding: 6px;
+              background: #fff;
+              object-fit: contain;
+            }
+            .portal-brand b { display: block; font-size: 14px; }
+            .portal-brand span { color: #a7dff0; font-size: 12px; font-weight: 800; }
+            .portal-nav {
+              display: grid;
+              gap: 8px;
+              margin-top: 22px;
+            }
+            .portal-nav span {
+              padding: 10px 11px;
+              border-radius: 8px;
+              color: #cceefa;
+              font-size: 13px;
+              font-weight: 800;
+            }
+            .portal-nav span.active { background: rgba(58, 186, 223, .2); color: #fff; }
+            .portal-main {
+              padding: 22px;
+              background: linear-gradient(180deg, #f7fcfe, #fff);
+            }
+            .portal-top {
+              display: flex;
+              justify-content: space-between;
+              gap: 18px;
+              align-items: start;
+              margin-bottom: 18px;
+            }
+            .portal-top b {
+              display: block;
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-size: 24px;
+            }
+            .portal-top span,
+            .portal-muted {
+              color: var(--muted);
+              font-size: 13px;
+              font-weight: 800;
+            }
+            .portal-badge {
+              display: inline-flex;
+              align-items: center;
+              padding: 8px 10px;
+              border-radius: 8px;
+              background: #e9fbf3;
+              color: #087443;
+              font-size: 12px;
+              font-weight: 900;
+              white-space: nowrap;
+            }
+            .portal-stats {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 12px;
+              margin-bottom: 14px;
+            }
+            .portal-stat,
+            .approval-card,
+            .publish-log,
+            .morning-card,
+            .mode-card {
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              background: #fff;
+            }
+            .portal-stat {
+              padding: 14px;
+            }
+            .portal-stat strong {
+              display: block;
+              color: var(--blue-dark);
+              font-size: 22px;
+              line-height: 1;
+            }
+            .portal-stat span {
+              display: block;
+              margin-top: 7px;
+              color: var(--muted);
+              font-size: 12px;
+              font-weight: 800;
+            }
+            .portal-columns {
+              display: grid;
+              grid-template-columns: 1.05fr .95fr;
+              gap: 14px;
+              align-items: stretch;
+            }
+            .approval-card,
+            .publish-log {
+              padding: 16px;
+            }
+            .approval-head {
+              display: flex;
+              justify-content: space-between;
+              gap: 12px;
+              align-items: center;
+              margin-bottom: 14px;
+            }
+            .approval-head b,
+            .publish-log b {
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-size: 17px;
+            }
+            .approval-preview {
+              display: grid;
+              grid-template-columns: 96px 1fr;
+              gap: 12px;
+              align-items: start;
+            }
+            .approval-preview img {
+              width: 96px;
+              aspect-ratio: 4 / 5;
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              object-fit: cover;
+              background: #f8fcfe;
+            }
+            .caption-box {
+              min-height: 120px;
+              padding: 12px;
+              border-radius: 8px;
+              background: #f7fbfd;
+              color: var(--muted);
+              line-height: 1.45;
+              font-size: 13px;
+            }
+            .approval-checks {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 8px;
+              margin-top: 12px;
+            }
+            .approval-checks span {
+              display: flex;
+              align-items: center;
+              gap: 7px;
+              color: var(--muted);
+              font-size: 12px;
+              font-weight: 800;
+            }
+            .approval-checks span::before {
+              content: "";
+              width: 9px;
+              height: 9px;
+              border-radius: 50%;
+              background: var(--green);
+            }
+            .portal-button-row {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+              margin-top: 14px;
+            }
+            .mini-button {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 38px;
+              padding: 0 13px;
+              border-radius: 8px;
+              border: 1px solid var(--line);
+              background: #fff;
+              color: var(--ink);
+              font-size: 13px;
+              font-weight: 900;
+            }
+            .mini-button.orange {
+              border-color: var(--orange);
+              background: var(--orange);
+              color: #fff;
+            }
+            .log-list {
+              display: grid;
+              gap: 10px;
+              margin-top: 14px;
+            }
+            .log-line {
+              display: grid;
+              grid-template-columns: 58px 1fr;
+              gap: 10px;
+              align-items: start;
+              padding: 11px;
+              border-radius: 8px;
+              background: #f7fbfd;
+            }
+            .log-line time {
+              color: var(--blue-dark);
+              font-size: 12px;
+              font-weight: 900;
+            }
+            .log-line span {
+              color: var(--muted);
+              font-size: 13px;
+              line-height: 1.35;
+            }
+            .morning-grid,
+            .mode-grid {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: 14px;
+            }
+            .morning-card {
+              min-height: 178px;
+              padding: 18px;
+            }
+            .morning-card small,
+            .mode-card small {
+              color: var(--blue-dark);
+              font-weight: 900;
+            }
+            .morning-card b,
+            .mode-card b {
+              display: block;
+              margin-top: 18px;
+              font-family: "Plus Jakarta Sans", "Nunito Sans", system-ui, sans-serif;
+              font-size: 18px;
+            }
+            .morning-card span,
+            .mode-card span {
+              display: block;
+              margin-top: 8px;
+              color: var(--muted);
+              line-height: 1.45;
+            }
+            .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .mode-card {
+              padding: 22px;
+              min-height: 196px;
+            }
+            .route-strip {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+              margin-top: 18px;
+            }
             .workflow {
               display: grid;
               grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -634,7 +897,7 @@
               .hero { grid-template-columns: 1fr; }
               .stage { min-height: 620px; }
               .dashboard { left: 120px; right: auto; }
-              .grid, .tour-grid, .business-grid, .onboarding-layout, .faq-grid { grid-template-columns: 1fr 1fr; }
+              .grid, .tour-grid, .business-grid, .onboarding-layout, .faq-grid, .portal-showcase, .portal-columns, .morning-grid, .mode-grid { grid-template-columns: 1fr 1fr; }
               .workflow { grid-template-columns: 1fr 1fr; }
             }
             @media (max-width: 760px) {
@@ -643,7 +906,7 @@
               .actions { width: 100%; }
               .actions .button { flex: 1; }
               .hero { min-height: auto; padding-top: 38px; }
-              .proof, .grid, .workflow, .cta-band, .tour-grid, .business-grid, .onboarding-layout, .trust-strip, .faq-grid { grid-template-columns: 1fr; }
+              .proof, .grid, .workflow, .cta-band, .tour-grid, .business-grid, .onboarding-layout, .trust-strip, .faq-grid, .portal-showcase, .portal-stats, .portal-columns, .approval-preview, .approval-checks, .morning-grid, .mode-grid { grid-template-columns: 1fr; }
               .stage { min-height: 760px; }
               .dashboard, .phone, .progress { position: relative; inset: auto; width: 100%; margin-top: 16px; }
               .phone { max-width: 280px; margin-inline: auto; }
@@ -661,6 +924,7 @@
             <nav class="nav" aria-label="Hauptnavigation">
               <a href="#leistung">Leistung</a>
               <a href="#ablauf">Ablauf</a>
+              <a href="#portal">Portal</a>
               <a href="#start">Start</a>
               <a href="#faq">FAQ</a>
               <a href="/demo">Demo</a>
@@ -760,6 +1024,116 @@
             <div class="journey-step"><div><b>Du gibst frei oder änderst</b><span>Bild, Text und Datum sind klar. Änderungen gehen zurück in die Vorbereitung.</span></div></div>
             <div class="journey-step"><div><b>Wir veröffentlichen und dokumentieren</b><span>Nach der Veröffentlichung bleiben Status, Uhrzeit und Nachweis im Cockpit sichtbar.</span></div></div>
           </div>
+        </div>
+      </section>
+
+      <section class="section soft" id="portal">
+        <div class="section-head">
+          <h2>So arbeitet der Kunde im Portal</h2>
+          <p>Der Kunde sieht nicht nur fertige Bilder. Er sieht den konkreten Status: Was ist geplant, was wartet auf Freigabe und was wurde bereits veröffentlicht.</p>
+        </div>
+        <div class="portal-showcase" aria-label="Beispielansicht eines Kundenportals">
+          <aside class="portal-side">
+            <div class="portal-brand">
+              <img src="/hasi-logo.png" alt="Hasi Social Media" />
+              <div><b>Hasi Elektronic</b><span>Kundenportal</span></div>
+            </div>
+            <div class="portal-nav">
+              <span class="active">Dashboard</span>
+              <span>Beiträge</span>
+              <span>14 Tage Plan</span>
+              <span>Freigaben</span>
+              <span>Logs</span>
+            </div>
+          </aside>
+          <div class="portal-main">
+            <div class="portal-top">
+              <div>
+                <b>Heute im Social-Media-Plan</b>
+                <span>Beispiel: 10.07.2026 · Kunde prüft vor Veröffentlichung</span>
+              </div>
+              <span class="portal-badge">3 Inhalte vorbereitet</span>
+            </div>
+            <div class="portal-stats">
+              <div class="portal-stat"><strong>08:00</strong><span>Karussell wartet auf Freigabe</span></div>
+              <div class="portal-stat"><strong>08:30</strong><span>Reel wird geprüft</span></div>
+              <div class="portal-stat"><strong>09:00</strong><span>Story publish-ready</span></div>
+            </div>
+            <div class="portal-columns">
+              <article class="approval-card">
+                <div class="approval-head">
+                  <b>Beitrag prüfen</b>
+                  <span class="portal-badge">Freigabe offen</span>
+                </div>
+                <div class="approval-preview">
+                  <img src="https://pub-cf131f1d711447e384202db821c79449.r2.dev/instagram/web-app-lokale-firmen-2026-07-09/slide_1.png" alt="Beispiel Karussell Vorschau" />
+                  <div>
+                    <div class="caption-box">
+                      <b>Caption</b><br />
+                      Web-App, Kundenportal oder Automatisierung für lokale Firmen. Wir zeigen, wie digitale Abläufe im Alltag wirklich helfen.
+                    </div>
+                    <div class="approval-checks">
+                      <span>Bild korrekt</span>
+                      <span>Text korrekt</span>
+                      <span>Datum korrekt</span>
+                      <span>Freigabe ok</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="portal-button-row">
+                  <span class="mini-button">Änderung wünschen</span>
+                  <span class="mini-button orange">Freigabe erteilen</span>
+                </div>
+              </article>
+              <article class="publish-log">
+                <b>Was danach sichtbar bleibt</b>
+                <p class="portal-muted">Jeder Schritt wird dokumentiert. So weißt du später, was wann vorbereitet, freigegeben und veröffentlicht wurde.</p>
+                <div class="log-list">
+                  <div class="log-line"><time>07:42</time><span>Karussell erstellt und Bilder geprüft.</span></div>
+                  <div class="log-line"><time>07:55</time><span>Caption, Datum und Hashtags vorbereitet.</span></div>
+                  <div class="log-line"><time>08:03</time><span>Kunde hat die Freigabe erteilt.</span></div>
+                  <div class="log-line"><time>08:05</time><span>Veröffentlichung abgeschlossen, Nachweis gespeichert.</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+        <div class="route-strip">
+          <a class="button primary" href="/demo">Demo erleben</a>
+          <a class="button" href="/hasi-elektronic">Hasi Kundenportal öffnen</a>
+          <a class="button" href="/kebyshop">Keby Beispiel öffnen</a>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Was der Kunde morgens konkret macht</h2>
+          <p>Der Ablauf ist absichtlich kurz. Ein lokaler Unternehmer soll in wenigen Minuten entscheiden können, ob der Inhalt passt.</p>
+        </div>
+        <div class="morning-grid">
+          <article class="morning-card"><small>01</small><b>Portal öffnen</b><span>Du öffnest dein Kundenportal und siehst sofort, was heute geplant ist.</span></article>
+          <article class="morning-card"><small>02</small><b>Vorschau ansehen</b><span>Du prüfst das Bild direkt in einer Instagram-ähnlichen Ansicht.</span></article>
+          <article class="morning-card"><small>03</small><b>Text kontrollieren</b><span>Caption, Datum und Thema stehen neben der Vorschau, nicht irgendwo im Chat.</span></article>
+          <article class="morning-card"><small>04</small><b>Freigeben oder ändern</b><span>Du gibst frei oder meldest eine Änderung. Danach ist der Status eindeutig.</span></article>
+        </div>
+      </section>
+
+      <section class="section soft">
+        <div class="section-head">
+          <h2>Zwei Arbeitsweisen, je nach Kunde</h2>
+          <p>Manche Kunden wollen jeden Beitrag einzeln prüfen. Andere möchten nach klaren Regeln direkt veröffentlichen lassen.</p>
+        </div>
+        <div class="mode-grid">
+          <article class="mode-card">
+            <small>Modus A</small>
+            <b>Erst Freigabe, dann Veröffentlichung</b>
+            <span>Ideal am Anfang oder bei sensiblen Themen. Der Kunde prüft Bild, Text und Datum im Portal. Erst danach wird veröffentlicht.</span>
+          </article>
+          <article class="mode-card">
+            <small>Modus B</small>
+            <b>Direkt nach vereinbarter Regel</b>
+            <span>Ideal, wenn Marke, Themen und Tonalität klar sind. Standardbeiträge können automatisch laufen, besondere Inhalte bleiben zur Freigabe offen.</span>
+          </article>
         </div>
       </section>
 
@@ -870,7 +1244,7 @@
 
     <footer>
       <span>Hasi Elektronic · Grabenstraße 18 · 71665 Vaihingen/Enz</span>
-      <span>Hasi Social Media · Kundenportal unter /app</span>
+      <span>Hasi Social Media · Kundenportal unter /hasi-elektronic</span>
     </footer>
   </body>
 </html>
