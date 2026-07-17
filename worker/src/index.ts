@@ -54,13 +54,23 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',                   // vite dev
 ];
 
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Any subdomain of it-cockpit.de over https (e.g. sickinger.it-cockpit.de,
+  // logopaedie-menauer.it-cockpit.de) — per-tenant vanity subdomains.
+  try {
+    const u = new URL(origin);
+    return u.protocol === 'https:' && (u.hostname === 'it-cockpit.de' || u.hostname.endsWith('.it-cockpit.de'));
+  } catch { return false; }
+}
+
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') || '';
   // If no Origin header (agent HTTP, curl, server-to-server), use *
-  // If Origin present and in allowlist, echo it back
-  // If Origin present and NOT in allowlist, omit -> browser blocks the response
+  // If Origin present and allowed (allowlist or *.it-cockpit.de subdomain), echo it back
+  // If Origin present and NOT allowed, omit -> browser blocks the response
   const allowOrigin = !origin ? '*'
-    : ALLOWED_ORIGINS.includes(origin) ? origin
+    : isAllowedOrigin(origin) ? origin
     : '';   // disallowed — browser blocks
 
   return {
