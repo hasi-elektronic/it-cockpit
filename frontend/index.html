@@ -280,7 +280,7 @@ tailwind.config = {
         <h2 class="font-serif text-2xl font-bold text-slate-900 mb-1">Willkommen zurück</h2>
         <p class="text-slate-500 text-sm mb-6">Logge Dich in Deinen Tenant ein.</p>
         <form @submit.prevent="doLogin" class="space-y-4">
-          <div><label class="form-label">Tenant (Firma)</label><input v-model="loginForm.tenant" type="text" required placeholder="hasi" class="form-input" /></div>
+          <div><label class="form-label">Tenant (Firma)</label><input v-model="loginForm.tenant" type="text" required placeholder="hasi" class="form-input" :disabled="tenantLockedBySubdomain" :class="tenantLockedBySubdomain ? 'bg-slate-50 text-slate-500' : ''" /><p v-if="tenantLockedBySubdomain" class="text-xs text-slate-400 mt-1">Erkannt über {{ currentHostname }}</p></div>
           <div><label class="form-label">E-Mail</label><input v-model="loginForm.email" type="email" required placeholder="du@firma.de" class="form-input" /></div>
           <div><label class="form-label">Passwort</label><input v-model="loginForm.password" type="password" required class="form-input" /></div>
           <div v-if="loginError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">{{ loginError }}</div>
@@ -2680,6 +2680,8 @@ createApp({
       modal: null,           // null | 'device' | 'license' | 'user' | 'confirm'
       session: { token:'', tenant_id:0, tenant_slug:'', tenant_name:'', user_email:'', role:'', plan:'', user_id:0 },
       loginForm: { tenant:'hasi', email:'', password:'' },
+      tenantLockedBySubdomain: false,
+      currentHostname: '',
       loginLoading: false,
       loginError: '',
       stats: { devices_total:0, devices_active:0, licenses_total:0, licenses_seats:0, warranty_warning:0, license_cost_yearly:0, users_total:0, agent_online:0, agent_offline:0 },
@@ -2869,6 +2871,14 @@ createApp({
     }
   },
   mounted() {
+    // v0.9: Subdomain-based tenant detection, e.g. sickinger.it-cockpit.de -> tenant "sickinger"
+    const host = location.hostname;
+    const parts = host.split('.');
+    if (parts.length > 2 && parts[0] !== 'www' && host.endsWith('it-cockpit.de')) {
+      this.loginForm.tenant = parts[0];
+      this.tenantLockedBySubdomain = true;
+      this.currentHostname = host;
+    }
     const saved = localStorage.getItem('cockpit_session');
     if (saved) {
       try { this.session = JSON.parse(saved); this.view = 'dashboard'; this.loadAll(); }
