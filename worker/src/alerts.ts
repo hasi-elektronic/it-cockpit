@@ -5,6 +5,7 @@
 
 import { EmailMessage } from "cloudflare:email";
 import { createMimeMessage } from "mimetext";
+import { logError } from "./error_logger";
 
 export interface AlertEnv {
   DB: D1Database;
@@ -209,6 +210,7 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
 
   for (const tenantSettings of settings.results) {
     const tenantId = tenantSettings.tenant_id;
+    try {
 
     // Get tenant info (for messages)
     const tenant = await env.DB.prepare(`SELECT name FROM tenants WHERE id = ?`).bind(tenantId).first<any>();
@@ -565,6 +567,13 @@ export async function evaluateAlerts(env: AlertEnv): Promise<{ tenants: number; 
         const msg = `✅ <b>Behoben:</b> ${ruleLabel}\n💻 ${hostname || '—'}\n\nDie Bedingung trifft nicht mehr zu.`;
         await sendTelegram(tenantSettings.telegram_bot_token, tenantSettings.telegram_chat_id, msg);
       }
+    }
+    } catch (e) {
+      // Isolate failures per-tenant so one bad row (e.g. race with a device
+      // deletion) doesn't abort alert evaluation for every other tenant.
+      await logError(env as any, 'alerts.evaluateAlerts', e, {
+        level: 'error', tenantId, extra: { tenant_id: tenantId } as any
+      });
     }
   }
 
